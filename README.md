@@ -1,5 +1,7 @@
 # japanpost-react
 
+[한국어](./README.ko.md)
+
 React + TypeScript workspace for Japan postal-code and address lookup.
 
 The repository uses a `pnpm workspace + turbo` layout and contains:

@@ -42,6 +42,8 @@ pnpm test:package:unit
 
 - Package README content is generated. Edit `packages/japanpost-react/docs/README.en.md`
   and `packages/japanpost-react/docs/README.ko.md`, then run `pnpm readme:package`.
+  This updates `packages/japanpost-react/README.md` and
+  `packages/japanpost-react/README.ko.md`.
 - Internal integration notes live in `japanpost-development-guide.md`.
 
 ## Scope Notes

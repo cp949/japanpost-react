@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 
 const packageDir = path.resolve(import.meta.dirname, "..");
 const packageJsonPath = path.join(packageDir, "package.json");
+const packageReadmePath = path.join(packageDir, "README.md");
+const packageReadmeKoPath = path.join(packageDir, "README.ko.md");
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
   main?: string;
   module?: string;
@@ -36,5 +38,21 @@ describe("package artifacts", () => {
     for (const artifactPath of new Set(artifactPaths)) {
       expect(fs.existsSync(path.join(packageDir, artifactPath))).toBe(true);
     }
+  });
+
+  it("keeps English and Korean package readmes split by file", () => {
+    const englishReadme = fs.readFileSync(packageReadmePath, "utf8");
+    const koreanReadme = fs.readFileSync(packageReadmeKoPath, "utf8");
+    const englishFirstLine = englishReadme.split("\n")[0];
+    const koreanFirstLine = koreanReadme.split("\n")[0];
+
+    expect(englishFirstLine).toBe("# @cp949/japanpost-react");
+    expect(englishReadme).toContain("[한국어 README](./README.ko.md)");
+    expect(englishReadme).not.toContain("[English](#english) | [한국어](#한국어)");
+    expect(englishReadme).not.toContain("## 한국어");
+
+    expect(koreanFirstLine).toBe("# @cp949/japanpost-react");
+    expect(koreanReadme).toContain("[English README](./README.md)");
+    expect(koreanReadme).not.toContain("## English");
   });
 });

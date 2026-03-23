@@ -1,5 +1,7 @@
 # japanpost-react
 
+[English](./README.md)
+
 React + TypeScript 기반의 일본 우편번호/주소 검색 워크스페이스입니다.
 
 이 저장소는 `pnpm workspace + turbo` 구조를 사용하며 다음 세 부분으로 나뉩니다.
