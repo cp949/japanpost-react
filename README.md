@@ -89,5 +89,6 @@ pnpm add @cp949/japanpost-react
 ## More Docs
 
 - Internal development and API integration notes: [`japanpost-development-guide.md`](./japanpost-development-guide.md)
+- Production server guide for the `minimal-api` role (Korean): [`minimal-api-production-guide.ko.md`](./minimal-api-production-guide.ko.md)
 - Demo app source: [`apps/demo`](./apps/demo)
 - Local reference server: [`apps/minimal-api`](./apps/minimal-api)

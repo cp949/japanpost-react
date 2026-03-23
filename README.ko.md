@@ -75,5 +75,6 @@ pnpm add @cp949/japanpost-react
 ## 추가 문서
 
 - 내부 개발 및 API 연동 가이드: [`japanpost-development-guide.md`](./japanpost-development-guide.md)
+- 운영용 Japan Post 연동 서버 가이드: [`minimal-api-production-guide.ko.md`](./minimal-api-production-guide.ko.md)
 - demo 앱 소스: [`apps/demo`](./apps/demo)
 - 로컬 참고 서버: [`apps/minimal-api`](./apps/minimal-api)
