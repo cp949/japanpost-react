@@ -1,0 +1,45 @@
+{
+  "name": "japanpost-react",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cp949/japanpost-react.git"
+  },
+  "homepage": "https://github.com/cp949/japanpost-react",
+  "bugs": {
+    "url": "https://github.com/cp949/japanpost-react/issues"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "pnpm --filter demo dev",
+    "readme:package": "node scripts/generate-package-readme.mjs",
+    "readme:package:check": "node scripts/generate-package-readme.mjs --check",
+    "demo:dev": "pnpm --filter demo dev",
+    "demo:full": "bash ./scripts/dev-demo.sh",
+    "demo:build": "pnpm --filter demo build",
+    "api:dev": "pnpm --filter minimal-api dev",
+    "api:check": "bash ./scripts/check-api.sh",
+    "api:build": "pnpm --filter minimal-api build",
+    "api:check-types": "pnpm --filter minimal-api check-types",
+    "test": "bash ./scripts/test.sh",
+    "test:package": "pnpm --filter @cp949/japanpost-react test",
+    "test:package:unit": "pnpm --filter @cp949/japanpost-react test:unit",
+    "test:scripts": "bash ./scripts/tests/check-api-success.test.sh && bash ./scripts/tests/dev-demo-readiness.test.sh && bash ./scripts/tests/dev-demo-instance-readiness.test.sh && bash ./scripts/tests/check-api-instance-readiness.test.sh",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --write --unsafe",
+    "format": "biome format --write .",
+    "check-types": "turbo run check-types"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.8",
+    "turbo": "^2.8.20",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=20"
+  }
+}

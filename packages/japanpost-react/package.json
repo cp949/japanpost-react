@@ -1,0 +1,76 @@
+{
+  "name": "@cp949/japanpost-react",
+  "version": "0.1.0",
+  "description": "Headless React hooks and optional components for Japan Post postcode and address search",
+  "type": "module",
+  "author": "cp949",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cp949/japanpost-react.git"
+  },
+  "homepage": "https://github.com/cp949/japanpost-react",
+  "bugs": {
+    "url": "https://github.com/cp949/japanpost-react/issues"
+  },
+  "main": "dist/index.umd.cjs",
+  "module": "dist/index.es.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "tsc && vite build",
+    "release": "pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
+    "preview": "vite preview",
+    "lint": "biome lint .",
+    "check-types": "tsc --noEmit",
+    "test": "pnpm test:unit",
+    "test:unit": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "japan",
+    "postcode",
+    "postal-code",
+    "address",
+    "react"
+  ],
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "^29.0.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "typescript": "5.9.3",
+    "vite": "^8.0.1",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.1.0"
+  }
+}

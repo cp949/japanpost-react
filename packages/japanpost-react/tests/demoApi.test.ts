@@ -1,0 +1,237 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  createDemoApiDataSource,
+  readDemoApiHealth,
+} from "../../../apps/demo/src/demoApi";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("demo API integration helpers", () => {
+  it("supports relative API base paths for browser-served demos", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        addresses: [],
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("/minimal-api");
+
+    await expect(dataSource.lookupPostalCode("1000001")).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledWith("/minimal-api/searchcode/1000001", {
+      signal: undefined,
+    });
+  });
+
+  it("supports relative API health paths for browser-served demos", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(readDemoApiHealth("/minimal-api")).resolves.toEqual({
+      ok: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/minimal-api/health");
+  });
+
+  it("maps 404 API responses into structured not_found errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        error: "No matching addresses found",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(dataSource.lookupPostalCode("9999999")).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "not_found",
+      status: 404,
+      message: "No matching addresses found",
+    });
+  });
+
+  it("maps 500 API responses into structured data source errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        error: "JAPAN_POST_CLIENT_ID is required",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(dataSource.searchAddress("Tokyo")).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "data_source_error",
+      status: 500,
+      message: "JAPAN_POST_CLIENT_ID is required",
+    });
+  });
+
+  it("maps 400 postal-code API responses into invalid_postal_code errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: "Postal code must contain exactly 7 digits",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(dataSource.lookupPostalCode("1234")).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "invalid_postal_code",
+      status: 400,
+      message: "Postal code must contain exactly 7 digits",
+    });
+  });
+
+  it("maps 400 address-search API responses into invalid_query errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: "Query parameter q is required",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(dataSource.searchAddress("")).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "invalid_query",
+      status: 400,
+      message: "Query parameter q is required",
+    });
+  });
+
+  it("maps 504 API responses into timeout errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 504,
+      json: async () => ({
+        error: "Address provider request timed out",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(dataSource.searchAddress("Tokyo")).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "timeout",
+      status: 504,
+      message: "Address provider request timed out",
+    });
+  });
+
+  it("maps aborted requests into structured timeout errors", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValue(new DOMException("The operation was aborted.", "AbortError"));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(dataSource.searchAddress("Tokyo")).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "timeout",
+      message: "Request timed out",
+    });
+  });
+
+  it("rejects malformed success payloads with bad_response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        addresses: null,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(dataSource.lookupPostalCode("1000001")).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "bad_response",
+      message: "Response payload must include an addresses array",
+    });
+  });
+
+  it("keeps 503 health payloads readable without throwing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        ok: false,
+        error: "JAPAN_POST_SECRET_KEY is required",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(readDemoApiHealth("http://localhost:8787")).resolves.toEqual(
+      {
+        ok: false,
+        error: "JAPAN_POST_SECRET_KEY is required",
+      },
+    );
+  });
+
+  it("maps unreachable health requests into a stable message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+    );
+
+    await expect(readDemoApiHealth("http://localhost:8787")).rejects.toThrow(
+      "Demo API server is unreachable",
+    );
+  });
+
+  it("rejects invalid health payload JSON with a stable message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError("Unexpected token < in JSON");
+        },
+      }),
+    );
+
+    await expect(readDemoApiHealth("http://localhost:8787")).rejects.toThrow(
+      "Demo API health response was not valid JSON",
+    );
+  });
+});

@@ -1,0 +1,32 @@
+import { describe, expect, it } from "vitest";
+
+import { createJapanAddressError } from "../src/core/errors";
+import { toJapanAddressError } from "../src/react/toJapanAddressError";
+
+describe("toJapanAddressError", () => {
+  it("returns an existing JapanAddressError unchanged", () => {
+    const error = createJapanAddressError(
+      "invalid_query",
+      "Address query is required",
+    );
+
+    expect(toJapanAddressError(error)).toBe(error);
+  });
+
+  it("wraps a generic Error as data_source_error", () => {
+    const error = new Error("boom");
+    const result = toJapanAddressError(error);
+
+    expect(result.code).toBe("data_source_error");
+    expect(result.message).toBe("boom");
+    expect(result.cause).toBe(error);
+  });
+
+  it("wraps non-Error values with an unknown error message", () => {
+    const result = toJapanAddressError("boom");
+
+    expect(result.code).toBe("data_source_error");
+    expect(result.message).toBe("Unknown error");
+    expect(result.cause).toBe("boom");
+  });
+});
