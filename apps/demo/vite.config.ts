@@ -3,12 +3,12 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 type DemoProxyEnv = {
-  DEMO_API_PROXY_TARGET?: string;
+  DEMO_API_PROXY_URL?: string;
   PORT?: string;
 };
 
 export function resolveDemoApiProxyTarget(env: DemoProxyEnv): string {
-  const explicitTarget = env.DEMO_API_PROXY_TARGET?.trim();
+  const explicitTarget = env.DEMO_API_PROXY_URL?.trim();
 
   if (explicitTarget) {
     return explicitTarget;

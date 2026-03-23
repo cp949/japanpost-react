@@ -16,7 +16,7 @@ describe("demo vite proxy target", () => {
   it("prefers an explicit proxy target override", () => {
     expect(
       resolveDemoApiProxyTarget({
-        DEMO_API_PROXY_TARGET: "http://demo-api.internal:3010",
+        DEMO_API_PROXY_URL: "http://demo-api.internal:3010",
         PORT: "9999",
       }),
     ).toBe("http://demo-api.internal:3010");

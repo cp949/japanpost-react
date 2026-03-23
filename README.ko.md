@@ -38,7 +38,7 @@ pnpm demo:full
 앱 `5173`입니다.
 
 `PORT`를 바꾸면 demo dev proxy도 그 포트를 자동으로 따라가며, 완전히 다른 대상을
-쓰려면 `DEMO_API_PROXY_TARGET`으로 명시적으로 override할 수 있습니다.
+쓰려면 `DEMO_API_PROXY_URL`로 명시적으로 override할 수 있습니다.
 
 필요하면 각각 따로 실행할 수도 있습니다.
 

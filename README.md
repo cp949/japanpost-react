@@ -46,7 +46,7 @@ export JAPAN_POST_SECRET_KEY=...
 ```
 
 If you change `PORT`, the demo dev proxy now follows that port automatically.
-If you need a different upstream entirely, set `DEMO_API_PROXY_TARGET`.
+If you need a different upstream entirely, set `DEMO_API_PROXY_URL`.
 
 You can also run the pieces separately:
 
