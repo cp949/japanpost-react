@@ -48,6 +48,24 @@ afterEach(async () => {
 });
 
 describe("minimal api server", () => {
+  it("returns 204 for OPTIONS requests with the current CORS headers", async () => {
+    const server = await startServer({});
+    activeServers.push(server);
+
+    const response = await fetch(`${server.url}/searchcode/1000001`, {
+      method: "OPTIONS",
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    expect(response.headers.get("access-control-allow-methods")).toBe(
+      "GET, OPTIONS",
+    );
+    expect(response.headers.get("access-control-allow-headers")).toBe(
+      "content-type",
+    );
+  });
+
   it("returns health error when credentials are missing", async () => {
     const server = await startServer({});
     activeServers.push(server);
@@ -183,6 +201,33 @@ describe("minimal api server", () => {
     expect(payload).toEqual({ error: "Route not found" });
   });
 
+  it("rejects non-GET methods with 405", async () => {
+    const server = await startServer({});
+    activeServers.push(server);
+
+    const response = await fetch(`${server.url}/health`, {
+      method: "POST",
+    });
+    const payload = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(405);
+    expect(payload).toEqual({ error: "Method not allowed" });
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+  });
+
+  it("rejects blank address queries after trimming whitespace", async () => {
+    const server = await startServer({});
+    activeServers.push(server);
+
+    const response = await fetch(
+      `${server.url}/addresszip?q=${encodeURIComponent("   ")}`,
+    );
+    const payload = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(payload).toEqual({ error: "Query parameter q is required" });
+  });
+
   it("returns matched addresses for a valid postal code", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -230,6 +275,8 @@ describe("minimal api server", () => {
         }),
       ],
     });
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
   });
 
   it("does not duplicate address text when upstream returns a full address string together with structured parts", async () => {

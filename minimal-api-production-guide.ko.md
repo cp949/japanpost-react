@@ -168,8 +168,11 @@ GET /addresszip?q=<query>
 
 ## 6. 인증과 업스트림 호출
 
-`apps/minimal-api/src/japanPostAdapter.ts`의 핵심 책임은 Japan Post 인증과 실제
-조회 호출이다. 다른 프로젝트에서도 이 책임은 서버에 두는 것이 맞다.
+`apps/minimal-api/src/japanPostAdapter.ts`는 orchestration entry point이고,
+실제 세부 책임은 `apps/minimal-api/src/adapter/*`로 나눠 둘 수 있다. 예를 들면
+설정 파싱은 `config.ts`, 토큰 캐시는 `tokenClient.ts`, 인증된 upstream 호출은
+`japanPostGateway.ts`, 응답 정규화는 `normalizers.ts`가 맡는다. 다른 프로젝트에서도
+이 책임 자체는 서버에 두는 것이 맞다.
 
 필수 설정:
 
@@ -197,7 +200,6 @@ GET /addresszip?q=<query>
 - upstream `searchcode`는 원문 기준으로 `page`, `limit`, `ec_uid`, `choikitype`, `searchtype` query parameter를 지원한다.
 - 현재 이 저장소는 `ec_uid` 외에 `choikitype`, `searchtype`도 필요 시 보낼 수 있게 타입을 구체화해 두었다.
   `choikitype`는 `1 | 2`, `searchtype`도 `1 | 2`로 모델링한다.
-- 현재 이 저장소는 query parameter를 별도로 넘기지 않고 upstream 기본값을 사용한다.
 
 ## 7. 라이브러리 친화적인 오류 매핑
 
@@ -265,10 +267,20 @@ type JapanAddressDataSource = {
 
 ## 10. 참고 구현에서 직접 볼 파일
 
-이 저장소에서 실제 참고할 파일은 아래 둘이 핵심이다.
+이 저장소에서 실제 참고할 파일은 아래가 핵심이다.
 
 - `apps/minimal-api/src/server.ts`
 - `apps/minimal-api/src/japanPostAdapter.ts`
+- `apps/minimal-api/src/http/routes.ts`
+- `apps/minimal-api/src/adapter/config.ts`
+- `apps/minimal-api/src/adapter/tokenClient.ts`
+- `apps/minimal-api/src/adapter/japanPostGateway.ts`
+- `apps/minimal-api/src/adapter/normalizers.ts`
+- `apps/minimal-api/src/http/routes.ts`
+- `apps/minimal-api/src/adapter/config.ts`
+- `apps/minimal-api/src/adapter/tokenClient.ts`
+- `apps/minimal-api/src/adapter/japanPostGateway.ts`
+- `apps/minimal-api/src/adapter/normalizers.ts`
 
 그리고 라이브러리 사용 계약은 아래 문서에서 확인하면 된다.
 
