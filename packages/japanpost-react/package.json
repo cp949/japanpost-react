@@ -43,6 +43,7 @@
     "lint": "biome lint .",
     "check-types": "tsc --noEmit",
     "test": "pnpm test:unit",
+    "test:artifacts": "pnpm build && vitest run tests/packageArtifacts.test.ts",
     "test:unit": "vitest run",
     "test:watch": "vitest"
   },
