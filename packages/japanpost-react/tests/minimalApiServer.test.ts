@@ -148,19 +148,19 @@ describe("minimal api server", () => {
     });
   });
 
-  it("rejects malformed postal codes before sending the request upstream", async () => {
+  it("rejects malformed postal-code inputs before sending the request upstream", async () => {
     const server = await startServer({
       JAPAN_POST_CLIENT_ID: "demo-client-id",
       JAPAN_POST_SECRET_KEY: "demo-secret-key",
     });
     activeServers.push(server);
 
-    const shortResponse = await fetch(`${server.url}/searchcode/1234`);
+    const shortResponse = await fetch(`${server.url}/searchcode/12`);
     const shortPayload = (await shortResponse.json()) as { error: string };
 
     expect(shortResponse.status).toBe(400);
     expect(shortPayload).toEqual({
-      error: "Postal code must contain exactly 7 digits",
+      error: "Postal code must contain between 3 and 7 digits",
     });
 
     const longResponse = await fetch(`${server.url}/searchcode/100000123`);
@@ -168,7 +168,7 @@ describe("minimal api server", () => {
 
     expect(longResponse.status).toBe(400);
     expect(longPayload).toEqual({
-      error: "Postal code must contain exactly 7 digits",
+      error: "Postal code must contain between 3 and 7 digits",
     });
   });
 

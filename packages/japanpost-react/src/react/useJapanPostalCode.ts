@@ -53,10 +53,10 @@ export function useJapanPostalCode(
     try {
       const postalCode = normalizeJapanPostalCode(value);
 
-      if (!/^\d{7}$/.test(postalCode)) {
+      if (!/^\d{3,7}$/.test(postalCode)) {
         throw createJapanAddressError(
           "invalid_postal_code",
-          "Postal code must contain exactly 7 digits",
+          "Postal code must contain between 3 and 7 digits",
         );
       }
 

@@ -142,7 +142,8 @@ export function PostalForm() {
 
 ### useJapanPostalCode
 
-우편번호로 주소를 조회합니다.
+우편번호로 주소를 조회합니다. `3~7자리` 숫자 입력을 받아 `3~6자리`일 때는
+prefix 검색으로 동작합니다.
 
 ```tsx
 const { loading, data, error, search, reset } = useJapanPostalCode({

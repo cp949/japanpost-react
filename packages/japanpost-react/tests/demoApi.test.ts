@@ -93,7 +93,7 @@ describe("demo API integration helpers", () => {
       ok: false,
       status: 400,
       json: async () => ({
-        error: "Postal code must contain exactly 7 digits",
+        error: "Postal code must contain between 3 and 7 digits",
       }),
     });
 
@@ -101,11 +101,11 @@ describe("demo API integration helpers", () => {
 
     const dataSource = createDemoApiDataSource("http://localhost:8787");
 
-    await expect(dataSource.lookupPostalCode("1234")).rejects.toMatchObject({
+    await expect(dataSource.lookupPostalCode("12")).rejects.toMatchObject({
       name: "JapanAddressError",
       code: "invalid_postal_code",
       status: 400,
-      message: "Postal code must contain exactly 7 digits",
+      message: "Postal code must contain between 3 and 7 digits",
     });
   });
 

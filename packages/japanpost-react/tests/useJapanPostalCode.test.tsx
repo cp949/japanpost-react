@@ -131,7 +131,38 @@ describe("useJapanPostalCode", () => {
     expect(result.current.data?.postalCode).toBe("1500001");
   });
 
-  it("surfaces invalid postal-code errors instead of truncating extra digits", async () => {
+  it("passes through postal-code prefix searches with at least three digits", async () => {
+    const dataSource = {
+      lookupPostalCode: vi.fn().mockResolvedValue([
+        {
+          postalCode: "1230000",
+          prefecture: "Tokyo",
+          city: "Example-ku",
+          town: "Prefix",
+          address: "Tokyo Example-ku Prefix",
+          provider: "japan-post",
+        },
+      ]),
+      searchAddress: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useJapanPostalCode({ dataSource }));
+
+    await act(async () => {
+      await result.current.search("1234");
+    });
+
+    expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
+      "1234",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(result.current.error).toBeNull();
+    expect(result.current.data?.postalCode).toBe("1234");
+  });
+
+  it("surfaces invalid postal-code errors instead of truncating malformed inputs", async () => {
     const dataSource = {
       lookupPostalCode: vi.fn(),
       searchAddress: vi.fn(),
@@ -140,7 +171,7 @@ describe("useJapanPostalCode", () => {
     const { result } = renderHook(() => useJapanPostalCode({ dataSource }));
 
     await act(async () => {
-      await result.current.search("100000123");
+      await result.current.search("12");
     });
 
     await waitFor(() => {

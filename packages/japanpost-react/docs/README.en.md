@@ -144,7 +144,8 @@ without inserting a hyphen.
 
 ### useJapanPostalCode
 
-Looks up addresses by postal code.
+Looks up addresses by postal code. The hook accepts `3-7` digits and uses
+prefix search when the input has `3-6` digits.
 
 ```tsx
 const { loading, data, error, search, reset } = useJapanPostalCode({

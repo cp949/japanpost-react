@@ -60,6 +60,9 @@ React 앱
 GET /searchcode/:code
 ```
 
+이 저장소 기준으로는 `:code`를 `3~7자리 숫자 우편번호`로 다룬다. `7`자리 미만이면
+upstream `searchcode`의 prefix 검색을 활용한다.
+
 성공 응답 예시:
 
 ```json
@@ -112,7 +115,11 @@ GET /addresszip?q=<query>
 
 참고 구현은 내부적으로 Japan Post `addresszip` API를 `POST`로 호출하지만, 앱
 프런트엔드 계약은 단순한 조회 인터페이스로 유지하고 있다. 이 방식은 계속 권장할
-만하다.
+만하다. upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
+`pref_roma`, `city_code`, `city_name`, `city_kana`, `city_roma`, `town_name`,
+`town_kana`, `town_roma`, `freeword`, `flg_getcity`, `flg_getpref`, `page`,
+`limit` request body와 `ec_uid` query parameter를 지원하지만, 현재
+`japanpost-react` 연동 기준 adapter는 그중 `freeword` subset만 사용한다.
 
 ## 4. 응답 정규화 규칙
 
@@ -148,7 +155,8 @@ GET /addresszip?q=<query>
 우편번호 조회:
 
 - 하이픈과 공백을 제거한 뒤 숫자만 남긴다.
-- 결과가 정확히 7자리 숫자가 아니면 `400`을 반환한다.
+- 결과가 `3~7자리 숫자`가 아니면 `400`을 반환한다.
+- `3~6자리` 입력은 prefix 조회로 upstream `searchcode`에 그대로 전달한다.
 
 주소 검색:
 
@@ -174,6 +182,7 @@ GET /addresszip?q=<query>
 - `JAPAN_POST_TOKEN_PATH`
 - `JAPAN_POST_SEARCH_CODE_PATH`
 - `JAPAN_POST_ADDRESS_ZIP_PATH`
+- `JAPAN_POST_EC_UID`
 - `JAPAN_POST_X_FORWARDED_FOR`
 
 권장 구현 원칙:
@@ -183,6 +192,12 @@ GET /addresszip?q=<query>
 - 동시에 여러 요청이 들어오면 토큰 재발급은 한 번만 일어나게 한다.
 - 업스트림 `401`이 오면 캐시를 비우고 1회만 재시도한다.
 - 토큰 요청과 주소 조회 요청 모두 타임아웃을 둔다.
+- upstream `addresszip`는 `ec_uid` query parameter와 다양한 주소 필드 request body를 지원한다.
+- 현재 이 저장소는 `freeword + flg_getcity: 0 + flg_getpref: 0 + page: 1 + limit: 20`만 보내는 구체적인 subset을 사용한다.
+- upstream `searchcode`는 원문 기준으로 `page`, `limit`, `ec_uid`, `choikitype`, `searchtype` query parameter를 지원한다.
+- 현재 이 저장소는 `ec_uid` 외에 `choikitype`, `searchtype`도 필요 시 보낼 수 있게 타입을 구체화해 두었다.
+  `choikitype`는 `1 | 2`, `searchtype`도 `1 | 2`로 모델링한다.
+- 현재 이 저장소는 query parameter를 별도로 넘기지 않고 upstream 기본값을 사용한다.
 
 ## 7. 라이브러리 친화적인 오류 매핑
 

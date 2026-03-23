@@ -1,74 +1,28 @@
 import type { JapanAddress } from "@cp949/japanpost-react";
+import type {
+  AdapterHttpError,
+  AdapterOptions,
+  AddressAdapter,
+  GatewayTokenCache,
+  HealthStatus,
+  JapanPostAddressZipFreewordRequest,
+  JapanPostAddressZipResponse,
+  JapanPostErrorResponse,
+  JapanPostSearchCodeAddress,
+  JapanPostSearchCodeChoikiType,
+  JapanPostSearchCodeQuery,
+  JapanPostSearchCodeResponse,
+  JapanPostSearchCodeSearchType,
+  JapanPostTokenResponse,
+} from "./japanPostAdapterTypes.js";
 
-type JapanPostTokenResponse = {
-  token?: string;
-  token_type?: string;
-  expires_in?: number;
-};
-
-type JapanPostErrorResponse = {
-  error_code?: string;
-  message?: string;
-  request_id?: string;
-};
-
-type JapanPostSearchCodeAddress = {
-  zip_code?: string | number | null;
-  pref_name?: string | null;
-  pref_kana?: string | null;
-  city_name?: string | null;
-  city_kana?: string | null;
-  town_name?: string | null;
-  town_kana?: string | null;
-  block_name?: string | null;
-  other_name?: string | null;
-  address?: string | null;
-};
-
-type JapanPostSearchCodeResponse = {
-  addresses?: JapanPostSearchCodeAddress[] | null;
-};
-
-type JapanPostAddressZipResponse = {
-  addresses?: JapanPostSearchCodeAddress[] | null;
-};
-
-type GatewayTokenCache = {
-  token: string;
-  expiresAt: number;
-};
-
-type AdapterOptions = {
-  env?: NodeJS.ProcessEnv;
-  fetch?: typeof fetch;
-};
-
-export type HealthStatus = {
-  ok: boolean;
-  error?: string;
-  instanceId?: string;
-};
-
-export type PostalCodeResult = {
-  postalCode: string;
-  addresses: JapanAddress[];
-};
-
-export type AddressSearchResult = {
-  query: string;
-  addresses: JapanAddress[];
-};
-
-export type AddressAdapter = {
-  getHealth(): Promise<HealthStatus>;
-  lookupPostalCode(code: string): Promise<PostalCodeResult>;
-  searchAddress(query: string): Promise<AddressSearchResult>;
-};
-
-type AdapterHttpError = Error & {
-  cause?: unknown;
-  statusCode: number;
-};
+export type {
+  AdapterOptions,
+  AddressAdapter,
+  AddressSearchResult,
+  HealthStatus,
+  PostalCodeResult,
+} from "./japanPostAdapterTypes.js";
 
 const DEFAULT_BASE_URL = "https://api.da.pf.japanpost.jp";
 const DEFAULT_TOKEN_PATH = "/api/v2/j/token";
@@ -208,6 +162,63 @@ function ensureAddresses(payload: {
   }
 
   return payload.addresses;
+}
+
+function parseSearchCodeChoikiType(
+  value: string | undefined,
+): JapanPostSearchCodeChoikiType | undefined {
+  const normalizedValue = value?.trim();
+
+  if (normalizedValue === "1" || normalizedValue === "2") {
+    return Number(normalizedValue) as JapanPostSearchCodeChoikiType;
+  }
+
+  return undefined;
+}
+
+function parseSearchCodeSearchType(
+  value: string | undefined,
+): JapanPostSearchCodeSearchType | undefined {
+  const normalizedValue = value?.trim();
+
+  if (normalizedValue === "1" || normalizedValue === "2") {
+    return Number(normalizedValue) as JapanPostSearchCodeSearchType;
+  }
+
+  return undefined;
+}
+
+function appendEcUid(url: URL, ecUid: string | undefined) {
+  const normalizedEcUid = ecUid?.trim();
+
+  if (!normalizedEcUid) {
+    return;
+  }
+
+  url.searchParams.set("ec_uid", normalizedEcUid);
+}
+
+function appendSearchCodeQuery(
+  url: URL,
+  query: JapanPostSearchCodeQuery,
+) {
+  appendEcUid(url, query.ec_uid);
+
+  if (typeof query.page === "number") {
+    url.searchParams.set("page", String(query.page));
+  }
+
+  if (typeof query.limit === "number") {
+    url.searchParams.set("limit", String(query.limit));
+  }
+
+  if (query.choikitype !== undefined) {
+    url.searchParams.set("choikitype", String(query.choikitype));
+  }
+
+  if (query.searchtype !== undefined) {
+    url.searchParams.set("searchtype", String(query.searchtype));
+  }
 }
 
 export function createJapanPostAdapter(
@@ -467,14 +478,26 @@ export function createJapanPostAdapter(
     async lookupPostalCode(postalCode: string) {
       const normalizedCode = normalizePostalCode(postalCode);
 
-      if (!/^\d{7}$/.test(normalizedCode)) {
-        throw createHttpError(400, "Postal code must contain exactly 7 digits");
+      if (!/^\d{3,7}$/.test(normalizedCode)) {
+        throw createHttpError(
+          400,
+          "Postal code must contain between 3 and 7 digits",
+        );
       }
 
       const endpoint = new URL(
         `${searchCodePath.replace(/\/$/, "")}/${normalizedCode}`,
         baseUrl,
       );
+      appendSearchCodeQuery(endpoint, {
+        ec_uid: env.JAPAN_POST_EC_UID,
+        choikitype: parseSearchCodeChoikiType(
+          env.JAPAN_POST_SEARCH_CODE_CHOIKITYPE,
+        ),
+        searchtype: parseSearchCodeSearchType(
+          env.JAPAN_POST_SEARCH_CODE_SEARCHTYPE,
+        ),
+      });
       const payload = await fetchWithToken<JapanPostSearchCodeResponse>(
         endpoint,
         {
@@ -497,17 +520,21 @@ export function createJapanPostAdapter(
       }
 
       const endpoint = new URL(addressZipPath, baseUrl);
+      appendEcUid(endpoint, env.JAPAN_POST_EC_UID);
+      const requestBody: JapanPostAddressZipFreewordRequest<
+        typeof DEFAULT_ADDRESS_SEARCH_LIMIT
+      > = {
+        freeword: normalizedQuery,
+        flg_getcity: 0,
+        flg_getpref: 0,
+        page: 1,
+        limit: DEFAULT_ADDRESS_SEARCH_LIMIT,
+      };
       const payload = await fetchWithToken<JapanPostAddressZipResponse>(
         endpoint,
         {
           method: "POST",
-          body: JSON.stringify({
-            freeword: normalizedQuery,
-            flg_getcity: 0,
-            flg_getpref: 0,
-            page: 1,
-            limit: DEFAULT_ADDRESS_SEARCH_LIMIT,
-          }),
+          body: JSON.stringify(requestBody),
         },
       );
       const addresses = ensureAddresses(payload);
