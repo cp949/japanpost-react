@@ -14,6 +14,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "pnpm --filter demo dev",
+    "release:package": "pnpm --dir packages/japanpost-react release",
     "readme:package": "node scripts/generate-package-readme.mjs",
     "readme:package:check": "node scripts/generate-package-readme.mjs --check",
     "demo:dev": "pnpm --filter demo dev",
