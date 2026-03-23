@@ -148,7 +148,7 @@ GET /addresszip?q=<query>
 우편번호 조회:
 
 - 하이픈과 공백을 제거한 뒤 숫자만 남긴다.
-- 결과가 정확히 7자리 숫자가 아니면 `400`을 반환한다.
+- 결과가 3~7자리 숫자가 아니면 `400`을 반환한다.
 
 주소 검색:
 
@@ -160,8 +160,11 @@ GET /addresszip?q=<query>
 
 ## 6. 인증과 업스트림 호출
 
-`apps/minimal-api/src/japanPostAdapter.ts`의 핵심 책임은 Japan Post 인증과 실제
-조회 호출이다. 다른 프로젝트에서도 이 책임은 서버에 두는 것이 맞다.
+`apps/minimal-api/src/japanPostAdapter.ts`는 orchestration entry point이고,
+실제 세부 책임은 `apps/minimal-api/src/adapter/*`로 나눠 둘 수 있다. 예를 들면
+설정 파싱은 `config.ts`, 토큰 캐시는 `tokenClient.ts`, 인증된 upstream 호출은
+`japanPostGateway.ts`, 응답 정규화는 `normalizers.ts`가 맡는다. 다른 프로젝트에서도
+이 책임 자체는 서버에 두는 것이 맞다.
 
 필수 설정:
 
@@ -250,10 +253,15 @@ type JapanAddressDataSource = {
 
 ## 10. 참고 구현에서 직접 볼 파일
 
-이 저장소에서 실제 참고할 파일은 아래 둘이 핵심이다.
+이 저장소에서 실제 참고할 파일은 아래가 핵심이다.
 
 - `apps/minimal-api/src/server.ts`
 - `apps/minimal-api/src/japanPostAdapter.ts`
+- `apps/minimal-api/src/http/routes.ts`
+- `apps/minimal-api/src/adapter/config.ts`
+- `apps/minimal-api/src/adapter/tokenClient.ts`
+- `apps/minimal-api/src/adapter/japanPostGateway.ts`
+- `apps/minimal-api/src/adapter/normalizers.ts`
 
 그리고 라이브러리 사용 계약은 아래 문서에서 확인하면 된다.
 

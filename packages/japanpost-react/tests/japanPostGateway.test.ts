@@ -191,7 +191,155 @@ describe("createJapanPostAdapter", () => {
     });
   });
 
-  it("rejects postal codes that do not contain exactly seven digits", async () => {
+  it("supports postal-code prefix search when the input has at least three digits", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "token-1",
+          expires_in: 3600,
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          addresses: [
+            {
+              zip_code: "1230000",
+              pref_name: "Tokyo",
+              city_name: "Example-ku",
+              town_name: "Prefix",
+            },
+          ],
+        }),
+      } as Response);
+
+    const gateway = createJapanPostAdapter({
+      env: {
+        JAPAN_POST_CLIENT_ID: "demo-client",
+        JAPAN_POST_SECRET_KEY: "demo-secret",
+      },
+      fetch: fetchMock,
+    });
+
+    await expect(gateway.lookupPostalCode("1234")).resolves.toMatchObject({
+      postalCode: "1234",
+      addresses: [
+        expect.objectContaining({
+          postalCode: "1230000",
+        }),
+      ],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("https://api.da.pf.japanpost.jp/api/v2/searchcode/1234"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
+  it("forwards ec_uid to searchcode when configured", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "token-1",
+          expires_in: 3600,
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          addresses: [
+            {
+              zip_code: "1000001",
+              pref_name: "Tokyo",
+              city_name: "Chiyoda-ku",
+              town_name: "Chiyoda",
+            },
+          ],
+        }),
+      } as Response);
+
+    const gateway = createJapanPostAdapter({
+      env: {
+        JAPAN_POST_CLIENT_ID: "demo-client",
+        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPAN_POST_EC_UID: "provider-user-1",
+      },
+      fetch: fetchMock,
+    });
+
+    await expect(gateway.lookupPostalCode("1000001")).resolves.toMatchObject({
+      postalCode: "1000001",
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL(
+        "https://api.da.pf.japanpost.jp/api/v2/searchcode/1000001?ec_uid=provider-user-1",
+      ),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
+  it("forwards configured searchcode query parameters with narrowed union values", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "token-1",
+          expires_in: 3600,
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          addresses: [
+            {
+              zip_code: "1000001",
+              pref_name: "Tokyo",
+              city_name: "Chiyoda-ku",
+              town_name: "Chiyoda",
+            },
+          ],
+        }),
+      } as Response);
+
+    const gateway = createJapanPostAdapter({
+      env: {
+        JAPAN_POST_CLIENT_ID: "demo-client",
+        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPAN_POST_EC_UID: "provider-user-1",
+        JAPAN_POST_SEARCH_CODE_CHOIKITYPE: "2",
+        JAPAN_POST_SEARCH_CODE_SEARCHTYPE: "2",
+      },
+      fetch: fetchMock,
+    });
+
+    await expect(gateway.lookupPostalCode("1000001")).resolves.toMatchObject({
+      postalCode: "1000001",
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL(
+        "https://api.da.pf.japanpost.jp/api/v2/searchcode/1000001?ec_uid=provider-user-1&choikitype=2&searchtype=2",
+      ),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
+  it("rejects postal-code inputs that are not between three and seven digits", async () => {
     const gateway = createJapanPostAdapter({
       env: {
         JAPAN_POST_CLIENT_ID: "demo-client",
@@ -200,14 +348,14 @@ describe("createJapanPostAdapter", () => {
       fetch: vi.fn<typeof fetch>(),
     });
 
-    await expect(gateway.lookupPostalCode("1234")).rejects.toMatchObject({
+    await expect(gateway.lookupPostalCode("12")).rejects.toMatchObject({
       statusCode: 400,
-      message: "Postal code must contain exactly 7 digits",
+      message: "Postal code must contain between 3 and 7 digits",
     });
 
     await expect(gateway.lookupPostalCode("100000123")).rejects.toMatchObject({
       statusCode: 400,
-      message: "Postal code must contain exactly 7 digits",
+      message: "Postal code must contain between 3 and 7 digits",
     });
   });
 
@@ -370,6 +518,61 @@ describe("createJapanPostAdapter", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       new URL("https://api.da.pf.japanpost.jp/api/v2/addresszip"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          freeword: "Tokyo",
+          flg_getcity: 0,
+          flg_getpref: 0,
+          page: 1,
+          limit: 20,
+        }),
+      }),
+    );
+  });
+
+  it("forwards ec_uid to addresszip when configured", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "token-1",
+          expires_in: 3600,
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          addresses: [
+            {
+              zip_code: "1000001",
+              pref_name: "Tokyo",
+              city_name: "Chiyoda-ku",
+              town_name: "Chiyoda",
+            },
+          ],
+        }),
+      } as Response);
+
+    const gateway = createJapanPostAdapter({
+      env: {
+        JAPAN_POST_CLIENT_ID: "demo-client",
+        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPAN_POST_EC_UID: "provider-user-1",
+      },
+      fetch: fetchMock,
+    });
+
+    await expect(gateway.searchAddress("Tokyo")).resolves.toMatchObject({
+      query: "Tokyo",
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL(
+        "https://api.da.pf.japanpost.jp/api/v2/addresszip?ec_uid=provider-user-1",
+      ),
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
