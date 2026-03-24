@@ -1,6 +1,12 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 /**
+ * `japanpost-react`의 공개 계약과 내부 정규화 계약을 한 곳에 모아 둔 타입 모음이다.
+ * 훅, 입력 컴포넌트, data source, minimal-api 연동 예제가 모두 이 정의를 기준으로 맞물리므로
+ * 필드 의미를 바꿀 때는 런타임 동작뿐 아니라 외부 사용자의 기대 계약도 함께 고려해야 한다.
+ */
+
+/**
  * 일본우정 API에서 반환되는 원본 주소 레코드 형태.
  * 공개 API 표면에는 직접 노출하지 않고 내부에서만 사용한다.
  */
@@ -108,6 +114,56 @@ export type JapanPostApiResponse =
   | JapanPostAddressZipResponse;
 
 /**
+ * minimal-api가 그대로 받는 공개 searchcode 요청 타입이다.
+ * pageNumber/rowsPerPage를 노출하는 이유는 라이브러리와 API 예제가 같은 pager 의미 체계를 공유하기 위해서다.
+ */
+export type JapanPostSearchcodeRequest = {
+  /*
+   * 검색할 우편번호 값
+   */
+  value: string;
+
+  /*
+   * 현재 페이지 번호 (0-based)
+   */
+  pageNumber: number;
+
+  /*
+   * 페이지당 요소 수
+   */
+  rowsPerPage: number;
+
+  /*
+   * 괄호 포함 마을명 반환 여부
+   */
+  includeParenthesesTown?: boolean | null;
+};
+
+/**
+ * minimal-api가 그대로 받는 공개 addresszip 요청 타입이다.
+ * 자유 검색(freeword)뿐 아니라 구조화 검색 필드도 함께 열어 두어
+ * 상위 UI가 필요한 만큼만 업스트림 검색 축을 선택적으로 노출할 수 있게 한다.
+ */
+export type JapanPostAddresszipRequest = {
+  freeword?: string | null;
+  prefCode?: string | null;
+  prefName?: string | null;
+  prefKana?: string | null;
+  prefRoma?: string | null;
+  cityCode?: string | null;
+  cityName?: string | null;
+  cityKana?: string | null;
+  cityRoma?: string | null;
+  townName?: string | null;
+  townKana?: string | null;
+  townRoma?: string | null;
+  pageNumber: number;
+  rowsPerPage: number;
+  includeCityDetails?: boolean | null;
+  includePrefectureDetails?: boolean | null;
+};
+
+/**
  * API 응답을 정규화한 후의 중간 주소 레코드 형태.
  * 내부 data source 처리 후 공개 JapanAddress 타입으로 변환되기 전에 사용된다.
  */
@@ -155,6 +211,7 @@ export type NormalizedJapanAddressRecord = {
 
 /**
  * 라이브러리 공개 주소 타입. 훅과 클라이언트가 외부로 반환하는 최종 형태.
+ * `address`는 표시 편의를 위한 결합 문자열이고, 나머지 필드는 후처리/재조합이 가능한 구조화 값이다.
  */
 export type JapanAddress = {
   /*
@@ -204,7 +261,8 @@ export type JapanAddress = {
 };
 
 /**
- * Kotlin/minimal-api와 호환되는 공개 페이징 응답 타입.
+ * minimal-api와 라이브러리가 공통으로 사용하는 pager 응답 계약이다.
+ * 페이지 기반 UI가 아니더라도 total/page 정보를 유지해 "결과 없음"과 "일부만 조회됨"을 구분할 수 있다.
  */
 export type Page<T> = {
   /*
@@ -229,17 +287,20 @@ export type Page<T> = {
 };
 
 /**
- * 우편번호 조회 결과. Kotlin/minimal-api와 동일하게 pager payload를 그대로 반환한다.
+ * 우편번호 조회 결과.
+ * 단일 주소만 기대하는 소비자도 있을 수 있지만, 업스트림 계약이 목록 + 페이징이므로 그대로 보존한다.
  */
 export type JapanPostalCodeLookupResult = Page<JapanAddress>;
 
 /**
- * 키워드 주소 검색 결과. Kotlin/minimal-api와 동일하게 pager payload를 그대로 반환한다.
+ * 키워드 주소 검색 결과.
+ * postal code 조회와 동일한 pager 형태를 사용해 두 검색 모드를 같은 UI로 렌더링할 수 있게 한다.
  */
 export type JapanAddressSearchResult = Page<JapanAddress>;
 
 /**
  * 라이브러리 전용 오류 코드 목록.
+ * 소비자는 message 문자열보다 code를 기준으로 UX를 분기하는 것이 안전하다.
  */
 export type JapanAddressErrorCode =
   | "invalid_postal_code" // 유효하지 않은 우편번호 형식
@@ -252,6 +313,7 @@ export type JapanAddressErrorCode =
 
 /**
  * 라이브러리 전용 에러 타입. 훅과 data source 전반에서 일관되게 사용된다.
+ * 브라우저/서버/사용자 입력 오류를 모두 같은 형태로 감싸 public contract를 단순화한다.
  */
 export type JapanAddressError = Error & {
   /*
@@ -277,6 +339,7 @@ export type JapanAddressError = Error & {
 
 /**
  * data source 요청에 전달할 선택 옵션.
+ * 현재는 AbortSignal만 쓰지만, 추후 timeout/metadata가 필요해져도 호출부 시그니처를 크게 흔들지 않기 위한 확장 지점이다.
  */
 export type JapanAddressRequestOptions = {
   /*
@@ -288,20 +351,22 @@ export type JapanAddressRequestOptions = {
 /**
  * 주소 데이터를 제공하는 data source 인터페이스.
  * 커스텀 구현체로 교체할 수 있도록 추상화되어 있다.
+ * 즉, 훅은 fetch 구현을 모르고 pager 계약과 에러 계약만 신뢰한다.
  */
 export type JapanAddressDataSource = {
   lookupPostalCode: (
-    postalCode: string,
+    request: JapanPostSearchcodeRequest,
     options?: JapanAddressRequestOptions,
   ) => Promise<Page<JapanAddress>>;
   searchAddress: (
-    query: string,
+    request: JapanPostAddresszipRequest,
     options?: JapanAddressRequestOptions,
   ) => Promise<Page<JapanAddress>>;
 };
 
 /**
- * useJapanPostalCode 훅 옵션
+ * useJapanPostalCode 훅 옵션.
+ * data source 주입 방식으로 브라우저 직접 호출, BFF, mock을 모두 같은 훅으로 다룬다.
  */
 export type UseJapanPostalCodeOptions = {
   /*
@@ -311,7 +376,8 @@ export type UseJapanPostalCodeOptions = {
 };
 
 /**
- * useJapanAddressSearch 훅 옵션
+ * useJapanAddressSearch 훅 옵션.
+ * debounce는 UI 입력 빈도를 제어하기 위한 것이며 data source 계약을 바꾸지 않는다.
  */
 export type UseJapanAddressSearchOptions = {
   /*
@@ -326,7 +392,8 @@ export type UseJapanAddressSearchOptions = {
 };
 
 /**
- * useJapanAddress 훅 옵션
+ * useJapanAddress 훅 옵션.
+ * 통합 훅도 내부적으로는 두 검색 훅을 조합하므로 필요한 옵션만 얇게 위임한다.
  */
 export type UseJapanAddressOptions = {
   /*
@@ -342,6 +409,7 @@ export type UseJapanAddressOptions = {
 
 /**
  * 비동기 데이터 로딩 상태를 표현하는 제네릭 타입.
+ * 모든 훅이 같은 상태 모양을 공유하면 소비자 컴포넌트가 검색 종류와 무관하게 공통 렌더링 로직을 가질 수 있다.
  */
 export type UseAsyncState<T> = {
   /*
@@ -361,7 +429,8 @@ export type UseAsyncState<T> = {
 };
 
 /**
- * useJapanPostalCode 훅의 반환 타입
+ * useJapanPostalCode 훅의 반환 타입.
+ * search는 실패나 취소 시 null을 반환해 UI가 try/catch 없이도 분기할 수 있게 한다.
  */
 export type UseJapanPostalCodeResult =
   UseAsyncState<JapanPostalCodeLookupResult> & {
@@ -377,7 +446,8 @@ export type UseJapanPostalCodeResult =
   };
 
 /**
- * useJapanAddressSearch 훅의 반환 타입
+ * useJapanAddressSearch 훅의 반환 타입.
+ * debounce 취소와 오류 모두 Promise 결과 관점에서는 null로 귀결될 수 있으므로 호출부는 state와 함께 해석해야 한다.
  */
 export type UseJapanAddressSearchResult =
   UseAsyncState<JapanAddressSearchResult> & {
@@ -393,7 +463,8 @@ export type UseJapanAddressSearchResult =
   };
 
 /**
- * useJapanAddress 훅의 반환 타입 (우편번호·키워드 통합)
+ * useJapanAddress 훅의 반환 타입.
+ * data/error는 "현재 활성 검색 모드" 기준 값이며, 두 내부 훅의 상태 전체를 그대로 노출하지는 않는다.
  */
 export type UseJapanAddressResult = UseAsyncState<Page<JapanAddress>> & {
   /*
@@ -415,7 +486,8 @@ export type UseJapanAddressResult = UseAsyncState<Page<JapanAddress>> & {
 };
 
 /**
- * 검색 입력 컴포넌트들이 공유하는 공통 props
+ * 검색 입력 컴포넌트들이 공유하는 공통 props.
+ * 제어/비제어 모드를 모두 지원해 폼 라이브러리와 단순 데모 예제를 같은 컴포넌트로 소화한다.
  */
 type BaseTextSearchInputProps = {
   /*
@@ -461,7 +533,8 @@ type BaseTextSearchInputProps = {
 };
 
 /**
- * PostalCodeInput 컴포넌트 props
+ * PostalCodeInput 컴포넌트 props.
+ * onSearch는 표시 문자열이 아니라 정규화된 우편번호를 받는다는 점이 핵심 계약이다.
  */
 export type PostalCodeInputProps = BaseTextSearchInputProps & {
 
@@ -477,7 +550,8 @@ export type PostalCodeInputProps = BaseTextSearchInputProps & {
 };
 
 /**
- * AddressSearchInput 컴포넌트 props
+ * AddressSearchInput 컴포넌트 props.
+ * onSearch에는 trim 처리된 검색어가 전달되어 공백만 다른 입력이 별도 쿼리로 취급되지 않게 한다.
  */
 export type AddressSearchInputProps = BaseTextSearchInputProps & {
   /*

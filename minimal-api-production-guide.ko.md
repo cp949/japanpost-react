@@ -41,8 +41,24 @@ React 앱
 
 즉 서버는 최소한 아래 두 조회를 지원해야 한다.
 
-- `lookupPostalCode(postalCode)`
-- `searchAddress(query)`
+- `lookupPostalCode(request)`
+- `searchAddress(request)`
+
+여기서 `request` shape는 현재 `@cp949/japanpost-react`의 공개 타입과 맞춰 두는 것이
+좋다.
+
+- 우편번호 조회: `JapanPostSearchcodeRequest`
+- 주소 검색: `JapanPostAddresszipRequest`
+
+반면 훅 public API는 여전히 문자열 기반이다.
+
+- `useJapanPostalCode().search(value: string)`
+- `useJapanAddressSearch().search(query: string)`
+- `useJapanAddress().searchByPostalCode(value: string)`
+- `useJapanAddress().searchByKeyword(query: string)`
+
+즉 앱 코드는 문자열을 넘기고, 훅 내부에서 request object를 조립해 `dataSource`로
+전달한다.
 
 라이브러리 자체는 `/health`를 요구하지 않는다.
 
@@ -66,7 +82,7 @@ POST /q/japanpost/searchcode
 {
   "value": "1020072",
   "pageNumber": 0,
-  "rowsPerPage": 10
+  "rowsPerPage": 100
 }
 ```
 
@@ -89,7 +105,7 @@ POST /q/japanpost/searchcode
   ],
   "totalElements": 1,
   "pageNumber": 0,
-  "rowsPerPage": 10
+  "rowsPerPage": 100
 }
 ```
 
@@ -107,9 +123,7 @@ POST /q/japanpost/addresszip
 {
   "freeword": "千代田",
   "pageNumber": 0,
-  "rowsPerPage": 20,
-  "includeCityDetails": false,
-  "includePrefectureDetails": false
+  "rowsPerPage": 100
 }
 ```
 
@@ -132,7 +146,7 @@ POST /q/japanpost/addresszip
   ],
   "totalElements": 1,
   "pageNumber": 0,
-  "rowsPerPage": 20
+  "rowsPerPage": 100
 }
 ```
 
@@ -140,7 +154,7 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 `pref_roma`, `city_code`, `city_name`, `city_kana`, `city_roma`, `town_name`,
 `town_kana`, `town_roma`, `freeword`, `flg_getcity`, `flg_getpref`, `page`,
 `limit` request body와 `ec_uid` query parameter를 지원하지만, 현재
-`minimal-api` high-level은 Kotlin 계약에 맞춘 camelCase body를 받고 내부에서
+`minimal-api` high-level은 공개 타입에 맞춘 camelCase body를 받고 내부에서
 업스트림 request body로 매핑한다.
 
 ## 4. 응답 정규화 규칙
@@ -184,7 +198,10 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 주소 검색:
 
 - 검색 필드를 trim 처리한다.
-- 모든 검색 필드가 비어 있으면 `400`을 반환한다.
+- 모든 검색 필드가 비어 있으면 현재 beta 호환 경로에서는 `200 + empty page`를
+  우선 권장한다.
+- 훅은 이미 빈 문자열에 대해 client-side `invalid_query` 선제 검증을 수행하므로,
+  서버에서 다시 같은 입력을 오류로 강제하지 않아도 UX는 유지된다.
 
 이 검증을 서버에서 해두면 클라이언트 구현이 단순해지고, 잘못된 입력을 업스트림까지
 보내지 않아도 된다.
@@ -219,7 +236,9 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 - 업스트림 `401`이 오면 캐시를 비우고 1회만 재시도한다.
 - 토큰 요청과 주소 조회 요청 모두 타임아웃을 둔다.
 - upstream `addresszip`는 `ec_uid` query parameter와 다양한 주소 필드 request body를 지원한다.
-- 현재 이 저장소는 `freeword + flg_getcity: 0 + flg_getpref: 0 + page: 1 + limit: 20`만 보내는 구체적인 subset을 사용한다.
+- 현재 훅 기본 동작은 `{ freeword, pageNumber: 0, rowsPerPage: 100 }`만 조립해서 넘긴다.
+- `includeCityDetails`, `includePrefectureDetails` 같은 optional flag는 기본적으로 생략한다.
+- 서버 구현은 필요할 때만 이 optional field를 upstream body로 매핑하면 된다.
 - upstream `searchcode`는 원문 기준으로 `page`, `limit`, `ec_uid`, `choikitype`, `searchtype` query parameter를 지원한다.
 - 현재 이 저장소는 `ec_uid` 외에 `choikitype`, `searchtype`도 필요 시 보낼 수 있게 타입을 구체화해 두었다.
   `choikitype`는 `1 | 2`, `searchtype`도 `1 | 2`로 모델링한다.
@@ -232,13 +251,13 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 권장 HTTP 기준:
 
 - 잘못된 우편번호: `400`
-- 빈 검색어: `400`
-- 결과 없음: `404`
+- 빈 검색어: 현재 beta 호환 경로에서는 `200 + empty page` 권장
+- 결과 없음: 현재 beta 호환 경로에서는 `200 + empty page` 권장
 - 업스트림 인증/연동 실패: `502`
 - 업스트림 타임아웃: `504`
 - 예상하지 못한 서버 오류: `500`
 
-응답 예시:
+오류 응답 예시:
 
 ```json
 { "error": "No matching addresses found" }
@@ -249,7 +268,7 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 
 - `400 /q/japanpost/searchcode` -> `invalid_postal_code`
 - `400 /q/japanpost/addresszip` -> `invalid_query`
-- `404` -> `not_found`
+- miss를 오류로 노출하는 백엔드에서 `404` -> `not_found`
 - `504` -> `timeout`
 - 네트워크 실패 -> `network_error`
 - 그 외 -> `data_source_error`

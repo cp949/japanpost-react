@@ -37,6 +37,14 @@ pnpm demo:full
 것까지 확인한 뒤에만 demo 앱을 시작합니다. 기본 포트는 API 서버 `8788`, demo
 앱 `5173`입니다.
 
+최소 `.secrets/env` 예시는 다음과 같습니다.
+
+```bash
+export JAPAN_POST_BASE_URL=...
+export JAPAN_POST_CLIENT_ID=...
+export JAPAN_POST_SECRET_KEY=...
+```
+
 `PORT`를 바꾸면 demo dev proxy도 그 포트를 자동으로 따라가며, 완전히 다른 대상을
 쓰려면 `DEMO_API_PROXY_URL`로 명시적으로 override할 수 있습니다.
 
@@ -53,6 +61,10 @@ pnpm demo:dev
 pnpm api:check
 ```
 
+이 명령은 실제 업스트림 자격증명이 들어 있는 `.secrets/env` 파일을 전제로
+`apps/minimal-api`를 시작한 뒤 `/health`, `/q/japanpost/searchcode`,
+`/q/japanpost/addresszip`를 순서대로 점검합니다.
+
 저장소 전체 검증은 다음으로 실행합니다.
 
 ```bash
@@ -60,7 +72,8 @@ pnpm test
 ```
 
 이 루트 진입점은 패키지 테스트, 생성된 패키지 README 동기화 검사, Linux/WSL
-기준 demo readiness 셸 회귀 테스트를 함께 실행합니다.
+기준 `check-api.sh` / `dev-demo.sh` 셸 회귀 테스트와 두 진입점의
+instance-readiness 검사까지 함께 실행합니다.
 
 ## 설치
 
@@ -71,6 +84,24 @@ pnpm add @cp949/japanpost-react
 - 지원 React 버전: React 18, React 19
 - 실제 배포 패키지 경로: [`packages/japanpost-react`](./packages/japanpost-react)
 - 패키지 사용 문서: [`packages/japanpost-react/README.md`](./packages/japanpost-react/README.md)
+
+## Page-Aware Public Contract
+
+배포 패키지 `@cp949/japanpost-react`의 공개 계약은 참고 `minimal-api`의
+pager-aware high-level 계약과 정렬되어 있습니다.
+
+- `JapanAddressDataSource.lookupPostalCode()`와 `.searchAddress()`는 모두
+  `Promise<Page<JapanAddress>>`를 반환합니다.
+- 훅 결과는 `Page<JapanAddress>` payload 자체를 그대로 노출합니다.
+- `useJapanPostalCode`, `useJapanAddressSearch`, `useJapanAddress`는
+  `data.elements`와 `data.totalElements`를 사용합니다.
+- `Page<T>`는 `elements`, `totalElements`, `pageNumber`, `rowsPerPage`를
+  유지합니다.
+
+```ts
+const addresses = data?.elements ?? [];
+const total = data?.totalElements ?? 0;
+```
 
 ## 추가 문서
 

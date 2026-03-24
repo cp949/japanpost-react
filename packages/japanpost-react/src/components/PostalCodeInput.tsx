@@ -5,6 +5,7 @@ import type { PostalCodeInputProps } from "../core/types";
 /**
  * 스타일 의존성이 없는 최소한의 우편번호 입력 컴포넌트.
  * value를 전달하면 제어 모드, 전달하지 않으면 비제어 모드로 동작한다.
+ * 제출 시에는 표시 형식이 아니라 정규화된 숫자 문자열을 콜백에 넘기는 것이 핵심 계약이다.
  */
 export function PostalCodeInput({
   defaultValue = "",
@@ -51,6 +52,7 @@ export function PostalCodeInput({
         <input
           {...inputProps}
           disabled={disabled}
+          // 모바일 키패드 힌트만 주고, 실제 유효성 판단은 상위 훅/유틸이 담당한다.
           inputMode={inputProps?.inputMode ?? "numeric"}
           value={currentValue}
           onChange={(event) => handleChange(event.target.value)}

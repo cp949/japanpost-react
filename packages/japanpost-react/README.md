@@ -23,115 +23,112 @@ pnpm add @cp949/japanpost-react
 
 ```tsx
 import { useJapanPostalCode } from "@cp949/japanpost-react";
-import type { JapanAddressDataSource, Page, JapanAddress } from "@cp949/japanpost-react";
+import type {
+  JapanAddressDataSource,
+  JapanAddressRequestOptions,
+  JapanAddress,
+  Page,
+} from "@cp949/japanpost-react";
 import { createJapanAddressError } from "@cp949/japanpost-react";
 
 // The only supported integration model is a real server-backed flow.
 // Point the data source at your own backend API.
+// On beta-compatible backends, blank addresszip searches and postal-code misses
+// may return HTTP 200 with an empty page. Keep those as successful Page results.
+// The status mapping below applies only to non-OK responses.
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function resolveErrorCode(path: string, status: number) {
+  if (status === 404) {
+    return "not_found";
+  }
+
+  if (status === 504) {
+    return "timeout";
+  }
+
+  if (status === 400) {
+    return path === "/q/japanpost/searchcode"
+      ? "invalid_postal_code"
+      : "invalid_query";
+  }
+
+  return "data_source_error";
+}
+
+async function readPage(
+  path: string,
+  request: unknown,
+  options?: JapanAddressRequestOptions,
+): Promise<Page<JapanAddress>> {
+  let res: Response;
+
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(request),
+      signal: options?.signal,
+    });
+  } catch (error) {
+    throw createJapanAddressError(
+      isAbortError(error) ? "timeout" : "network_error",
+      isAbortError(error) ? "Request timed out" : "Network request failed",
+      {
+        cause: error,
+      },
+    );
+  }
+
+  if (!res.ok) {
+    const message = `Request failed with status ${res.status}`;
+
+    throw createJapanAddressError(resolveErrorCode(path, res.status), message, {
+      status: res.status,
+    });
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = await res.json();
+  } catch (error) {
+    throw createJapanAddressError(
+      "bad_response",
+      "Response payload was not valid JSON",
+      {
+        cause: error,
+      },
+    );
+  }
+
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !Array.isArray((payload as { elements?: unknown }).elements) ||
+    typeof (payload as { totalElements?: unknown }).totalElements !== "number" ||
+    typeof (payload as { pageNumber?: unknown }).pageNumber !== "number" ||
+    typeof (payload as { rowsPerPage?: unknown }).rowsPerPage !== "number"
+  ) {
+    throw createJapanAddressError(
+      "bad_response",
+      "Response payload must include a valid page payload",
+    );
+  }
+
+  return payload as Page<JapanAddress>;
+}
+
 const dataSource: JapanAddressDataSource = {
-  async lookupPostalCode(postalCode) {
-    const res = await fetch(`/q/japanpost/searchcode`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        value: postalCode,
-        pageNumber: 0,
-        rowsPerPage: 20,
-      }),
-    });
-    if (!res.ok) {
-      const message = `Postal code lookup failed with status ${res.status}`;
-
-      if (res.status === 400) {
-        throw createJapanAddressError("invalid_postal_code", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 404) {
-        throw createJapanAddressError("not_found", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 504) {
-        throw createJapanAddressError("timeout", message, {
-          status: res.status,
-        });
-      }
-
-      throw createJapanAddressError("data_source_error", message, {
-        status: res.status,
-      });
-    }
-    const payload = await res.json();
-    if (
-      !Array.isArray(payload.elements) ||
-      typeof payload.totalElements !== "number" ||
-      typeof payload.pageNumber !== "number" ||
-      typeof payload.rowsPerPage !== "number"
-    ) {
-      throw createJapanAddressError(
-        "bad_response",
-        "Postal code lookup returned an invalid page payload",
-      );
-    }
-    return payload as Page<JapanAddress>;
+  async lookupPostalCode(request, options) {
+    return readPage(`/q/japanpost/searchcode`, request, options);
   },
-  async searchAddress(query) {
-    const res = await fetch(`/q/japanpost/addresszip`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        freeword: query,
-        pageNumber: 0,
-        rowsPerPage: 20,
-        includeCityDetails: false,
-        includePrefectureDetails: false,
-      }),
-    });
-    if (!res.ok) {
-      const message = `Address search failed with status ${res.status}`;
-
-      if (res.status === 400) {
-        throw createJapanAddressError("invalid_query", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 404) {
-        throw createJapanAddressError("not_found", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 504) {
-        throw createJapanAddressError("timeout", message, {
-          status: res.status,
-        });
-      }
-
-      throw createJapanAddressError("data_source_error", message, {
-        status: res.status,
-      });
-    }
-    const payload = await res.json();
-    if (
-      !Array.isArray(payload.elements) ||
-      typeof payload.totalElements !== "number" ||
-      typeof payload.pageNumber !== "number" ||
-      typeof payload.rowsPerPage !== "number"
-    ) {
-      throw createJapanAddressError(
-        "bad_response",
-        "Address search returned an invalid page payload",
-      );
-    }
-    return payload as Page<JapanAddress>;
+  async searchAddress(request, options) {
+    return readPage(`/q/japanpost/addresszip`, request, options);
   },
 };
 
@@ -156,6 +153,12 @@ export function PostalForm() {
 }
 ```
 
+The sample `resolveErrorCode()` helper only classifies non-OK responses. In the
+current beta-compatible contract, blank address-search requests and postal-code
+misses may still succeed with `200` plus an empty page, while `404 -> not_found`
+remains a backend-specific choice for servers that intentionally surface misses
+as errors.
+
 ## Exports
 
 - `normalizeJapanPostalCode`
@@ -168,7 +171,8 @@ export function PostalForm() {
 - `useJapanAddress`
 - `PostalCodeInput`
 - `AddressSearchInput`
-- Public types including `JapanAddress`, `JapanAddressDataSource`, and `Page`
+- Public types including `JapanAddress`, `JapanAddressDataSource`,
+  `JapanPostSearchcodeRequest`, `JapanPostAddresszipRequest`, and `Page`
 - Request options type: `JapanAddressRequestOptions`
 
 ## Utility Notes
@@ -201,6 +205,11 @@ const { loading, data, error, search, reset } = useJapanAddressSearch({
 });
 ```
 
+The hook still performs client-side pre-validation for blank queries and
+returns `invalid_query` before sending a request. That validation is a UX
+helper only and does not replace server-side validation or server-side
+contract handling.
+
 ### useJapanAddress
 
 Combines postal-code lookup and keyword search into one hook.
@@ -212,13 +221,28 @@ const { loading, data, error, searchByPostalCode, searchByKeyword, reset } =
 
 All hooks require `dataSource` at runtime.
 
+The hook public APIs stay string-based:
+
+- `useJapanPostalCode().search(value: string)`
+- `useJapanAddressSearch().search(query: string)`
+- `useJapanAddress().searchByPostalCode(value: string)`
+- `useJapanAddress().searchByKeyword(query: string)`
+
+Internally, the hooks build request objects before calling the data source:
+
+- postal-code lookup: `{ value, pageNumber: 0, rowsPerPage: 100 }`
+- address search: `{ freeword, pageNumber: 0, rowsPerPage: 100 }`
+
+Optional request flags such as `includeCityDetails` and
+`includePrefectureDetails` are omitted unless your own data source
+implementation sets them explicitly.
+
 ## Error Handling Notes
 
 `JapanAddressDataSource` should return `Page<JapanAddress>` directly from both
 methods. Hooks preserve that page payload as-is, so consumers can read
 `data.elements`, `data.totalElements`, `data.pageNumber`, and
-`data.rowsPerPage` directly. The public contract no longer includes
-`totalPages`, `offset`, `isFirst`, `isLast`, or `nextKey`.
+`data.rowsPerPage` directly.
 
 Both methods may also receive an optional second argument:
 
@@ -236,17 +260,20 @@ Recommended error-code mapping:
 | Situation | Recommended code |
 | --- | --- |
 | Invalid postal code input | `invalid_postal_code` |
-| Blank keyword input | `invalid_query` |
+| Blank keyword input in hook-side pre-validation | `invalid_query` |
 | Network failure | `network_error` |
 | Request aborted / timeout | `timeout` |
-| No matching addresses | `not_found` |
+| No matching addresses on backends that surface misses as errors | `not_found` |
 | Malformed success payload | `bad_response` |
 | Other backend failures | `data_source_error` |
 
-In this repository's reference demo flow, the sample `dataSource` maps `400
-/q/japanpost/searchcode` to `invalid_postal_code`, `400
-/q/japanpost/addresszip` to `invalid_query`, `404` to `not_found`, and `504`
-to `timeout`.
+In this repository's reference demo flow, the sample `dataSource` classifies
+failed requests by HTTP status code only. Current beta-compatible flows may
+return `200` with an empty page for both blank `addresszip` requests and
+postal-code misses, and those should stay successful page results. Other
+`400` responses can still map to `invalid_query`, `404` remains useful for
+backends that intentionally surface misses as errors, and `504` maps to
+`timeout`.
 
 ## Headless Components
 

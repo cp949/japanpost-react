@@ -1,3 +1,7 @@
+/**
+ * 일본우정 원본 HTTP 계약 타입이다.
+ * public contract가 아니라 upstream 변화 흡수용 타입이므로 optional/null 가능성을 그대로 보존한다.
+ */
 export type JapanPostTokenResponse = {
   token?: string;
   token_type?: string;
@@ -33,6 +37,7 @@ export type JapanPostSearchCodeChoikiType = 1 | 2;
 export type JapanPostSearchCodeSearchType = 1 | 2;
 
 export type JapanPostSearchCodeQuery = {
+  // upstream searchcode는 1-based page를 사용하므로 adapter에서 변환해 채운다.
   page?: number;
   limit?: number;
   ec_uid?: string;

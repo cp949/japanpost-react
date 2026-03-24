@@ -35,7 +35,7 @@ describe("createJapanPostAdapter facade", () => {
     });
   });
 
-  it("returns a momo pager payload for searchcode requests", async () => {
+  it("returns a page payload for searchcode requests", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce({
@@ -74,7 +74,6 @@ describe("createJapanPostAdapter facade", () => {
         pageNumber: 0,
         rowsPerPage: 10,
         includeParenthesesTown: true,
-        includeBusinessAddresses: false,
       }),
     ).resolves.toEqual({
       elements: [
@@ -105,10 +104,10 @@ describe("createJapanPostAdapter facade", () => {
     expect(searchCodeUrl).toContain("page=1");
     expect(searchCodeUrl).toContain("limit=10");
     expect(searchCodeUrl).toContain("choikitype=2");
-    expect(searchCodeUrl).toContain("searchtype=2");
+    expect(searchCodeUrl).not.toContain("searchtype=");
   });
 
-  it("returns a momo pager payload for addresszip requests", async () => {
+  it("returns a page payload for addresszip requests", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce({
@@ -222,6 +221,51 @@ describe("createJapanPostAdapter facade", () => {
     ).rejects.toMatchObject({
       statusCode: 502,
       message: "Address provider returned an invalid postal code",
+    });
+  });
+
+  it("rejects non-numeric upstream postal-code counts", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "token-1",
+          expires_in: 3600,
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          count: "1",
+          addresses: [
+            {
+              zip_code: "1000001",
+              pref_name: "Tokyo",
+              city_name: "Chiyoda-ku",
+              town_name: "Chiyoda",
+            },
+          ],
+        }),
+      } as Response);
+
+    const adapter = createJapanPostAdapter({
+      env: {
+        JAPAN_POST_CLIENT_ID: "demo-client",
+        JAPAN_POST_SECRET_KEY: "demo-secret",
+      },
+      fetch: fetchMock,
+    });
+
+    await expect(
+      adapter.searchcode({
+        value: "1000001",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 502,
+      message: "Address provider returned an unexpected response",
     });
   });
 

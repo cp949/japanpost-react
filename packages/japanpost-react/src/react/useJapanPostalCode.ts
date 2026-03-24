@@ -11,6 +11,10 @@ import type {
 import { toJapanAddressError } from "./toJapanAddressError";
 import { useLatestRequestState } from "./useLatestRequestState";
 
+/**
+ * useJapanPostalCode가 사용할 data source를 강제한다.
+ * 훅 내부에서는 존재를 전제로 동작하므로 초기에 명확하게 실패시키는 편이 디버깅이 쉽다.
+ */
 function resolvePostalCodeDataSource(dataSource?: JapanAddressDataSource) {
   if (dataSource) {
     return dataSource;
@@ -26,7 +30,7 @@ function resolvePostalCodeDataSource(dataSource?: JapanAddressDataSource) {
 export function useJapanPostalCode(
   options: UseJapanPostalCodeOptions,
 ): UseJapanPostalCodeResult {
-  // 클라이언트가 매 렌더마다 재생성되지 않도록 useMemo로 캐싱
+  // dataSource 참조가 바뀔 때만 새 인스턴스를 쓰도록 고정해 불필요한 훅 내부 리셋을 줄인다.
   const dataSource = useMemo(
     () => resolvePostalCodeDataSource(options.dataSource),
     [options.dataSource],
@@ -45,12 +49,14 @@ export function useJapanPostalCode(
 
   /**
    * 우편번호를 받아 주소를 조회한다.
-   * 언마운트되거나 더 최신 요청이 있으면 상태를 업데이트하지 않는다.
+   * 입력은 하이픈 포함 여부와 무관하게 숫자만 추출해 최소 3자리~최대 7자리까지 허용한다.
+   * 언마운트되거나 더 최신 요청이 있으면 내부 상태 업데이트는 무시된다.
    */
   const search = useCallback(async (value: string) => {
     const { requestId, signal } = beginRequest();
 
     try {
+      // 사용자가 입력한 표시 형식을 그대로 계약으로 넘기지 않고 숫자만 남긴다.
       const postalCode = normalizeJapanPostalCode(value);
 
       if (!/^\d{3,7}$/.test(postalCode)) {
@@ -63,13 +69,20 @@ export function useJapanPostalCode(
       const requestOptions: JapanAddressRequestOptions = {
         signal,
       };
+      // pageNumber/rowsPerPage는 공개 결과가 pager payload라는 계약을 유지하기 위해 항상 명시한다.
+      const request = {
+        value: postalCode,
+        pageNumber: 0,
+        rowsPerPage: 100,
+      };
       const result = await dataSource.lookupPostalCode(
-        postalCode,
+        request,
         requestOptions,
       );
       setSuccess(requestId, result);
       return result;
     } catch (caughtError) {
+      // data source가 어떤 형태의 예외를 던지더라도 라이브러리 공개 에러 형태로 맞춘다.
       return setFailure(requestId, toJapanAddressError(caughtError));
     } finally {
       finishRequest(requestId);

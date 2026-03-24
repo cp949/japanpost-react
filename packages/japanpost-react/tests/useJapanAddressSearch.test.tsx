@@ -42,7 +42,11 @@ describe("useJapanAddressSearch", () => {
     });
 
     expect(dataSource.searchAddress).toHaveBeenCalledWith(
-      "Tokyo",
+      {
+        freeword: "Tokyo",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      },
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       }),
@@ -86,7 +90,11 @@ describe("useJapanAddressSearch", () => {
     await expect(secondPromise).resolves.toEqual(page);
     expect(dataSource.searchAddress).toHaveBeenCalledTimes(1);
     expect(dataSource.searchAddress).toHaveBeenCalledWith(
-      "Osaka",
+      {
+        freeword: "Osaka",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      },
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       }),
@@ -102,7 +110,7 @@ describe("useJapanAddressSearch", () => {
       searchAddress: vi
         .fn()
         .mockImplementationOnce(
-          (_query: string, options?: { signal?: AbortSignal }) => {
+          (_request, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
             return new Promise<Page<JapanAddress>>((resolve) => {
               resolveFirst = resolve;
@@ -110,7 +118,7 @@ describe("useJapanAddressSearch", () => {
           },
         )
         .mockImplementationOnce(
-          (_query: string, options?: { signal?: AbortSignal }) => {
+          (_request, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
             return new Promise<Page<JapanAddress>>((resolve) => {
               resolveSecond = resolve;
@@ -151,7 +159,7 @@ describe("useJapanAddressSearch", () => {
     const dataSource = {
       lookupPostalCode: vi.fn(),
       searchAddress: vi.fn(
-        (_query: string, options?: { signal?: AbortSignal }) =>
+        (_request, options?: { signal?: AbortSignal }) =>
           new Promise<Page<JapanAddress>>((_resolve) => {
             capturedSignal = options?.signal;
           }),

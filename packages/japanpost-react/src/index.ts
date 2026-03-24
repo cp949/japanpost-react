@@ -26,6 +26,8 @@ export type {
   JapanAddressDataSource,
   JapanAddressError,
   JapanAddressErrorCode,
+  JapanPostAddresszipRequest,
+  JapanPostSearchcodeRequest,
   JapanAddressRequestOptions,
   JapanAddressSearchResult,
   JapanPostalCodeLookupResult,

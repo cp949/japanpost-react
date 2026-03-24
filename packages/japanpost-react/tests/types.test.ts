@@ -1,6 +1,10 @@
 import { describe, expect, it, expectTypeOf } from "vitest";
 
-import type { NormalizedJapanAddressRecord } from "../src";
+import type {
+  JapanPostAddresszipRequest,
+  JapanPostSearchcodeRequest,
+  NormalizedJapanAddressRecord,
+} from "../src";
 import type {
   JapanAddress,
   JapanPostApiAddressRecord,
@@ -38,10 +42,10 @@ describe("core types", () => {
     };
 
     const dataSource: JapanAddressDataSource = {
-      async lookupPostalCode() {
+      async lookupPostalCode(_request) {
         return page;
       },
-      async searchAddress() {
+      async searchAddress(_request) {
         return page;
       },
     };
@@ -82,19 +86,35 @@ describe("core types", () => {
 });
 
 expectTypeOf<JapanAddressError["name"]>().toEqualTypeOf<"JapanAddressError">();
-expectTypeOf<NormalizedJapanAddressRecord>().toMatchTypeOf<{
+expectTypeOf<NormalizedJapanAddressRecord>().toExtend<{
   postalCode: string;
   prefecture: string;
   city: string;
   town: string;
 }>();
-expectTypeOf<Page<JapanAddress>>().toMatchTypeOf<{
+expectTypeOf<Page<JapanAddress>>().toExtend<{
   elements: JapanAddress[];
   totalElements: number;
   pageNumber: number;
   rowsPerPage: number;
 }>();
-expectTypeOf<JapanAddressErrorCode>().toMatchTypeOf<
+expectTypeOf<JapanPostSearchcodeRequest>().toExtend<{
+  value: string;
+  pageNumber: number;
+  rowsPerPage: number;
+}>();
+type HasIncludeBusinessAddresses =
+  "includeBusinessAddresses" extends keyof JapanPostSearchcodeRequest
+    ? true
+    : false;
+expectTypeOf<HasIncludeBusinessAddresses>().toEqualTypeOf<false>();
+
+expectTypeOf<JapanPostAddresszipRequest>().toExtend<{
+  freeword?: string | null;
+  pageNumber: number;
+  rowsPerPage: number;
+}>();
+expectTypeOf<JapanAddressErrorCode>().toExtend<
   | "invalid_postal_code"
   | "invalid_query"
   | "network_error"

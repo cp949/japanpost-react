@@ -73,8 +73,8 @@ pnpm test
 
 That root entrypoint runs the package test suite, verifies the generated
 package README is in sync with `packages/japanpost-react/docs`, and runs the
-Linux/WSL-oriented shell regressions for `check-api.sh` and `dev-demo.sh`
-together.
+Linux/WSL-oriented shell regressions for `check-api.sh` and `dev-demo.sh`,
+including the instance-readiness checks for both entrypoints.
 
 ## Install
 
@@ -86,25 +86,18 @@ pnpm add @cp949/japanpost-react
 - The published package lives in [`packages/japanpost-react`](./packages/japanpost-react)
 - Package usage docs live in [`packages/japanpost-react/README.md`](./packages/japanpost-react/README.md)
 
-## Breaking Change: Page-Aware Public Contract
+## Page-Aware Public Contract
 
-The published `@cp949/japanpost-react` contract now stays aligned with the
-Kotlin/minimal-api high-level pager contract. This is an intentional breaking
-change.
+The published `@cp949/japanpost-react` contract stays aligned with the
+reference `minimal-api` high-level pager contract.
 
-Migration notes:
-
-- `JapanAddressDataSource.lookupPostalCode()` and `.searchAddress()` must now
-  return `Promise<Page<JapanAddress>>`, not `Promise<JapanAddress[]>`.
-- Hook results are now the `Page<JapanAddress>` payload itself.
-  `useJapanPostalCode`, `useJapanAddressSearch`, and `useJapanAddress` no
-  longer wrap results as `{ postalCode, addresses }` or `{ query, addresses }`.
-- Update consumer code from `data.addresses` to `data.elements`.
-- `Page<T>` now keeps only `elements`, `totalElements`, `pageNumber`, and
+- `JapanAddressDataSource.lookupPostalCode()` and `.searchAddress()` return
+  `Promise<Page<JapanAddress>>`.
+- Hook results expose the `Page<JapanAddress>` payload itself.
+- `useJapanPostalCode`, `useJapanAddressSearch`, and `useJapanAddress` use
+  `data.elements` and `data.totalElements`.
+- `Page<T>` keeps `elements`, `totalElements`, `pageNumber`, and
   `rowsPerPage`.
-- `Page<T>` no longer provides `totalPages`, `offset`, `isFirst`, `isLast`, or
-  `nextKey`.
-- The public pager type name is `Page<T>`.
 
 ```ts
 const addresses = data?.elements ?? [];

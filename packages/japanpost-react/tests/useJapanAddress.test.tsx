@@ -6,6 +6,55 @@ import { useJapanAddress } from "../src/react/useJapanAddress";
 import { createJapanAddressError } from "../src/core/errors";
 
 describe("useJapanAddress", () => {
+  it("forwards request objects through the combined hook API", async () => {
+    const dataSource = {
+      lookupPostalCode: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 100,
+      }),
+      searchAddress: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 100,
+      }),
+    };
+
+    const { result } = renderHook(() => useJapanAddress({ dataSource }));
+
+    await act(async () => {
+      await result.current.searchByPostalCode("100-0001");
+    });
+
+    expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
+      {
+        value: "1000001",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      },
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.searchByKeyword(" Tokyo ");
+    });
+
+    expect(dataSource.searchAddress).toHaveBeenCalledWith(
+      {
+        freeword: "Tokyo",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      },
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+  });
+
   it("provides a unified resettable API", async () => {
     const dataSource = {
       lookupPostalCode: vi.fn().mockResolvedValue({

@@ -21,6 +21,10 @@ type JapanPostTokenClientOptions = {
   timeoutMs?: number;
 };
 
+/**
+ * 일본우정 access token 발급과 캐시를 담당한다.
+ * 동시 요청 dedupe와 만료 버퍼를 넣어 인증 서버 호출을 최소화한다.
+ */
 function requireEnv(
   env: NodeJS.ProcessEnv,
   name: "JAPAN_POST_CLIENT_ID" | "JAPAN_POST_SECRET_KEY",
@@ -85,6 +89,7 @@ export function createJapanPostTokenClient({
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: JapanPostTokenClientOptions) {
   let cachedToken: GatewayTokenCache | null = null;
+  // 이미 진행 중인 토큰 발급 Promise를 공유해 경쟁 요청을 하나로 합친다.
   let pendingTokenRequest: Promise<string> | null = null;
 
   return {
@@ -97,6 +102,7 @@ export function createJapanPostTokenClient({
         cachedToken &&
         cachedToken.expiresAt > Date.now() + TOKEN_REFRESH_BUFFER_MS
       ) {
+        // 만료 직전 토큰을 재사용하면 실제 API 호출 도중 401이 날 수 있어 여유 시간을 둔다.
         return cachedToken.token;
       }
 
@@ -147,6 +153,7 @@ export function createJapanPostTokenClient({
 
           cachedToken = {
             token: payload.token,
+            // expires_in이 비정상이더라도 최소 60초는 유지해 즉시 재인증 루프를 피한다.
             expiresAt:
               Date.now() + Math.max((payload.expires_in ?? 60) * 1000, 60_000),
           };
@@ -172,6 +179,7 @@ export function createJapanPostTokenClient({
           );
         } finally {
           timeout.clear();
+          // 성공/실패와 무관하게 pending 상태를 비워 다음 호출이 새 판단을 하게 한다.
           pendingTokenRequest = null;
         }
       })();

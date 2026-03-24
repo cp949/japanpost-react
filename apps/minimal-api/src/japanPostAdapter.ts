@@ -5,7 +5,7 @@ import type {
   JapanAddress,
   JapanPostAddresszipRequest,
   JapanPostSearchcodeRequest,
-  MomoPagerData,
+  Page,
 } from "./japanPostAdapterTypes.js";
 import type { JapanPostSearchCodeAddress } from "./japanPost/clientTypes.js";
 
@@ -16,7 +16,7 @@ export type {
   JapanAddress,
   JapanPostAddresszipRequest,
   JapanPostSearchcodeRequest,
-  MomoPagerData,
+  Page,
 } from "./japanPostAdapterTypes.js";
 export { createHttpError } from "./adapter/errors.js";
 
@@ -27,9 +27,15 @@ import {
   normalizePostalCode,
 } from "./japanPost/normalizers.js";
 
+/**
+ * minimal-api의 핵심 어댑터 계층이다.
+ * 일본우정 원본 클라이언트를 외부에 직접 노출하지 않고,
+ * 입력 검증, 업스트림 파라미터 변환, pager 계약 유지, 오류 상태 코드 정리를 이곳에서 담당한다.
+ */
 function ensureAddresses(payload: {
   addresses?: JapanPostSearchCodeAddress[] | null;
 }): JapanPostSearchCodeAddress[] {
+  // upstream 계약 이상을 빈 배열로 삼켜 버리면 "검색 결과 없음"과 구분할 수 없으므로 502로 실패시킨다.
   if (!Array.isArray(payload.addresses)) {
     throw createHttpError(
       502,
@@ -40,12 +46,13 @@ function ensureAddresses(payload: {
   return payload.addresses;
 }
 
-function toMomoPagerData(
+function toPage(
   addresses: JapanAddress[],
   totalElements: number,
   pageNumber: number,
   rowsPerPage: number,
-): MomoPagerData<JapanAddress> {
+): Page<JapanAddress> {
+  // 외부 공개 계약은 0-based page를 사용하므로 adapter 경계에서 그대로 유지한다.
   return {
     elements: addresses,
     totalElements,
@@ -54,7 +61,21 @@ function toMomoPagerData(
   };
 }
 
+function resolveTotalElements(count: unknown, fallback: number): number {
+  // beta 응답이 count를 생략해도 현재 elements 길이만큼은 total로 해석할 수 있다.
+  if (count == null) {
+    return fallback;
+  }
+
+  if (typeof count !== "number" || !Number.isFinite(count)) {
+    throw createHttpError(502, "Address provider returned an unexpected response");
+  }
+
+  return count;
+}
+
 function ensurePageRequest(pageNumber: number, rowsPerPage: number) {
+  // 잘못된 pager 입력은 upstream 호출 전 400으로 끊어 public contract를 명확히 한다.
   if (!Number.isInteger(pageNumber) || pageNumber < 0) {
     throw createHttpError(400, "pageNumber must be a non-negative integer");
   }
@@ -69,10 +90,11 @@ function normalizeOptionalString(value: string | null | undefined) {
   return normalized ? normalized : undefined;
 }
 
-function requireMeaningfulSearchField(
+function hasMeaningfulSearchField(
   request: JapanPostAddresszipRequest,
-): void {
-  const hasMeaningfulSearchField = [
+): boolean {
+  // 공백뿐인 필드는 실제 검색 조건으로 간주하지 않는다.
+  return [
     request.freeword,
     request.prefCode,
     request.prefName,
@@ -86,13 +108,10 @@ function requireMeaningfulSearchField(
     request.townKana,
     request.townRoma,
   ].some((value) => normalizeOptionalString(value) !== undefined);
-
-  if (!hasMeaningfulSearchField) {
-    throw createHttpError(400, "At least one search field must be provided");
-  }
 }
 
 function toChoikiType(includeParenthesesTown: boolean | null | undefined) {
+  // 공개 boolean 계약을 upstream 숫자 플래그로 매핑한다.
   if (includeParenthesesTown === true) {
     return 2;
   }
@@ -104,19 +123,8 @@ function toChoikiType(includeParenthesesTown: boolean | null | undefined) {
   return undefined;
 }
 
-function toSearchType(includeBusinessAddresses: boolean | null | undefined) {
-  if (includeBusinessAddresses === true) {
-    return 1;
-  }
-
-  if (includeBusinessAddresses === false) {
-    return 2;
-  }
-
-  return undefined;
-}
-
 function toAddressZipFlag(value: boolean | null | undefined) {
+  // undefined는 "플래그 자체를 보내지 않음"을 의미하므로 false와 구분된다.
   if (value === true) {
     return 1;
   }
@@ -135,9 +143,11 @@ export function createJapanPostAdapter(
 
   async function getHealth(): Promise<HealthStatus> {
     try {
+      // health는 단순 프로세스 생존이 아니라 실제 인증 가능 여부까지 확인한다.
       await client.authenticate();
       return { ok: true };
     } catch (error) {
+      // 이미 정규화된 adapter 오류는 not ready payload로 내려 readiness 계약을 유지한다.
       if (isAdapterHttpError(error) && error instanceof Error) {
         return {
           ok: false,
@@ -155,6 +165,7 @@ export function createJapanPostAdapter(
     async searchcode(request: JapanPostSearchcodeRequest) {
       ensurePageRequest(request.pageNumber, request.rowsPerPage);
 
+      // 사용자가 하이픈을 포함해도 업스트림에는 숫자만 전달한다.
       const normalizedCode = normalizePostalCode(request.value);
 
       if (!/^\d{3,7}$/.test(normalizedCode)) {
@@ -165,16 +176,16 @@ export function createJapanPostAdapter(
       }
 
       const payload = await client.searchCodeRaw(normalizedCode, {
+        // upstream은 1-based page를 사용하므로 경계에서 변환한다.
         page: request.pageNumber + 1,
         limit: request.rowsPerPage,
         choikitype: toChoikiType(request.includeParenthesesTown),
-        searchtype: toSearchType(request.includeBusinessAddresses),
       });
       const addresses = ensureAddresses(payload).map(normalizeAddressRecord);
 
-      return toMomoPagerData(
+      return toPage(
         addresses,
-        payload.count ?? addresses.length,
+        resolveTotalElements(payload.count, addresses.length),
         request.pageNumber,
         request.rowsPerPage,
       );
@@ -182,9 +193,14 @@ export function createJapanPostAdapter(
 
     async addresszip(request: JapanPostAddresszipRequest) {
       ensurePageRequest(request.pageNumber, request.rowsPerPage);
-      requireMeaningfulSearchField(request);
+
+      if (!hasMeaningfulSearchField(request)) {
+        // 빈 검색은 오류보다 빈 페이지가 호출자 UX에 더 자연스러워 초기 상태와 같은 의미로 반환한다.
+        return toPage([], 0, request.pageNumber, request.rowsPerPage);
+      }
 
       const payload = await client.addressZipRaw({
+        // 빈 문자열은 upstream에 넘기지 않고 undefined로 정리해 의도치 않은 필터링을 막는다.
         freeword: normalizeOptionalString(request.freeword),
         pref_code: normalizeOptionalString(request.prefCode),
         pref_name: normalizeOptionalString(request.prefName),
@@ -199,14 +215,15 @@ export function createJapanPostAdapter(
         town_roma: normalizeOptionalString(request.townRoma),
         flg_getcity: toAddressZipFlag(request.includeCityDetails),
         flg_getpref: toAddressZipFlag(request.includePrefectureDetails),
+        // addresszip 역시 공개 0-based 페이지를 upstream 1-based 페이지로 바꿔 전달한다.
         page: request.pageNumber + 1,
         limit: request.rowsPerPage,
       });
       const addresses = ensureAddresses(payload).map(normalizeAddressRecord);
 
-      return toMomoPagerData(
+      return toPage(
         addresses,
-        payload.count ?? addresses.length,
+        resolveTotalElements(payload.count, addresses.length),
         request.pageNumber,
         request.rowsPerPage,
       );

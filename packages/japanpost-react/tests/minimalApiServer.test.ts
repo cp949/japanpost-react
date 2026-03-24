@@ -316,7 +316,7 @@ describe("minimal api server", () => {
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
   });
 
-  it("rejects blank address queries after trimming whitespace", async () => {
+  it("returns an empty page for blank address queries after trimming whitespace", async () => {
     const server = await startServer({});
     activeServers.push(server);
 
@@ -331,15 +331,23 @@ describe("minimal api server", () => {
         rowsPerPage: 20,
       }),
     });
-    const payload = (await response.json()) as { error: string };
+    const payload = (await response.json()) as {
+      elements: unknown[];
+      totalElements: number;
+      pageNumber: number;
+      rowsPerPage: number;
+    };
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
     expect(payload).toEqual({
-      error: "At least one search field must be provided",
+      elements: [],
+      totalElements: 0,
+      pageNumber: 0,
+      rowsPerPage: 20,
     });
   });
 
-  it("returns a momo pager payload for a valid postal code", async () => {
+  it("returns a page payload for a valid postal code", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce({
@@ -457,7 +465,7 @@ describe("minimal api server", () => {
     expect(payload.elements[0]).not.toHaveProperty("formattedAddress");
   });
 
-  it("returns a momo pager payload for a valid keyword search", async () => {
+  it("returns a page payload for a valid keyword search", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce({
@@ -518,6 +526,56 @@ describe("minimal api server", () => {
       ],
       totalElements: 1,
       rowsPerPage: 20,
+    });
+  });
+
+  it("rejects non-numeric upstream address-search counts with 502", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: "token-1", expires_in: 3600 }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          count: "1",
+          addresses: [
+            {
+              zip_code: "1000004",
+              pref_name: "東京都",
+              city_name: "千代田区",
+              town_name: "大手町",
+            },
+          ],
+        }),
+      } as Response);
+
+    const server = await startServer(
+      {
+        JAPAN_POST_CLIENT_ID: "demo-client-id",
+        JAPAN_POST_SECRET_KEY: "demo-secret-key",
+      },
+      fetchMock,
+    );
+    activeServers.push(server);
+
+    const response = await fetch(`${server.url}/q/japanpost/addresszip`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        freeword: "千代田",
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+    });
+    const payload = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(502);
+    expect(payload).toEqual({
+      error: "Address provider returned an unexpected response",
     });
   });
 });

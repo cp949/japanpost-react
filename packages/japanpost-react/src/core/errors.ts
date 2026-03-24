@@ -1,8 +1,9 @@
 import type { JapanAddressError, JapanAddressErrorCode } from "./types";
 
 /**
- * 라이브러리 전용 에러 객체를 생성한다.
- * name과 code를 일관되게 설정해 catch 블록에서 타입 좁히기가 쉽도록 한다.
+ * 라이브러리 전반에서 공통으로 쓰는 오류 객체 생성기다.
+ * 브라우저 fetch 오류, validation 오류, data source 오류를 모두 같은 표면으로 맞춰
+ * 소비자가 code/status만으로 분기할 수 있게 한다.
  */
 export function createJapanAddressError(
   code: JapanAddressErrorCode,

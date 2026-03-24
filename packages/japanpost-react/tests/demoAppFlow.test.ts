@@ -404,7 +404,7 @@ describe("demo app flow", () => {
     ).toBeEnabled();
   });
 
-  it("shows a provider error after a ready demo API search fails", async () => {
+  it("shows a status-based provider error after a ready demo API search fails", async () => {
     const fetchMock = vi.fn(async (input: string | URL) => {
       const url = String(input);
 
@@ -416,7 +416,7 @@ describe("demo app flow", () => {
 
       if (url.includes("/q/japanpost/searchcode")) {
         return jsonResponse(404, {
-          error: "No matching addresses found",
+          detail: "No matching addresses found",
         });
       }
 
@@ -437,7 +437,7 @@ describe("demo app flow", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/no matching addresses found/i),
+        screen.getByText(/request failed with status 404/i),
       ).toBeInTheDocument();
     });
   });

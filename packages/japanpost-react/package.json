@@ -44,7 +44,7 @@
     "check-types": "tsc --noEmit",
     "test": "pnpm test:unit",
     "test:artifacts": "pnpm build && vitest run tests/packageArtifacts.test.ts",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --exclude tests/packageArtifacts.test.ts",
     "test:watch": "vitest"
   },
   "keywords": [

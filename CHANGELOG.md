@@ -7,6 +7,9 @@ Versioning for published package releases where applicable.
 
 ## [Unreleased]
 
+- Recorded the public request contract removal of
+  `includeBusinessAddresses` and aligned contract tests and docs around the
+  published page-based response surface.
 - Fixed the `api:check` verification path to validate the current `address`
   field contract instead of the removed `formattedAddress` field.
 - Added a happy-path shell regression for `scripts/check-api.sh` and aligned

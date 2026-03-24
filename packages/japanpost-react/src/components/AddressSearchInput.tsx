@@ -4,6 +4,7 @@ import type { AddressSearchInputProps } from "../core/types";
 /**
  * 스타일 의존성이 없는 최소한의 주소 키워드 검색 입력 컴포넌트.
  * value를 전달하면 제어 모드, 전달하지 않으면 비제어 모드로 동작한다.
+ * 검색 시 trim 처리를 내부에서 수행해 공백만 다른 입력이 별도 쿼리로 번지지 않게 한다.
  */
 export function AddressSearchInput({
   defaultValue = "",

@@ -18,115 +18,112 @@ pnpm add @cp949/japanpost-react
 
 ```tsx
 import { useJapanPostalCode } from "@cp949/japanpost-react";
-import type { JapanAddressDataSource, Page, JapanAddress } from "@cp949/japanpost-react";
+import type {
+  JapanAddressDataSource,
+  JapanAddressRequestOptions,
+  JapanAddress,
+  Page,
+} from "@cp949/japanpost-react";
 import { createJapanAddressError } from "@cp949/japanpost-react";
 
 // 현재 지원 방식은 실제 서버 연동뿐입니다.
 // 앱의 백엔드 API 경로에 맞게 dataSource를 연결하세요.
+// 현재 beta 호환 백엔드에서는 빈 addresszip 검색과 우편번호 miss가
+// HTTP 200 + empty page로 올 수 있으며, 이런 경우는 정상 Page 결과로 유지합니다.
+// 아래 status 매핑은 non-OK 응답에만 적용됩니다.
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function resolveErrorCode(path: string, status: number) {
+  if (status === 404) {
+    return "not_found";
+  }
+
+  if (status === 504) {
+    return "timeout";
+  }
+
+  if (status === 400) {
+    return path === "/q/japanpost/searchcode"
+      ? "invalid_postal_code"
+      : "invalid_query";
+  }
+
+  return "data_source_error";
+}
+
+async function readPage(
+  path: string,
+  request: unknown,
+  options?: JapanAddressRequestOptions,
+): Promise<Page<JapanAddress>> {
+  let res: Response;
+
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(request),
+      signal: options?.signal,
+    });
+  } catch (error) {
+    throw createJapanAddressError(
+      isAbortError(error) ? "timeout" : "network_error",
+      isAbortError(error) ? "Request timed out" : "Network request failed",
+      {
+        cause: error,
+      },
+    );
+  }
+
+  if (!res.ok) {
+    const message = `Request failed with status ${res.status}`;
+
+    throw createJapanAddressError(resolveErrorCode(path, res.status), message, {
+      status: res.status,
+    });
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = await res.json();
+  } catch (error) {
+    throw createJapanAddressError(
+      "bad_response",
+      "Response payload was not valid JSON",
+      {
+        cause: error,
+      },
+    );
+  }
+
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !Array.isArray((payload as { elements?: unknown }).elements) ||
+    typeof (payload as { totalElements?: unknown }).totalElements !== "number" ||
+    typeof (payload as { pageNumber?: unknown }).pageNumber !== "number" ||
+    typeof (payload as { rowsPerPage?: unknown }).rowsPerPage !== "number"
+  ) {
+    throw createJapanAddressError(
+      "bad_response",
+      "Response payload must include a valid page payload",
+    );
+  }
+
+  return payload as Page<JapanAddress>;
+}
+
 const dataSource: JapanAddressDataSource = {
-  async lookupPostalCode(postalCode) {
-    const res = await fetch(`/q/japanpost/searchcode`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        value: postalCode,
-        pageNumber: 0,
-        rowsPerPage: 20,
-      }),
-    });
-    if (!res.ok) {
-      const message = `Postal code lookup failed with status ${res.status}`;
-
-      if (res.status === 400) {
-        throw createJapanAddressError("invalid_postal_code", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 404) {
-        throw createJapanAddressError("not_found", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 504) {
-        throw createJapanAddressError("timeout", message, {
-          status: res.status,
-        });
-      }
-
-      throw createJapanAddressError("data_source_error", message, {
-        status: res.status,
-      });
-    }
-    const payload = await res.json();
-    if (
-      !Array.isArray(payload.elements) ||
-      typeof payload.totalElements !== "number" ||
-      typeof payload.pageNumber !== "number" ||
-      typeof payload.rowsPerPage !== "number"
-    ) {
-      throw createJapanAddressError(
-        "bad_response",
-        "Postal code lookup returned an invalid page payload",
-      );
-    }
-    return payload as Page<JapanAddress>;
+  async lookupPostalCode(request, options) {
+    return readPage(`/q/japanpost/searchcode`, request, options);
   },
-  async searchAddress(query) {
-    const res = await fetch(`/q/japanpost/addresszip`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        freeword: query,
-        pageNumber: 0,
-        rowsPerPage: 20,
-        includeCityDetails: false,
-        includePrefectureDetails: false,
-      }),
-    });
-    if (!res.ok) {
-      const message = `Address search failed with status ${res.status}`;
-
-      if (res.status === 400) {
-        throw createJapanAddressError("invalid_query", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 404) {
-        throw createJapanAddressError("not_found", message, {
-          status: res.status,
-        });
-      }
-
-      if (res.status === 504) {
-        throw createJapanAddressError("timeout", message, {
-          status: res.status,
-        });
-      }
-
-      throw createJapanAddressError("data_source_error", message, {
-        status: res.status,
-      });
-    }
-    const payload = await res.json();
-    if (
-      !Array.isArray(payload.elements) ||
-      typeof payload.totalElements !== "number" ||
-      typeof payload.pageNumber !== "number" ||
-      typeof payload.rowsPerPage !== "number"
-    ) {
-      throw createJapanAddressError(
-        "bad_response",
-        "Address search returned an invalid page payload",
-      );
-    }
-    return payload as Page<JapanAddress>;
+  async searchAddress(request, options) {
+    return readPage(`/q/japanpost/addresszip`, request, options);
   },
 };
 
@@ -151,6 +148,11 @@ export function PostalForm() {
 }
 ```
 
+예시 `resolveErrorCode()` helper는 non-OK 응답만 분류합니다. 현재 beta 호환
+계약에서는 빈 주소 검색 요청과 우편번호 miss가 `200 + empty page`로 정상
+성공할 수 있고, `404 -> not_found`는 miss를 오류로 노출하는 백엔드에서만
+선택적으로 쓰면 됩니다.
+
 ## Exports
 
 - `normalizeJapanPostalCode`
@@ -163,7 +165,8 @@ export function PostalForm() {
 - `useJapanAddress`
 - `PostalCodeInput`
 - `AddressSearchInput`
-- `JapanAddress`, `JapanAddressDataSource`, `Page`를 포함한 공개 타입
+- `JapanAddress`, `JapanAddressDataSource`, `JapanPostSearchcodeRequest`,
+  `JapanPostAddresszipRequest`, `Page`를 포함한 공개 타입
 - 요청 옵션 타입: `JapanAddressRequestOptions`
 
 ## 유틸리티 메모
@@ -195,6 +198,10 @@ const { loading, data, error, search, reset } = useJapanAddressSearch({
 });
 ```
 
+이 훅은 빈 검색어에 대해 여전히 클라이언트 선제 검증을 수행하고, 요청을 보내기
+전에 `invalid_query`를 반환합니다. 이 검증은 UX 보조 장치이며 서버 검증이나
+서버 계약 처리를 대체하지 않습니다.
+
 ### useJapanAddress
 
 우편번호 조회와 키워드 검색을 하나의 훅으로 합칩니다.
@@ -206,13 +213,28 @@ const { loading, data, error, searchByPostalCode, searchByKeyword, reset } =
 
 모든 훅은 런타임에서 `dataSource`가 필요합니다.
 
+훅의 public API는 계속 문자열 기반입니다.
+
+- `useJapanPostalCode().search(value: string)`
+- `useJapanAddressSearch().search(query: string)`
+- `useJapanAddress().searchByPostalCode(value: string)`
+- `useJapanAddress().searchByKeyword(query: string)`
+
+대신 훅 내부에서 `dataSource` 호출 전에 request object를 조립합니다.
+
+- 우편번호 조회: `{ value, pageNumber: 0, rowsPerPage: 100 }`
+- 주소 검색: `{ freeword, pageNumber: 0, rowsPerPage: 100 }`
+
+`includeCityDetails`, `includePrefectureDetails` 같은 optional flag는
+기본적으로 넣지 않으며, 필요하면 사용자 data source 구현에서 직접
+지정하면 됩니다.
+
 ## 에러 처리 메모
 
 `JapanAddressDataSource`의 두 메서드는 모두 `Page<JapanAddress>`를 직접
 반환해야 합니다. 훅은 그 page payload를 그대로 유지하므로
 `data.elements`, `data.totalElements`, `data.pageNumber`,
-`data.rowsPerPage`를 바로 읽을 수 있습니다. 공개 계약에서는 더 이상
-`totalPages`, `offset`, `isFirst`, `isLast`, `nextKey`를 제공하지 않습니다.
+`data.rowsPerPage`를 바로 읽을 수 있습니다.
 
 두 메서드는 선택적인 두 번째 인자도 받을 수 있습니다.
 
@@ -231,17 +253,19 @@ type JapanAddressRequestOptions = {
 | 상황 | 권장 코드 |
 | --- | --- |
 | 잘못된 우편번호 입력 | `invalid_postal_code` |
-| 빈 주소 검색어 | `invalid_query` |
+| 훅 선제 검증 단계의 빈 주소 검색어 | `invalid_query` |
 | 네트워크 실패 | `network_error` |
 | 요청 중단 / 타임아웃 | `timeout` |
-| 검색 결과 없음 | `not_found` |
+| miss를 오류로 표면화하는 백엔드에서의 검색 결과 없음 | `not_found` |
 | 성공 응답 shape 이상 | `bad_response` |
 | 그 외 백엔드 오류 | `data_source_error` |
 
-이 저장소의 참고 demo 흐름에서는 예시 `dataSource`가
-`400 /q/japanpost/searchcode`를 `invalid_postal_code`,
-`400 /q/japanpost/addresszip`를 `invalid_query`, `404`를 `not_found`, `504`를
-`timeout`으로 매핑합니다.
+이 저장소의 참고 demo 흐름에서는 예시 `dataSource`가 실패 요청을 오직 HTTP
+status code로만 분류합니다. 현재 beta와 정렬된 흐름에서는 빈 `addresszip`
+요청과 우편번호 miss가 모두 `200 + empty page`로 올 수 있고, 이런 경우는 정상
+성공 page로 유지합니다. 그 외 `400` 응답은 `invalid_query`로 매핑할 수 있고,
+miss를 오류로 노출하는 백엔드에서는 `404 -> not_found`, `504 -> timeout`
+매핑을 유지할 수 있습니다.
 
 ## Headless 컴포넌트
 

@@ -53,7 +53,11 @@ describe("useJapanPostalCode", () => {
     });
 
     expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
-      "1000001",
+      {
+        value: "1000001",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      },
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       }),
@@ -173,7 +177,11 @@ describe("useJapanPostalCode", () => {
     });
 
     expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
-      "1234",
+      {
+        value: "1234",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      },
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       }),
@@ -210,7 +218,7 @@ describe("useJapanPostalCode", () => {
       lookupPostalCode: vi
         .fn()
         .mockImplementationOnce(
-          (_postalCode: string, options?: { signal?: AbortSignal }) => {
+          (_request, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
             return new Promise<Page<JapanAddress>>((resolve) => {
               resolveFirst = resolve;
@@ -218,7 +226,7 @@ describe("useJapanPostalCode", () => {
           },
         )
         .mockImplementationOnce(
-          (_postalCode: string, options?: { signal?: AbortSignal }) => {
+          (_request, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
             return new Promise<Page<JapanAddress>>((resolve) => {
               resolveSecond = resolve;
@@ -259,7 +267,7 @@ describe("useJapanPostalCode", () => {
     let capturedSignal: AbortSignal | undefined;
     const dataSource = {
       lookupPostalCode: vi.fn(
-        (_postalCode: string, options?: { signal?: AbortSignal }) =>
+        (_request, options?: { signal?: AbortSignal }) =>
           new Promise<Page<JapanAddress>>((_resolve) => {
             capturedSignal = options?.signal;
           }),

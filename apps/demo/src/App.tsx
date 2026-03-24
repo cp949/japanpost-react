@@ -13,13 +13,20 @@ import {
 } from "./demoApi";
 import { useDemoApiHealth } from "./useDemoApiHealth";
 
+/**
+ * 데모 앱 루트 컴포넌트다.
+ * 라이브러리 훅, demo API data source, health 체크 UI를 한 화면에 조합해
+ * 검색 동작과 readiness 계약을 함께 확인할 수 있게 한다.
+ */
 const DEFAULT_POSTAL_CODE = "102-0072";
 const DEFAULT_KEYWORD = "千代田";
 
 export default function App() {
+  // env 값이 어떤 형태로 오더라도 fetch 경로 조합 규칙을 단순화한다.
   const demoApiBaseUrl = normalizeBaseUrl(
     import.meta.env.VITE_DEMO_API_BASE_URL ?? DEFAULT_DEMO_API_BASE_URL,
   );
+  // 훅이 렌더마다 새로운 dataSource 인스턴스를 받지 않도록 메모이즈한다.
   const dataSource = useMemo(
     () => createDemoApiDataSource(demoApiBaseUrl),
     [demoApiBaseUrl],
@@ -38,9 +45,11 @@ export default function App() {
   } = useDemoApiHealth(demoApiBaseUrl, loading);
 
   const addresses = data?.elements ?? [];
+  // health가 끝나기 전이거나 API가 not ready이면 검색을 막아 안내 문구와 실제 동작을 일치시킨다.
   const searchDisabled = loading || apiHealthLoading || !apiReady;
 
   function handleReset() {
+    // 훅 상태와 데모 입력 기본값을 함께 초기화해 재현 가능한 시작 상태로 되돌린다.
     reset();
     setPostalCode(DEFAULT_POSTAL_CODE);
     setKeyword(DEFAULT_KEYWORD);
