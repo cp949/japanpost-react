@@ -7,6 +7,8 @@ Versioning for published package releases where applicable.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-03-24
+
 - Recorded the public request contract removal of
   `includeBusinessAddresses` and aligned contract tests and docs around the
   published page-based response surface.
