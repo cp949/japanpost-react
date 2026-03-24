@@ -2,6 +2,7 @@ import type {
   JapanAddress,
   JapanAddressDataSource,
   JapanAddressRequestOptions,
+  Page,
 } from "@cp949/japanpost-react";
 import { createJapanAddressError } from "@cp949/japanpost-react";
 
@@ -38,22 +39,25 @@ function isNetworkError(error: unknown): boolean {
   return error instanceof TypeError;
 }
 
-function ensureAddressesPayload(
+function ensurePagerPayload(
   payload: unknown,
-): { addresses: JapanAddress[] } {
+): Page<JapanAddress> {
   if (
     typeof payload !== "object" ||
     payload === null ||
-    !("addresses" in payload) ||
-    !Array.isArray((payload as { addresses?: unknown }).addresses)
+    !("elements" in payload) ||
+    !Array.isArray((payload as { elements?: unknown }).elements) ||
+    typeof (payload as { totalElements?: unknown }).totalElements !== "number" ||
+    typeof (payload as { pageNumber?: unknown }).pageNumber !== "number" ||
+    typeof (payload as { rowsPerPage?: unknown }).rowsPerPage !== "number"
   ) {
     throw createJapanAddressError(
       "bad_response",
-      "Response payload must include an addresses array",
+      "Response payload must include a valid page payload",
     );
   }
 
-  return payload as { addresses: JapanAddress[] };
+  return payload as Page<JapanAddress>;
 }
 
 function resolveErrorCode(
@@ -75,11 +79,11 @@ function resolveErrorCode(
   }
 
   if (status === 400) {
-    if (input.startsWith("/searchcode/")) {
+    if (input.startsWith("/q/japanpost/searchcode")) {
       return "invalid_postal_code";
     }
 
-    if (input.startsWith("/addresszip")) {
+    if (input.startsWith("/q/japanpost/addresszip")) {
       return "invalid_query";
     }
   }
@@ -137,12 +141,14 @@ export function createDemoApiDataSource(
 ): JapanAddressDataSource {
   async function readJson<T>(
     input: string,
+    init: RequestInit,
     options?: JapanAddressRequestOptions,
   ): Promise<T> {
     let response: Response;
 
     try {
       response = await fetch(resolveDemoApiUrl(baseUrl, input), {
+        ...init,
         signal: options?.signal,
       });
     } catch (error) {
@@ -184,25 +190,49 @@ export function createDemoApiDataSource(
       postalCode: string,
       options?: JapanAddressRequestOptions,
     ) {
-      const payload = ensureAddressesPayload(
+      const payload = ensurePagerPayload(
         await readJson<unknown>(
-          `/searchcode/${encodeURIComponent(postalCode)}`,
+          "/q/japanpost/searchcode",
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              value: postalCode,
+              pageNumber: 0,
+              rowsPerPage: 20,
+            }),
+          },
           options,
         ),
       );
-      return payload.addresses;
+      return payload;
     },
     async searchAddress(
       query: string,
       options?: JapanAddressRequestOptions,
     ) {
-      const payload = ensureAddressesPayload(
+      const payload = ensurePagerPayload(
         await readJson<unknown>(
-          `/addresszip?q=${encodeURIComponent(query)}`,
+          "/q/japanpost/addresszip",
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              freeword: query,
+              pageNumber: 0,
+              rowsPerPage: 20,
+              includeCityDetails: false,
+              includePrefectureDetails: false,
+            }),
+          },
           options,
         ),
       );
-      return payload.addresses;
+      return payload;
     },
   };
 }

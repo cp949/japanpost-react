@@ -2,7 +2,11 @@ import type { AddressInfo } from "node:net";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createMinimalApiServer } from "../../../apps/minimal-api/src/server";
+import {
+  createMinimalApiServer,
+  createMinimalApiServerWithAdapter,
+} from "../../../apps/minimal-api/src/server";
+import type { AddressAdapter } from "../../../apps/minimal-api/src/japanPostAdapter";
 
 type RunningServer = {
   close: () => Promise<void>;
@@ -41,6 +45,34 @@ async function startServer(
   };
 }
 
+async function startServerWithAdapter(
+  adapter: AddressAdapter,
+  env: NodeJS.ProcessEnv = {},
+): Promise<RunningServer> {
+  const server = createMinimalApiServerWithAdapter(adapter, env);
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+
+  const address = server.address() as AddressInfo;
+
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: async () =>
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      }),
+  };
+}
+
 const activeServers: RunningServer[] = [];
 
 afterEach(async () => {
@@ -48,18 +80,18 @@ afterEach(async () => {
 });
 
 describe("minimal api server", () => {
-  it("returns 204 for OPTIONS requests with the current CORS headers", async () => {
+  it("returns 204 for OPTIONS requests with POST enabled in CORS", async () => {
     const server = await startServer({});
     activeServers.push(server);
 
-    const response = await fetch(`${server.url}/searchcode/1000001`, {
+    const response = await fetch(`${server.url}/q/japanpost/searchcode`, {
       method: "OPTIONS",
     });
 
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
     expect(response.headers.get("access-control-allow-methods")).toBe(
-      "GET, OPTIONS",
+      "GET, POST, OPTIONS",
     );
     expect(response.headers.get("access-control-allow-headers")).toBe(
       "content-type",
@@ -124,6 +156,35 @@ describe("minimal api server", () => {
     expect(payload).toEqual({ ok: true, instanceId: "instance-123" });
   });
 
+  it("serves /health with a custom facade adapter without constructing the provider client", async () => {
+    const adapter = {
+      getHealth: vi.fn(async () => ({ ok: true as const })),
+      searchcode: vi.fn(async () => {
+        throw new Error("searchcode should not be called for /health");
+      }),
+      addresszip: vi.fn(async () => {
+        throw new Error("addresszip should not be called for /health");
+      }),
+    };
+
+    const server = await startServerWithAdapter(adapter, {
+      MINIMAL_API_INSTANCE_ID: "custom-instance",
+    });
+    activeServers.push(server);
+
+    const response = await fetch(`${server.url}/health`);
+    const payload = (await response.json()) as {
+      ok: boolean;
+      instanceId?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({ ok: true, instanceId: "custom-instance" });
+    expect(adapter.getHealth).toHaveBeenCalledTimes(1);
+    expect(adapter.searchcode).not.toHaveBeenCalled();
+    expect(adapter.addresszip).not.toHaveBeenCalled();
+  });
+
   it("returns 503 health when token exchange fails even though credentials are configured", async () => {
     const server = await startServer({
       JAPAN_POST_CLIENT_ID: "demo-client-id",
@@ -140,11 +201,21 @@ describe("minimal api server", () => {
     expect(payload.error).toContain("Address provider authentication failed");
   });
 
-  it("rejects missing credentials on /searchcode/:code with 500", async () => {
+  it("rejects missing credentials on POST /q/japanpost/searchcode with 500", async () => {
     const server = await startServer({});
     activeServers.push(server);
 
-    const response = await fetch(`${server.url}/searchcode/1000001`);
+    const response = await fetch(`${server.url}/q/japanpost/searchcode`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        value: "1000001",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    });
     const payload = (await response.json()) as { error: string };
 
     expect(response.status).toBe(500);
@@ -153,11 +224,21 @@ describe("minimal api server", () => {
     });
   });
 
-  it("rejects missing credentials on /addresszip with 500", async () => {
+  it("rejects missing credentials on POST /q/japanpost/addresszip with 500", async () => {
     const server = await startServer({});
     activeServers.push(server);
 
-    const response = await fetch(`${server.url}/addresszip?q=Tokyo`);
+    const response = await fetch(`${server.url}/q/japanpost/addresszip`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        freeword: "Tokyo",
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+    });
     const payload = (await response.json()) as { error: string };
 
     expect(response.status).toBe(500);
@@ -173,7 +254,17 @@ describe("minimal api server", () => {
     });
     activeServers.push(server);
 
-    const shortResponse = await fetch(`${server.url}/searchcode/12`);
+    const shortResponse = await fetch(`${server.url}/q/japanpost/searchcode`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        value: "12",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    });
     const shortPayload = (await shortResponse.json()) as { error: string };
 
     expect(shortResponse.status).toBe(400);
@@ -181,7 +272,17 @@ describe("minimal api server", () => {
       error: "Postal code must contain between 3 and 7 digits",
     });
 
-    const longResponse = await fetch(`${server.url}/searchcode/100000123`);
+    const longResponse = await fetch(`${server.url}/q/japanpost/searchcode`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        value: "100000123",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    });
     const longPayload = (await longResponse.json()) as { error: string };
 
     expect(longResponse.status).toBe(400);
@@ -201,7 +302,7 @@ describe("minimal api server", () => {
     expect(payload).toEqual({ error: "Route not found" });
   });
 
-  it("rejects non-GET methods with 405", async () => {
+  it("rejects unsupported methods with 405", async () => {
     const server = await startServer({});
     activeServers.push(server);
 
@@ -219,16 +320,26 @@ describe("minimal api server", () => {
     const server = await startServer({});
     activeServers.push(server);
 
-    const response = await fetch(
-      `${server.url}/addresszip?q=${encodeURIComponent("   ")}`,
-    );
+    const response = await fetch(`${server.url}/q/japanpost/addresszip`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        freeword: "   ",
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+    });
     const payload = (await response.json()) as { error: string };
 
     expect(response.status).toBe(400);
-    expect(payload).toEqual({ error: "Query parameter q is required" });
+    expect(payload).toEqual({
+      error: "At least one search field must be provided",
+    });
   });
 
-  it("returns matched addresses for a valid postal code", async () => {
+  it("returns a momo pager payload for a valid postal code", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce({
@@ -238,6 +349,7 @@ describe("minimal api server", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          count: 1,
           addresses: [
             {
               zip_code: "1020072",
@@ -258,22 +370,34 @@ describe("minimal api server", () => {
     );
     activeServers.push(server);
 
-    const response = await fetch(`${server.url}/searchcode/1020072`);
+    const response = await fetch(`${server.url}/q/japanpost/searchcode`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        value: "1020072",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    });
     const payload = (await response.json()) as {
-      postalCode: string;
-      addresses: unknown[];
+      elements: unknown[];
+      totalElements: number;
+      rowsPerPage: number;
     };
 
     expect(response.status).toBe(200);
     expect(payload).toMatchObject({
-      postalCode: "1020072",
-      addresses: [
+      elements: [
         expect.objectContaining({
           postalCode: "1020072",
           prefecture: "東京都",
           city: "千代田区",
         }),
       ],
+      totalElements: 1,
+      rowsPerPage: 10,
     });
     expect(response.headers.get("content-type")).toContain("application/json");
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
@@ -289,6 +413,7 @@ describe("minimal api server", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          count: 1,
           addresses: [
             {
               zip_code: "1020072",
@@ -310,21 +435,29 @@ describe("minimal api server", () => {
     );
     activeServers.push(server);
 
-    const response = await fetch(`${server.url}/searchcode/1020072`);
+    const response = await fetch(`${server.url}/q/japanpost/searchcode`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        value: "1020072",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    });
     const payload = (await response.json()) as {
-      postalCode: string;
-      addresses: Array<{ address: string }>;
+      elements: Array<{ address: string }>;
     };
 
     expect(response.status).toBe(200);
-    expect(payload.postalCode).toBe("1020072");
-    expect(payload.addresses[0]).toMatchObject({
+    expect(payload.elements[0]).toMatchObject({
       address: "東京都 千代田区 飯田橋",
     });
-    expect(payload.addresses[0]).not.toHaveProperty("formattedAddress");
+    expect(payload.elements[0]).not.toHaveProperty("formattedAddress");
   });
 
-  it("returns matched addresses for a valid keyword search", async () => {
+  it("returns a momo pager payload for a valid keyword search", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce({
@@ -334,6 +467,7 @@ describe("minimal api server", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          count: 1,
           addresses: [
             {
               zip_code: "1000004",
@@ -354,24 +488,36 @@ describe("minimal api server", () => {
     );
     activeServers.push(server);
 
-    const response = await fetch(
-      `${server.url}/addresszip?q=${encodeURIComponent("千代田")}`,
-    );
+    const response = await fetch(`${server.url}/q/japanpost/addresszip`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        freeword: "千代田",
+        pageNumber: 0,
+        rowsPerPage: 20,
+        includeCityDetails: false,
+        includePrefectureDetails: false,
+      }),
+    });
     const payload = (await response.json()) as {
-      query: string;
-      addresses: unknown[];
+      elements: unknown[];
+      totalElements: number;
+      rowsPerPage: number;
     };
 
     expect(response.status).toBe(200);
     expect(payload).toMatchObject({
-      query: "千代田",
-      addresses: [
+      elements: [
         expect.objectContaining({
           postalCode: "1000004",
           prefecture: "東京都",
           city: "千代田区",
         }),
       ],
+      totalElements: 1,
+      rowsPerPage: 20,
     });
   });
 });

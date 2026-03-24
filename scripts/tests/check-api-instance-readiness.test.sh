@@ -24,13 +24,13 @@ if [[ "$url" == *"/health" ]]; then
   exit 0
 fi
 
-if [[ "$url" == *"/searchcode/1020072" ]]; then
-  printf '%s' '{"postalCode":"1020072","addresses":[{"postalCode":"1020072","address":"東京都 千代田区 飯田橋"}]}'
+if [[ "$url" == *"/q/japanpost/searchcode" ]]; then
+  printf '%s' '{"elements":[{"postalCode":"1020072","address":"東京都 千代田区 飯田橋"}],"totalElements":1,"pageNumber":0,"rowsPerPage":10}'
   exit 0
 fi
 
-if [[ "$url" == *"/addresszip?q="* ]]; then
-  printf '%s' '{"query":"大手町","addresses":[{"postalCode":"1000004","address":"東京都 千代田区 大手町"}]}'
+if [[ "$url" == *"/q/japanpost/addresszip" ]]; then
+  printf '%s' '{"elements":[{"postalCode":"1000004","address":"東京都 千代田区 大手町"}],"totalElements":1,"pageNumber":0,"rowsPerPage":20}'
   exit 0
 fi
 

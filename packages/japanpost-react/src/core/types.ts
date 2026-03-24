@@ -204,34 +204,39 @@ export type JapanAddress = {
 };
 
 /**
- * 우편번호 조회 결과. 하나의 우편번호에 여러 주소가 대응될 수 있다.
+ * Kotlin/minimal-api와 호환되는 공개 페이징 응답 타입.
  */
-export type JapanPostalCodeLookupResult = {
+export type Page<T> = {
   /*
-   * 조회에 사용된 우편번호
+   * 현재 페이지 요소 목록
    */
-  postalCode: string;
+  elements: T[];
 
   /*
-   * 매칭된 주소 목록
+   * 전체 요소 수
    */
-  addresses: JapanAddress[];
+  totalElements: number;
+
+  /*
+   * 현재 페이지 번호 (0-based)
+   */
+  pageNumber: number;
+
+  /*
+   * 페이지당 요소 수
+   */
+  rowsPerPage: number;
 };
 
 /**
- * 키워드 주소 검색 결과.
+ * 우편번호 조회 결과. Kotlin/minimal-api와 동일하게 pager payload를 그대로 반환한다.
  */
-export type JapanAddressSearchResult = {
-  /*
-   * 검색에 사용된 키워드
-   */
-  query: string;
+export type JapanPostalCodeLookupResult = Page<JapanAddress>;
 
-  /*
-   * 매칭된 주소 목록
-   */
-  addresses: JapanAddress[];
-};
+/**
+ * 키워드 주소 검색 결과. Kotlin/minimal-api와 동일하게 pager payload를 그대로 반환한다.
+ */
+export type JapanAddressSearchResult = Page<JapanAddress>;
 
 /**
  * 라이브러리 전용 오류 코드 목록.
@@ -288,11 +293,11 @@ export type JapanAddressDataSource = {
   lookupPostalCode: (
     postalCode: string,
     options?: JapanAddressRequestOptions,
-  ) => Promise<JapanAddress[]>;
+  ) => Promise<Page<JapanAddress>>;
   searchAddress: (
     query: string,
     options?: JapanAddressRequestOptions,
-  ) => Promise<JapanAddress[]>;
+  ) => Promise<Page<JapanAddress>>;
 };
 
 /**
@@ -390,9 +395,7 @@ export type UseJapanAddressSearchResult =
 /**
  * useJapanAddress 훅의 반환 타입 (우편번호·키워드 통합)
  */
-export type UseJapanAddressResult = UseAsyncState<
-  JapanPostalCodeLookupResult | JapanAddressSearchResult
-> & {
+export type UseJapanAddressResult = UseAsyncState<Page<JapanAddress>> & {
   /*
    * 상태 초기화
    */

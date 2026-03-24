@@ -30,6 +30,7 @@ export type {
   JapanAddressSearchResult,
   JapanPostalCodeLookupResult,
   NormalizedJapanAddressRecord,
+  Page,
   PostalCodeInputProps,
   UseJapanAddressOptions,
   UseJapanAddressResult,

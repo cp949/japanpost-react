@@ -62,13 +62,13 @@ validate_postal_code_response() {
     });
     process.stdin.on("end", () => {
       const body = JSON.parse(input);
-      const addresses = Array.isArray(body?.addresses) ? body.addresses : [];
-      const hasExpectedAddress = addresses.some((address) => {
+      const elements = Array.isArray(body?.elements) ? body.elements : [];
+      const hasExpectedAddress = elements.some((address) => {
         return address?.postalCode === "1020072"
           && typeof address?.address === "string"
           && address.address.length > 0;
       });
-      process.exit(body?.postalCode === "1020072" && hasExpectedAddress ? 0 : 1);
+      process.exit(body?.totalElements >= 1 && hasExpectedAddress ? 0 : 1);
     });
   '
 }
@@ -83,13 +83,13 @@ validate_address_search_response() {
     });
     process.stdin.on("end", () => {
       const body = JSON.parse(input);
-      const addresses = Array.isArray(body?.addresses) ? body.addresses : [];
-      const hasAddress = addresses.some((address) => {
+      const elements = Array.isArray(body?.elements) ? body.elements : [];
+      const hasAddress = elements.some((address) => {
         return address?.postalCode === "1000004"
           && typeof address?.address === "string"
           && address.address.length > 0;
       });
-      process.exit(body?.query === "大手町" && addresses.length >= 1 && hasAddress ? 0 : 1);
+      process.exit(body?.totalElements >= 1 && elements.length >= 1 && hasAddress ? 0 : 1);
     });
   '
 }
@@ -145,7 +145,11 @@ else
   exit 1
 fi
 
-POSTAL_CODE_BODY="$(curl -fsS "$BASE_URL/searchcode/1020072" 2>>"$SERVER_LOG")" || {
+POSTAL_CODE_BODY="$(curl -fsS \
+  -X POST \
+  -H 'content-type: application/json' \
+  --data '{"value":"1020072","pageNumber":0,"rowsPerPage":10}' \
+  "$BASE_URL/q/japanpost/searchcode" 2>>"$SERVER_LOG")" || {
   echo "CHECK searchcode: FAIL"
   cat "$SERVER_LOG"
   echo "RESULT: FAIL"
@@ -161,7 +165,11 @@ else
   exit 1
 fi
 
-ADDRESS_SEARCH_BODY="$(curl -fsS "$BASE_URL/addresszip?q=%E5%A4%A7%E6%89%8B%E7%94%BA" 2>>"$SERVER_LOG")" || {
+ADDRESS_SEARCH_BODY="$(curl -fsS \
+  -X POST \
+  -H 'content-type: application/json' \
+  --data '{"freeword":"大手町","pageNumber":0,"rowsPerPage":20,"includeCityDetails":false,"includePrefectureDetails":false}' \
+  "$BASE_URL/q/japanpost/addresszip" 2>>"$SERVER_LOG")" || {
   echo "CHECK addresszip: FAIL"
   cat "$SERVER_LOG"
   echo "RESULT: FAIL"

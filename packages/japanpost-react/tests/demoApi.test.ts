@@ -15,7 +15,10 @@ describe("demo API integration helpers", () => {
       ok: true,
       status: 200,
       json: async () => ({
-        addresses: [],
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
       }),
     });
 
@@ -23,10 +26,68 @@ describe("demo API integration helpers", () => {
 
     const dataSource = createDemoApiDataSource("/minimal-api");
 
-    await expect(dataSource.lookupPostalCode("1000001")).resolves.toEqual([]);
-    expect(fetchMock).toHaveBeenCalledWith("/minimal-api/searchcode/1000001", {
-      signal: undefined,
+    await expect(dataSource.lookupPostalCode("1000001")).resolves.toEqual({
+      elements: [],
+      totalElements: 0,
+      pageNumber: 0,
+      rowsPerPage: 20,
     });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/minimal-api/q/japanpost/searchcode",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          value: "1000001",
+          pageNumber: 0,
+          rowsPerPage: 20,
+        }),
+        signal: undefined,
+      },
+    );
+  });
+
+  it("posts addresszip requests and returns the full pager payload", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        elements: [{ postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" }],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("/minimal-api");
+
+    await expect(dataSource.searchAddress("Tokyo")).resolves.toEqual({
+      elements: [{ postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" }],
+      totalElements: 1,
+      pageNumber: 0,
+      rowsPerPage: 20,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/minimal-api/q/japanpost/addresszip",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          freeword: "Tokyo",
+          pageNumber: 0,
+          rowsPerPage: 20,
+          includeCityDetails: false,
+          includePrefectureDetails: false,
+        }),
+        signal: undefined,
+      },
+    );
   });
 
   it("supports relative API health paths for browser-served demos", async () => {
@@ -114,7 +175,7 @@ describe("demo API integration helpers", () => {
       ok: false,
       status: 400,
       json: async () => ({
-        error: "Query parameter q is required",
+        error: "At least one search field must be provided",
       }),
     });
 
@@ -126,7 +187,7 @@ describe("demo API integration helpers", () => {
       name: "JapanAddressError",
       code: "invalid_query",
       status: 400,
-      message: "Query parameter q is required",
+      message: "At least one search field must be provided",
     });
   });
 
@@ -172,7 +233,7 @@ describe("demo API integration helpers", () => {
       ok: true,
       status: 200,
       json: async () => ({
-        addresses: null,
+        elements: null,
       }),
     });
 
@@ -183,7 +244,7 @@ describe("demo API integration helpers", () => {
     await expect(dataSource.lookupPostalCode("1000001")).rejects.toMatchObject({
       name: "JapanAddressError",
       code: "bad_response",
-      message: "Response payload must include an addresses array",
+      message: "Response payload must include a valid page payload",
     });
   });
 

@@ -3,7 +3,7 @@ import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useJapanAddressSearch } from "../src/react/useJapanAddressSearch";
-import type { JapanAddress } from "../src/core/types";
+import type { JapanAddress, Page } from "../src/core/types";
 
 describe("useJapanAddressSearch", () => {
   afterEach(() => {
@@ -13,10 +13,15 @@ describe("useJapanAddressSearch", () => {
   it("supports debounced keyword search", async () => {
     vi.useFakeTimers();
 
-    const addresses: JapanAddress[] = [];
+    const page: Page<JapanAddress> = {
+      elements: [],
+      totalElements: 0,
+      pageNumber: 0,
+      rowsPerPage: 20,
+    };
     const dataSource = {
       lookupPostalCode: vi.fn(),
-      searchAddress: vi.fn().mockResolvedValue(addresses),
+      searchAddress: vi.fn().mockResolvedValue(page),
     };
 
     const { result } = renderHook(() =>
@@ -42,19 +47,21 @@ describe("useJapanAddressSearch", () => {
         signal: expect.any(AbortSignal),
       }),
     );
-    expect(result.current.data).toEqual({
-      query: "Tokyo",
-      addresses,
-    });
+    expect(result.current.data).toEqual(page);
   });
 
   it("settles superseded debounced searches with null", async () => {
     vi.useFakeTimers();
 
-    const addresses: JapanAddress[] = [];
+    const page: Page<JapanAddress> = {
+      elements: [],
+      totalElements: 0,
+      pageNumber: 0,
+      rowsPerPage: 20,
+    };
     const dataSource = {
       lookupPostalCode: vi.fn(),
-      searchAddress: vi.fn().mockResolvedValue(addresses),
+      searchAddress: vi.fn().mockResolvedValue(page),
     };
 
     const { result } = renderHook(() =>
@@ -76,10 +83,7 @@ describe("useJapanAddressSearch", () => {
     });
 
     await expect(firstPromise).resolves.toBeNull();
-    await expect(secondPromise).resolves.toEqual({
-      query: "Osaka",
-      addresses,
-    });
+    await expect(secondPromise).resolves.toEqual(page);
     expect(dataSource.searchAddress).toHaveBeenCalledTimes(1);
     expect(dataSource.searchAddress).toHaveBeenCalledWith(
       "Osaka",
@@ -91,8 +95,8 @@ describe("useJapanAddressSearch", () => {
 
   it("aborts the previous immediate keyword search when a new one starts", async () => {
     const signals: AbortSignal[] = [];
-    let resolveFirst: ((value: JapanAddress[]) => void) | null = null;
-    let resolveSecond: ((value: JapanAddress[]) => void) | null = null;
+    let resolveFirst: ((value: Page<JapanAddress>) => void) | null = null;
+    let resolveSecond: ((value: Page<JapanAddress>) => void) | null = null;
     const dataSource = {
       lookupPostalCode: vi.fn(),
       searchAddress: vi
@@ -100,7 +104,7 @@ describe("useJapanAddressSearch", () => {
         .mockImplementationOnce(
           (_query: string, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
-            return new Promise<JapanAddress[]>((resolve) => {
+            return new Promise<Page<JapanAddress>>((resolve) => {
               resolveFirst = resolve;
             });
           },
@@ -108,7 +112,7 @@ describe("useJapanAddressSearch", () => {
         .mockImplementationOnce(
           (_query: string, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
-            return new Promise<JapanAddress[]>((resolve) => {
+            return new Promise<Page<JapanAddress>>((resolve) => {
               resolveSecond = resolve;
             });
           },
@@ -127,8 +131,18 @@ describe("useJapanAddressSearch", () => {
     expect(signals[1]?.aborted).toBe(false);
 
     await act(async () => {
-      resolveFirst?.([]);
-      resolveSecond?.([]);
+      resolveFirst?.({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
+      resolveSecond?.({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
     });
   });
 
@@ -138,7 +152,7 @@ describe("useJapanAddressSearch", () => {
       lookupPostalCode: vi.fn(),
       searchAddress: vi.fn(
         (_query: string, options?: { signal?: AbortSignal }) =>
-          new Promise<JapanAddress[]>((_resolve) => {
+          new Promise<Page<JapanAddress>>((_resolve) => {
             capturedSignal = options?.signal;
           }),
       ),
@@ -161,7 +175,12 @@ describe("useJapanAddressSearch", () => {
   it("keeps public function references stable across rerenders with the same options", () => {
     const dataSource = {
       lookupPostalCode: vi.fn(),
-      searchAddress: vi.fn().mockResolvedValue([]),
+      searchAddress: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
     };
 
     const { result, rerender } = renderHook(

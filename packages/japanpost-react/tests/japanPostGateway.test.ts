@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createJapanPostAdapter } from "../../../apps/minimal-api/src/japanPostAdapter";
+import {
+  createJapanPostClient,
+  type JapanPostClientOptions,
+} from "../../../apps/minimal-api/src/japanPost/client";
 
 function requireTokenResolve(
   resolve: ((value: Response | PromiseLike<Response>) => void) | null,
@@ -12,8 +15,21 @@ function requireTokenResolve(
   return resolve;
 }
 
-describe("createJapanPostAdapter", () => {
-  it("shares one token request across concurrent lookups", async () => {
+function createClientOptions(
+  fetchMock: typeof fetch,
+  env: NodeJS.ProcessEnv = {
+    JAPAN_POST_CLIENT_ID: "demo-client",
+    JAPAN_POST_SECRET_KEY: "demo-secret",
+  },
+): JapanPostClientOptions {
+  return {
+    env,
+    fetch: fetchMock,
+  };
+}
+
+describe("createJapanPostClient low-level provider behavior", () => {
+  it("shares one token request across concurrent searchcode lookups", async () => {
     let tokenResolve: ((value: Response | PromiseLike<Response>) => void) | null =
       null;
     const fetchMock = vi
@@ -51,16 +67,10 @@ describe("createJapanPostAdapter", () => {
         }),
       } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
+    const client = createJapanPostClient(createClientOptions(fetchMock));
 
-    const firstLookup = gateway.lookupPostalCode("1000001");
-    const secondLookup = gateway.lookupPostalCode("1500001");
+    const firstLookup = client.searchCodeRaw("1000001");
+    const secondLookup = client.searchCodeRaw("1500001");
 
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -74,15 +84,21 @@ describe("createJapanPostAdapter", () => {
       }),
     } as Response);
 
-    await expect(
-      Promise.all([firstLookup, secondLookup]),
-    ).resolves.toMatchObject([
-      {
-        postalCode: "1000001",
-      },
-      {
-        postalCode: "1500001",
-      },
+    await expect(Promise.all([firstLookup, secondLookup])).resolves.toEqual([
+      expect.objectContaining({
+        addresses: [
+          expect.objectContaining({
+            zip_code: "1000001",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        addresses: [
+          expect.objectContaining({
+            zip_code: "1500001",
+          }),
+        ],
+      }),
     ]);
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -130,20 +146,13 @@ describe("createJapanPostAdapter", () => {
         }),
       } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
+    const client = createJapanPostClient(createClientOptions(fetchMock));
 
-    await expect(gateway.lookupPostalCode("1000001")).resolves.toMatchObject({
-      postalCode: "1000001",
+    await expect(client.searchCodeRaw("1000001")).resolves.toMatchObject({
       addresses: [
         expect.objectContaining({
-          postalCode: "1000001",
-          prefecture: "Tokyo",
+          zip_code: "1000001",
+          pref_name: "Tokyo",
         }),
       ],
     });
@@ -180,12 +189,11 @@ describe("createJapanPostAdapter", () => {
   });
 
   it("requires credentials for postal code lookups", async () => {
-    const gateway = createJapanPostAdapter({
-      env: {},
-      fetch: vi.fn<typeof fetch>(),
-    });
+    const client = createJapanPostClient(
+      createClientOptions(vi.fn<typeof fetch>(), {}),
+    );
 
-    await expect(gateway.lookupPostalCode("1000001")).rejects.toMatchObject({
+    await expect(client.searchCodeRaw("1000001")).rejects.toMatchObject({
       statusCode: 500,
       message: "JAPAN_POST_CLIENT_ID is required",
     });
@@ -215,19 +223,12 @@ describe("createJapanPostAdapter", () => {
         }),
       } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
+    const client = createJapanPostClient(createClientOptions(fetchMock));
 
-    await expect(gateway.lookupPostalCode("1234")).resolves.toMatchObject({
-      postalCode: "1234",
+    await expect(client.searchCodeRaw("1234")).resolves.toMatchObject({
       addresses: [
         expect.objectContaining({
-          postalCode: "1230000",
+          zip_code: "1230000",
         }),
       ],
     });
@@ -265,17 +266,20 @@ describe("createJapanPostAdapter", () => {
         }),
       } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
+    const client = createJapanPostClient(
+      createClientOptions(fetchMock, {
         JAPAN_POST_CLIENT_ID: "demo-client",
         JAPAN_POST_SECRET_KEY: "demo-secret",
         JAPAN_POST_EC_UID: "provider-user-1",
-      },
-      fetch: fetchMock,
-    });
+      }),
+    );
 
-    await expect(gateway.lookupPostalCode("1000001")).resolves.toMatchObject({
-      postalCode: "1000001",
+    await expect(client.searchCodeRaw("1000001")).resolves.toMatchObject({
+      addresses: [
+        expect.objectContaining({
+          zip_code: "1000001",
+        }),
+      ],
     });
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -313,19 +317,22 @@ describe("createJapanPostAdapter", () => {
         }),
       } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
+    const client = createJapanPostClient(
+      createClientOptions(fetchMock, {
         JAPAN_POST_CLIENT_ID: "demo-client",
         JAPAN_POST_SECRET_KEY: "demo-secret",
         JAPAN_POST_EC_UID: "provider-user-1",
         JAPAN_POST_SEARCH_CODE_CHOIKITYPE: "2",
         JAPAN_POST_SEARCH_CODE_SEARCHTYPE: "2",
-      },
-      fetch: fetchMock,
-    });
+      }),
+    );
 
-    await expect(gateway.lookupPostalCode("1000001")).resolves.toMatchObject({
-      postalCode: "1000001",
+    await expect(client.searchCodeRaw("1000001")).resolves.toMatchObject({
+      addresses: [
+        expect.objectContaining({
+          zip_code: "1000001",
+        }),
+      ],
     });
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -339,64 +346,6 @@ describe("createJapanPostAdapter", () => {
     );
   });
 
-  it("rejects postal-code inputs that are not between three and seven digits", async () => {
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: vi.fn<typeof fetch>(),
-    });
-
-    await expect(gateway.lookupPostalCode("12")).rejects.toMatchObject({
-      statusCode: 400,
-      message: "Postal code must contain between 3 and 7 digits",
-    });
-
-    await expect(gateway.lookupPostalCode("100000123")).rejects.toMatchObject({
-      statusCode: 400,
-      message: "Postal code must contain between 3 and 7 digits",
-    });
-  });
-
-  it("rejects malformed upstream postal-code payloads", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          token: "token-1",
-          expires_in: 3600,
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          addresses: [
-            {
-              zip_code: "1234",
-              pref_name: "Tokyo",
-              city_name: "Chiyoda-ku",
-              town_name: "Chiyoda",
-            },
-          ],
-        }),
-      } as Response);
-
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
-
-    await expect(gateway.lookupPostalCode("1000001")).rejects.toMatchObject({
-      statusCode: 502,
-      message: "Address provider returned an invalid postal code",
-    });
-  });
-
   it("includes upstream token error details when token exchange is rejected", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce({
       ok: false,
@@ -408,49 +357,12 @@ describe("createJapanPostAdapter", () => {
       }),
     } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
+    const client = createJapanPostClient(createClientOptions(fetchMock));
 
-    await expect(gateway.lookupPostalCode("1000001")).rejects.toMatchObject({
+    await expect(client.authenticate()).rejects.toMatchObject({
       statusCode: 502,
       message:
         "Address provider authentication failed with status 403: 登録情報の不一致です (error_code: 403-1028-0001, request_id: req-123)",
-    });
-  });
-
-  it("rejects malformed upstream address-search payloads", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          token: "token-1",
-          expires_in: 3600,
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          addresses: null,
-        }),
-      } as Response);
-
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
-
-    await expect(gateway.searchAddress("Tokyo")).rejects.toMatchObject({
-      statusCode: 502,
-      message: "Address provider returned an unexpected response",
     });
   });
 
@@ -488,31 +400,25 @@ describe("createJapanPostAdapter", () => {
         }),
       } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
+    const client = createJapanPostClient(createClientOptions(fetchMock));
 
-    await expect(gateway.searchAddress("Tokyo")).resolves.toEqual({
-      query: "Tokyo",
-      addresses: [
+    await expect(
+      client.addressZipRaw({
+        freeword: "Tokyo",
+        flg_getcity: 0,
+        flg_getpref: 0,
+        page: 1,
+        limit: 20,
+      }),
+    ).resolves.toMatchObject({
+      addresses: expect.arrayContaining([
         expect.objectContaining({
-          postalCode: "1040044",
-          prefecture: "Tokyo",
-          city: "Chuo-ku",
-          town: "Akashicho",
+          zip_code: "1040044",
+          pref_name: "Tokyo",
+          city_name: "Chuo-ku",
+          town_name: "Akashicho",
         }),
-        expect.objectContaining({
-          postalCode: "1500001",
-          prefecture: "Tokyo",
-          city: "Shibuya-ku",
-          town: "Jingumae",
-          address: "Tokyo Shibuya-ku Jingumae Omotesando",
-        }),
-      ],
+      ]),
     });
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -555,7 +461,7 @@ describe("createJapanPostAdapter", () => {
         }),
       } as Response);
 
-    const gateway = createJapanPostAdapter({
+    const client = createJapanPostClient({
       env: {
         JAPAN_POST_CLIENT_ID: "demo-client",
         JAPAN_POST_SECRET_KEY: "demo-secret",
@@ -564,8 +470,20 @@ describe("createJapanPostAdapter", () => {
       fetch: fetchMock,
     });
 
-    await expect(gateway.searchAddress("Tokyo")).resolves.toMatchObject({
-      query: "Tokyo",
+    await expect(
+      client.addressZipRaw({
+        freeword: "Tokyo",
+        flg_getcity: 0,
+        flg_getpref: 0,
+        page: 1,
+        limit: 20,
+      }),
+    ).resolves.toMatchObject({
+      addresses: [
+        expect.objectContaining({
+          zip_code: "1000001",
+        }),
+      ],
     });
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -586,50 +504,6 @@ describe("createJapanPostAdapter", () => {
     );
   });
 
-  it("does not duplicate the address text when the upstream payload also includes a full address string", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          token: "token-1",
-          expires_in: 3600,
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          addresses: [
-            {
-              zip_code: "1020072",
-              pref_name: "東京都",
-              city_name: "千代田区",
-              town_name: "飯田橋",
-              address: "東京都 千代田区 飯田橋",
-            },
-          ],
-        }),
-      } as Response);
-
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
-
-    await expect(gateway.lookupPostalCode("1020072")).resolves.toEqual({
-      postalCode: "1020072",
-      addresses: [
-        expect.objectContaining({
-          postalCode: "1020072",
-          address: "東京都 千代田区 飯田橋",
-        }),
-      ],
-    });
-  });
-
   it("treats a host-only base url as https for upstream requests", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
@@ -639,18 +513,15 @@ describe("createJapanPostAdapter", () => {
       }),
     } as Response);
 
-    const gateway = createJapanPostAdapter({
-      env: {
+    const client = createJapanPostClient(
+      createClientOptions(fetchMock, {
         JAPAN_POST_BASE_URL: "stub-qz73x.da.pf.japanpost.jp",
         JAPAN_POST_CLIENT_ID: "demo-client",
         JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: fetchMock,
-    });
+      }),
+    );
 
-    await expect(gateway.getHealth()).resolves.toEqual({
-      ok: true,
-    });
+    await expect(client.authenticate()).resolves.toBe("token-1");
 
     expect(fetchMock).toHaveBeenCalledWith(
       new URL("https://stub-qz73x.da.pf.japanpost.jp/api/v2/j/token"),
@@ -658,73 +529,5 @@ describe("createJapanPostAdapter", () => {
         method: "POST",
       }),
     );
-  });
-
-  it("reports unhealthy when credentials are missing", async () => {
-    const gateway = createJapanPostAdapter({
-      env: {},
-      fetch: vi.fn<typeof fetch>(),
-    });
-
-    await expect(gateway.getHealth()).resolves.toMatchObject({
-      ok: false,
-      error: "JAPAN_POST_CLIENT_ID is required",
-    });
-  });
-
-  it("reports healthy when credentials are configured and token exchange works", async () => {
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: vi.fn<typeof fetch>().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          token: "token-1",
-          expires_in: 3600,
-        }),
-      } as Response),
-    });
-
-    await expect(gateway.getHealth()).resolves.toEqual({
-      ok: true,
-    });
-  });
-
-  it("reports unhealthy when token exchange fails even if credentials are configured", async () => {
-    const gateway = createJapanPostAdapter({
-      env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-      },
-      fetch: vi.fn<typeof fetch>().mockResolvedValue({
-        ok: false,
-        status: 403,
-        json: async () => ({
-          error_code: "403-1028-0001",
-          message: "登録情報の不一致です",
-          request_id: "req-health",
-        }),
-      } as Response),
-    });
-
-    await expect(gateway.getHealth()).resolves.toEqual({
-      ok: false,
-      error:
-        "Address provider authentication failed with status 403: 登録情報の不一致です (error_code: 403-1028-0001, request_id: req-health)",
-    });
-  });
-
-  it("reports unhealthy without credentials", async () => {
-    const gateway = createJapanPostAdapter({
-      env: {},
-      fetch: vi.fn<typeof fetch>(),
-    });
-
-    await expect(gateway.getHealth()).resolves.toEqual({
-      ok: false,
-      error: "JAPAN_POST_CLIENT_ID is required",
-    });
   });
 });

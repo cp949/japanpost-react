@@ -57,18 +57,24 @@ React 앱
 권장 예시:
 
 ```http
-GET /searchcode/:code
+POST /q/japanpost/searchcode
 ```
 
-이 저장소 기준으로는 `:code`를 `3~7자리 숫자 우편번호`로 다룬다. `7`자리 미만이면
-upstream `searchcode`의 prefix 검색을 활용한다.
+요청 body 예시:
+
+```json
+{
+  "value": "1020072",
+  "pageNumber": 0,
+  "rowsPerPage": 10
+}
+```
 
 성공 응답 예시:
 
 ```json
 {
-  "postalCode": "1020072",
-  "addresses": [
+  "elements": [
     {
       "postalCode": "1020072",
       "prefecture": "東京都",
@@ -80,7 +86,10 @@ upstream `searchcode`의 prefix 검색을 활용한다.
       "address": "東京都 千代田区 飯田橋",
       "provider": "japan-post"
     }
-  ]
+  ],
+  "totalElements": 1,
+  "pageNumber": 0,
+  "rowsPerPage": 10
 }
 ```
 
@@ -89,15 +98,26 @@ upstream `searchcode`의 prefix 검색을 활용한다.
 권장 예시:
 
 ```http
-GET /addresszip?q=<query>
+POST /q/japanpost/addresszip
+```
+
+요청 body 예시:
+
+```json
+{
+  "freeword": "千代田",
+  "pageNumber": 0,
+  "rowsPerPage": 20,
+  "includeCityDetails": false,
+  "includePrefectureDetails": false
+}
 ```
 
 성공 응답 예시:
 
 ```json
 {
-  "query": "千代田",
-  "addresses": [
+  "elements": [
     {
       "postalCode": "1020072",
       "prefecture": "東京都",
@@ -109,17 +129,19 @@ GET /addresszip?q=<query>
       "address": "東京都 千代田区 飯田橋",
       "provider": "japan-post"
     }
-  ]
+  ],
+  "totalElements": 1,
+  "pageNumber": 0,
+  "rowsPerPage": 20
 }
 ```
 
-참고 구현은 내부적으로 Japan Post `addresszip` API를 `POST`로 호출하지만, 앱
-프런트엔드 계약은 단순한 조회 인터페이스로 유지하고 있다. 이 방식은 계속 권장할
-만하다. upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
+upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 `pref_roma`, `city_code`, `city_name`, `city_kana`, `city_roma`, `town_name`,
 `town_kana`, `town_roma`, `freeword`, `flg_getcity`, `flg_getpref`, `page`,
 `limit` request body와 `ec_uid` query parameter를 지원하지만, 현재
-`japanpost-react` 연동 기준 adapter는 그중 `freeword` subset만 사용한다.
+`minimal-api` high-level은 Kotlin 계약에 맞춘 camelCase body를 받고 내부에서
+업스트림 request body로 매핑한다.
 
 ## 4. 응답 정규화 규칙
 
@@ -145,8 +167,9 @@ GET /addresszip?q=<query>
 - `address`는 사람이 읽기 좋은 완성 주소 문자열로 만든다.
 - 업스트림 필드명이 바뀌어도 앱이 받는 응답 shape는 가능한 한 유지한다.
 
-이렇게 해두면 `dataSource`는 단순히 `payload.addresses`를 반환하면 되고,
-`japanpost-react` 훅들은 그 배열을 기반으로 결과 객체를 조합할 수 있다.
+이렇게 해두면 `dataSource`는 `payload`를 `Page<JapanAddress>` 그대로
+반환하면 되고, `japanpost-react` 훅들도 그 축소된 page payload를 그대로
+노출할 수 있다.
 
 ## 5. 입력 검증 규칙
 
@@ -160,8 +183,8 @@ GET /addresszip?q=<query>
 
 주소 검색:
 
-- `q`를 trim 처리한다.
-- 빈 문자열이면 `400`을 반환한다.
+- 검색 필드를 trim 처리한다.
+- 모든 검색 필드가 비어 있으면 `400`을 반환한다.
 
 이 검증을 서버에서 해두면 클라이언트 구현이 단순해지고, 잘못된 입력을 업스트림까지
 보내지 않아도 된다.
@@ -224,8 +247,8 @@ GET /addresszip?q=<query>
 이 구조면 클라이언트 `dataSource`는 상태 코드와 `error` 메시지를 읽어 다음처럼
 맵핑하기 쉽다.
 
-- `400 /searchcode/...` -> `invalid_postal_code`
-- `400 /addresszip?...` -> `invalid_query`
+- `400 /q/japanpost/searchcode` -> `invalid_postal_code`
+- `400 /q/japanpost/addresszip` -> `invalid_query`
 - `404` -> `not_found`
 - `504` -> `timeout`
 - 네트워크 실패 -> `network_error`

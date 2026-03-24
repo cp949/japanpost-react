@@ -108,11 +108,10 @@ export function useJapanAddressSearch(
       const requestOptions: JapanAddressRequestOptions = {
         signal,
       };
-      const addresses = await dataSource.searchAddress(
+      const result = await dataSource.searchAddress(
         normalizedQuery,
         requestOptions,
       );
-      const result = { query: normalizedQuery, addresses };
       setSuccess(requestId, result);
       return result;
     } catch (caughtError) {

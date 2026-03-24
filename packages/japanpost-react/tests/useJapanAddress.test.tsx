@@ -8,8 +8,18 @@ import { createJapanAddressError } from "../src/core/errors";
 describe("useJapanAddress", () => {
   it("provides a unified resettable API", async () => {
     const dataSource = {
-      lookupPostalCode: vi.fn().mockResolvedValue([]),
-      searchAddress: vi.fn().mockResolvedValue([]),
+      lookupPostalCode: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+      searchAddress: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
     };
 
     const { result } = renderHook(() => useJapanAddress({ dataSource }));
@@ -22,7 +32,10 @@ describe("useJapanAddress", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.data).toMatchObject({ postalCode: "1000001" });
+    expect(result.current.data).toMatchObject({
+      elements: [],
+      totalElements: 0,
+    });
 
     act(() => {
       result.current.reset();
@@ -39,7 +52,12 @@ describe("useJapanAddress", () => {
         .mockRejectedValueOnce(
           createJapanAddressError("not_found", "missing address"),
         )
-        .mockResolvedValueOnce([]),
+        .mockResolvedValueOnce({
+          elements: [],
+          totalElements: 0,
+          pageNumber: 0,
+          rowsPerPage: 20,
+        }),
       searchAddress: vi.fn(),
     };
 
@@ -58,7 +76,10 @@ describe("useJapanAddress", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.data).toMatchObject({ postalCode: "1000001" });
+      expect(result.current.data).toMatchObject({
+        elements: [],
+        totalElements: 0,
+      });
     });
 
     expect(result.current.error).toBeNull();
@@ -66,8 +87,18 @@ describe("useJapanAddress", () => {
 
   it("keeps public function references stable across rerenders with the same options", () => {
     const dataSource = {
-      lookupPostalCode: vi.fn().mockResolvedValue([]),
-      searchAddress: vi.fn().mockResolvedValue([]),
+      lookupPostalCode: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+      searchAddress: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
     };
 
     const { result, rerender } = renderHook(

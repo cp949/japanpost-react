@@ -96,10 +96,9 @@ describe("demo app flow", () => {
         });
       }
 
-      if (url.includes("/searchcode/1500001")) {
+      if (url.includes("/q/japanpost/searchcode")) {
         return jsonResponse(200, {
-          postalCode: "1500001",
-          addresses: [
+          elements: [
             {
               postalCode: "1500001",
               prefecture: "Tokyo",
@@ -109,6 +108,9 @@ describe("demo app flow", () => {
               provider: "japan-post",
             },
           ],
+          totalElements: 1,
+          pageNumber: 0,
+          rowsPerPage: 20,
         });
       }
 
@@ -155,7 +157,10 @@ describe("demo app flow", () => {
         });
       }
 
-      if (url.includes("/searchcode/") || url.includes("/addresszip")) {
+      if (
+        url.includes("/q/japanpost/searchcode") ||
+        url.includes("/q/japanpost/addresszip")
+      ) {
         throw new Error(
           `Search should not run while the demo API server is not ready: ${url}`,
         );
@@ -267,7 +272,10 @@ describe("demo app flow", () => {
         });
       }
 
-      if (url.includes("/searchcode/") || url.includes("/addresszip")) {
+      if (
+        url.includes("/q/japanpost/searchcode") ||
+        url.includes("/q/japanpost/addresszip")
+      ) {
         throw new Error(
           `Search should stay blocked during manual retry: ${url}`,
         );
@@ -406,7 +414,7 @@ describe("demo app flow", () => {
         });
       }
 
-      if (url.includes("/searchcode/1020072")) {
+      if (url.includes("/q/japanpost/searchcode")) {
         return jsonResponse(404, {
           error: "No matching addresses found",
         });

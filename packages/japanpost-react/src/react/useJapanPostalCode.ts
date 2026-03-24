@@ -63,11 +63,10 @@ export function useJapanPostalCode(
       const requestOptions: JapanAddressRequestOptions = {
         signal,
       };
-      const addresses = await dataSource.lookupPostalCode(
+      const result = await dataSource.lookupPostalCode(
         postalCode,
         requestOptions,
       );
-      const result = { postalCode, addresses };
       setSuccess(requestId, result);
       return result;
     } catch (caughtError) {

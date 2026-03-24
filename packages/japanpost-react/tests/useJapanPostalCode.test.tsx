@@ -3,17 +3,17 @@ import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useJapanPostalCode } from "../src/react/useJapanPostalCode";
-import type { JapanAddress } from "../src/core/types";
+import type { JapanAddress, Page } from "../src/core/types";
 
 describe("useJapanPostalCode", () => {
   it("loads postal-code results and exposes loading state", async () => {
     let resolveLookup:
-      | ((value: JapanAddress[]) => void)
+      | ((value: Page<JapanAddress>) => void)
       | null = null;
     const dataSource = {
       lookupPostalCode: vi.fn().mockImplementation(
         () =>
-          new Promise<JapanAddress[]>((resolve) => {
+          new Promise<Page<JapanAddress>>((resolve) => {
             resolveLookup = (value) => resolve(value);
           }),
       ),
@@ -31,16 +31,21 @@ describe("useJapanPostalCode", () => {
     });
 
     await act(async () => {
-      resolveLookup?.([
-        {
-          postalCode: "1000001",
-          prefecture: "Tokyo",
-          city: "Chiyoda-ku",
-          town: "Chiyoda",
-          address: "Tokyo Chiyoda-ku Chiyoda",
-          provider: "japan-post",
-        },
-      ]);
+      resolveLookup?.({
+        elements: [
+          {
+            postalCode: "1000001",
+            prefecture: "Tokyo",
+            city: "Chiyoda-ku",
+            town: "Chiyoda",
+            address: "Tokyo Chiyoda-ku Chiyoda",
+            provider: "japan-post",
+          },
+        ],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
     });
 
     await waitFor(() => {
@@ -53,8 +58,7 @@ describe("useJapanPostalCode", () => {
         signal: expect.any(AbortSignal),
       }),
     );
-    expect(result.current.data?.postalCode).toBe("1000001");
-    expect(result.current.data?.addresses).toEqual([
+    expect(result.current.data?.elements).toEqual([
       {
         postalCode: "1000001",
         prefecture: "Tokyo",
@@ -64,27 +68,28 @@ describe("useJapanPostalCode", () => {
         provider: "japan-post",
       },
     ]);
+    expect(result.current.data?.totalElements).toBe(1);
   });
 
   it("keeps only the latest postal-code result when requests resolve out of order", async () => {
     let resolveFirst:
-      | ((value: JapanAddress[]) => void)
+      | ((value: Page<JapanAddress>) => void)
       | null = null;
     let resolveSecond:
-      | ((value: JapanAddress[]) => void)
+      | ((value: Page<JapanAddress>) => void)
       | null = null;
     const dataSource = {
       lookupPostalCode: vi
         .fn()
         .mockImplementationOnce(
           () =>
-            new Promise<JapanAddress[]>((resolve) => {
+            new Promise<Page<JapanAddress>>((resolve) => {
               resolveFirst = (value) => resolve(value);
             }),
         )
         .mockImplementationOnce(
           () =>
-            new Promise<JapanAddress[]>((resolve) => {
+            new Promise<Page<JapanAddress>>((resolve) => {
               resolveSecond = (value) => resolve(value);
             }),
         ),
@@ -99,50 +104,65 @@ describe("useJapanPostalCode", () => {
     });
 
     await act(async () => {
-      resolveSecond?.([
-        {
-          postalCode: "1500001",
-          prefecture: "Tokyo",
-          city: "Shibuya-ku",
-          town: "Jingumae",
-          address: "Tokyo Shibuya-ku Jingumae",
-          provider: "japan-post",
-        },
-      ]);
+      resolveSecond?.({
+        elements: [
+          {
+            postalCode: "1500001",
+            prefecture: "Tokyo",
+            city: "Shibuya-ku",
+            town: "Jingumae",
+            address: "Tokyo Shibuya-ku Jingumae",
+            provider: "japan-post",
+          },
+        ],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
     });
 
     await waitFor(() => {
-      expect(result.current.data?.postalCode).toBe("1500001");
+      expect(result.current.data?.elements[0]?.postalCode).toBe("1500001");
     });
 
     await act(async () => {
-      resolveFirst?.([
-        {
-          postalCode: "1000001",
-          prefecture: "Tokyo",
-          city: "Chiyoda-ku",
-          town: "Chiyoda",
-          address: "Tokyo Chiyoda-ku Chiyoda",
-          provider: "japan-post",
-        },
-      ]);
+      resolveFirst?.({
+        elements: [
+          {
+            postalCode: "1000001",
+            prefecture: "Tokyo",
+            city: "Chiyoda-ku",
+            town: "Chiyoda",
+            address: "Tokyo Chiyoda-ku Chiyoda",
+            provider: "japan-post",
+          },
+        ],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
     });
 
-    expect(result.current.data?.postalCode).toBe("1500001");
+    expect(result.current.data?.elements[0]?.postalCode).toBe("1500001");
   });
 
   it("passes through postal-code prefix searches with at least three digits", async () => {
     const dataSource = {
-      lookupPostalCode: vi.fn().mockResolvedValue([
-        {
-          postalCode: "1230000",
-          prefecture: "Tokyo",
-          city: "Example-ku",
-          town: "Prefix",
-          address: "Tokyo Example-ku Prefix",
-          provider: "japan-post",
-        },
-      ]),
+      lookupPostalCode: vi.fn().mockResolvedValue({
+        elements: [
+          {
+            postalCode: "1230000",
+            prefecture: "Tokyo",
+            city: "Example-ku",
+            town: "Prefix",
+            address: "Tokyo Example-ku Prefix",
+            provider: "japan-post",
+          },
+        ],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
       searchAddress: vi.fn(),
     };
 
@@ -159,7 +179,7 @@ describe("useJapanPostalCode", () => {
       }),
     );
     expect(result.current.error).toBeNull();
-    expect(result.current.data?.postalCode).toBe("1234");
+    expect(result.current.data?.elements[0]?.postalCode).toBe("1230000");
   });
 
   it("surfaces invalid postal-code errors instead of truncating malformed inputs", async () => {
@@ -184,15 +204,15 @@ describe("useJapanPostalCode", () => {
 
   it("aborts the previous lookup when a new postal-code search starts", async () => {
     const signals: AbortSignal[] = [];
-    let resolveFirst: ((value: JapanAddress[]) => void) | null = null;
-    let resolveSecond: ((value: JapanAddress[]) => void) | null = null;
+    let resolveFirst: ((value: Page<JapanAddress>) => void) | null = null;
+    let resolveSecond: ((value: Page<JapanAddress>) => void) | null = null;
     const dataSource = {
       lookupPostalCode: vi
         .fn()
         .mockImplementationOnce(
           (_postalCode: string, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
-            return new Promise<JapanAddress[]>((resolve) => {
+            return new Promise<Page<JapanAddress>>((resolve) => {
               resolveFirst = resolve;
             });
           },
@@ -200,7 +220,7 @@ describe("useJapanPostalCode", () => {
         .mockImplementationOnce(
           (_postalCode: string, options?: { signal?: AbortSignal }) => {
             signals.push(options?.signal as AbortSignal);
-            return new Promise<JapanAddress[]>((resolve) => {
+            return new Promise<Page<JapanAddress>>((resolve) => {
               resolveSecond = resolve;
             });
           },
@@ -220,8 +240,18 @@ describe("useJapanPostalCode", () => {
     expect(signals[1]?.aborted).toBe(false);
 
     await act(async () => {
-      resolveFirst?.([]);
-      resolveSecond?.([]);
+      resolveFirst?.({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
+      resolveSecond?.({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
     });
   });
 
@@ -230,7 +260,7 @@ describe("useJapanPostalCode", () => {
     const dataSource = {
       lookupPostalCode: vi.fn(
         (_postalCode: string, options?: { signal?: AbortSignal }) =>
-          new Promise<JapanAddress[]>((_resolve) => {
+          new Promise<Page<JapanAddress>>((_resolve) => {
             capturedSignal = options?.signal;
           }),
       ),
@@ -253,7 +283,12 @@ describe("useJapanPostalCode", () => {
 
   it("keeps public function references stable across rerenders with the same data source", () => {
     const dataSource = {
-      lookupPostalCode: vi.fn().mockResolvedValue([]),
+      lookupPostalCode: vi.fn().mockResolvedValue({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
       searchAddress: vi.fn(),
     };
 

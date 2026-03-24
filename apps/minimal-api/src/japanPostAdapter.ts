@@ -1,33 +1,31 @@
-import type { JapanAddress } from "@cp949/japanpost-react";
 import type {
   AdapterOptions,
   AddressAdapter,
   HealthStatus,
-  JapanPostAddressZipResponse,
-  JapanPostSearchCodeAddress,
-  JapanPostSearchCodeResponse,
+  JapanAddress,
+  JapanPostAddresszipRequest,
+  JapanPostSearchcodeRequest,
+  MomoPagerData,
 } from "./japanPostAdapterTypes.js";
+import type { JapanPostSearchCodeAddress } from "./japanPost/clientTypes.js";
 
 export type {
   AdapterOptions,
   AddressAdapter,
-  AddressSearchResult,
   HealthStatus,
-  PostalCodeResult,
+  JapanAddress,
+  JapanPostAddresszipRequest,
+  JapanPostSearchcodeRequest,
+  MomoPagerData,
 } from "./japanPostAdapterTypes.js";
 export { createHttpError } from "./adapter/errors.js";
 
+import { createJapanPostClient } from "./japanPost/client.js";
 import { createHttpError, isAdapterHttpError } from "./adapter/errors.js";
-import {
-  createAddressZipRequest,
-  createJapanPostAdapterConfig,
-  createSearchCodeEndpoint,
-} from "./adapter/config.js";
-import { createJapanPostGateway } from "./adapter/japanPostGateway.js";
 import {
   normalizeAddressRecord,
   normalizePostalCode,
-} from "./adapter/normalizers.js";
+} from "./japanPost/normalizers.js";
 
 function ensureAddresses(payload: {
   addresses?: JapanPostSearchCodeAddress[] | null;
@@ -42,35 +40,102 @@ function ensureAddresses(payload: {
   return payload.addresses;
 }
 
-import { createJapanPostTokenClient } from "./adapter/tokenClient.js";
+function toMomoPagerData(
+  addresses: JapanAddress[],
+  totalElements: number,
+  pageNumber: number,
+  rowsPerPage: number,
+): MomoPagerData<JapanAddress> {
+  return {
+    elements: addresses,
+    totalElements,
+    pageNumber,
+    rowsPerPage,
+  };
+}
+
+function ensurePageRequest(pageNumber: number, rowsPerPage: number) {
+  if (!Number.isInteger(pageNumber) || pageNumber < 0) {
+    throw createHttpError(400, "pageNumber must be a non-negative integer");
+  }
+
+  if (!Number.isInteger(rowsPerPage) || rowsPerPage < 1) {
+    throw createHttpError(400, "rowsPerPage must be a positive integer");
+  }
+}
+
+function normalizeOptionalString(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
+
+function requireMeaningfulSearchField(
+  request: JapanPostAddresszipRequest,
+): void {
+  const hasMeaningfulSearchField = [
+    request.freeword,
+    request.prefCode,
+    request.prefName,
+    request.prefKana,
+    request.prefRoma,
+    request.cityCode,
+    request.cityName,
+    request.cityKana,
+    request.cityRoma,
+    request.townName,
+    request.townKana,
+    request.townRoma,
+  ].some((value) => normalizeOptionalString(value) !== undefined);
+
+  if (!hasMeaningfulSearchField) {
+    throw createHttpError(400, "At least one search field must be provided");
+  }
+}
+
+function toChoikiType(includeParenthesesTown: boolean | null | undefined) {
+  if (includeParenthesesTown === true) {
+    return 2;
+  }
+
+  if (includeParenthesesTown === false) {
+    return 1;
+  }
+
+  return undefined;
+}
+
+function toSearchType(includeBusinessAddresses: boolean | null | undefined) {
+  if (includeBusinessAddresses === true) {
+    return 1;
+  }
+
+  if (includeBusinessAddresses === false) {
+    return 2;
+  }
+
+  return undefined;
+}
+
+function toAddressZipFlag(value: boolean | null | undefined) {
+  if (value === true) {
+    return 1;
+  }
+
+  if (value === false) {
+    return 0;
+  }
+
+  return undefined;
+}
 
 export function createJapanPostAdapter(
   options: AdapterOptions = {},
 ): AddressAdapter {
-  const env = options.env ?? process.env;
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-
-  if (!fetchImpl) {
-    throw createHttpError(500, "Fetch is not available in this environment");
-  }
-
-  const config = createJapanPostAdapterConfig(env);
-  const tokenClient = createJapanPostTokenClient({
-    baseUrl: config.baseUrl,
-    env,
-    fetch: fetchImpl,
-    forwardedFor: config.forwardedFor,
-    tokenPath: config.tokenPath,
-  });
-  const gateway = createJapanPostGateway({
-    clearCachedToken: tokenClient.clearCachedToken,
-    fetch: fetchImpl,
-    requestToken: tokenClient.requestToken,
-  });
+  const client = createJapanPostClient(options);
 
   async function getHealth(): Promise<HealthStatus> {
     try {
-      await tokenClient.requestToken();
+      await client.authenticate();
       return { ok: true };
     } catch (error) {
       if (isAdapterHttpError(error) && error instanceof Error) {
@@ -84,21 +149,13 @@ export function createJapanPostAdapter(
     }
   }
 
-  function ensureAddressesFound<T extends { addresses: JapanAddress[] }>(
-    payload: T,
-  ): T {
-    if (payload.addresses.length === 0) {
-      throw createHttpError(404, "No matching addresses found");
-    }
-
-    return payload;
-  }
-
   return {
     getHealth,
 
-    async lookupPostalCode(postalCode: string) {
-      const normalizedCode = normalizePostalCode(postalCode);
+    async searchcode(request: JapanPostSearchcodeRequest) {
+      ensurePageRequest(request.pageNumber, request.rowsPerPage);
+
+      const normalizedCode = normalizePostalCode(request.value);
 
       if (!/^\d{3,7}$/.test(normalizedCode)) {
         throw createHttpError(
@@ -107,45 +164,52 @@ export function createJapanPostAdapter(
         );
       }
 
-      const endpoint = createSearchCodeEndpoint(config, normalizedCode);
-      const payload = await gateway.fetchWithToken<JapanPostSearchCodeResponse>(
-        endpoint,
-        {
-          method: "GET",
-        },
-      );
-      const addresses = ensureAddresses(payload);
-
-      return ensureAddressesFound({
-        postalCode: normalizedCode,
-        addresses: addresses.map(normalizeAddressRecord),
+      const payload = await client.searchCodeRaw(normalizedCode, {
+        page: request.pageNumber + 1,
+        limit: request.rowsPerPage,
+        choikitype: toChoikiType(request.includeParenthesesTown),
+        searchtype: toSearchType(request.includeBusinessAddresses),
       });
+      const addresses = ensureAddresses(payload).map(normalizeAddressRecord);
+
+      return toMomoPagerData(
+        addresses,
+        payload.count ?? addresses.length,
+        request.pageNumber,
+        request.rowsPerPage,
+      );
     },
 
-    async searchAddress(query: string) {
-      const normalizedQuery = query.trim();
+    async addresszip(request: JapanPostAddresszipRequest) {
+      ensurePageRequest(request.pageNumber, request.rowsPerPage);
+      requireMeaningfulSearchField(request);
 
-      if (!normalizedQuery) {
-        throw createHttpError(400, "Query parameter q is required");
-      }
-
-      const { endpoint, requestBody } = createAddressZipRequest(
-        config,
-        normalizedQuery,
-      );
-      const payload = await gateway.fetchWithToken<JapanPostAddressZipResponse>(
-        endpoint,
-        {
-          method: "POST",
-          body: JSON.stringify(requestBody),
-        },
-      );
-      const addresses = ensureAddresses(payload);
-
-      return ensureAddressesFound({
-        query: normalizedQuery,
-        addresses: addresses.map(normalizeAddressRecord),
+      const payload = await client.addressZipRaw({
+        freeword: normalizeOptionalString(request.freeword),
+        pref_code: normalizeOptionalString(request.prefCode),
+        pref_name: normalizeOptionalString(request.prefName),
+        pref_kana: normalizeOptionalString(request.prefKana),
+        pref_roma: normalizeOptionalString(request.prefRoma),
+        city_code: normalizeOptionalString(request.cityCode),
+        city_name: normalizeOptionalString(request.cityName),
+        city_kana: normalizeOptionalString(request.cityKana),
+        city_roma: normalizeOptionalString(request.cityRoma),
+        town_name: normalizeOptionalString(request.townName),
+        town_kana: normalizeOptionalString(request.townKana),
+        town_roma: normalizeOptionalString(request.townRoma),
+        flg_getcity: toAddressZipFlag(request.includeCityDetails),
+        flg_getpref: toAddressZipFlag(request.includePrefectureDetails),
+        page: request.pageNumber + 1,
+        limit: request.rowsPerPage,
       });
+      const addresses = ensureAddresses(payload).map(normalizeAddressRecord);
+
+      return toMomoPagerData(
+        addresses,
+        payload.count ?? addresses.length,
+        request.pageNumber,
+        request.rowsPerPage,
+      );
     },
   };
 }

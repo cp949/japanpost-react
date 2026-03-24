@@ -63,7 +63,7 @@ pnpm api:check
 
 This command expects a usable `.secrets/env` file with real upstream
 credentials because it starts `apps/minimal-api` and exercises `/health`,
-`/searchcode/:code`, and `/addresszip`.
+`/q/japanpost/searchcode`, and `/q/japanpost/addresszip`.
 
 To run the repository verification path:
 
@@ -85,6 +85,31 @@ pnpm add @cp949/japanpost-react
 - Supported React versions: React 18 and React 19
 - The published package lives in [`packages/japanpost-react`](./packages/japanpost-react)
 - Package usage docs live in [`packages/japanpost-react/README.md`](./packages/japanpost-react/README.md)
+
+## Breaking Change: Page-Aware Public Contract
+
+The published `@cp949/japanpost-react` contract now stays aligned with the
+Kotlin/minimal-api high-level pager contract. This is an intentional breaking
+change.
+
+Migration notes:
+
+- `JapanAddressDataSource.lookupPostalCode()` and `.searchAddress()` must now
+  return `Promise<Page<JapanAddress>>`, not `Promise<JapanAddress[]>`.
+- Hook results are now the `Page<JapanAddress>` payload itself.
+  `useJapanPostalCode`, `useJapanAddressSearch`, and `useJapanAddress` no
+  longer wrap results as `{ postalCode, addresses }` or `{ query, addresses }`.
+- Update consumer code from `data.addresses` to `data.elements`.
+- `Page<T>` now keeps only `elements`, `totalElements`, `pageNumber`, and
+  `rowsPerPage`.
+- `Page<T>` no longer provides `totalPages`, `offset`, `isFirst`, `isLast`, or
+  `nextKey`.
+- The public pager type name is `Page<T>`.
+
+```ts
+const addresses = data?.elements ?? [];
+const total = data?.totalElements ?? 0;
+```
 
 ## More Docs
 

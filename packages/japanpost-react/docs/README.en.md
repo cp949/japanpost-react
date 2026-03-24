@@ -19,14 +19,24 @@ pnpm add @cp949/japanpost-react
 
 ```tsx
 import { useJapanPostalCode } from "@cp949/japanpost-react";
-import type { JapanAddressDataSource } from "@cp949/japanpost-react";
+import type { JapanAddressDataSource, Page, JapanAddress } from "@cp949/japanpost-react";
 import { createJapanAddressError } from "@cp949/japanpost-react";
 
 // The only supported integration model is a real server-backed flow.
 // Point the data source at your own backend API.
 const dataSource: JapanAddressDataSource = {
   async lookupPostalCode(postalCode) {
-    const res = await fetch(`/searchcode/${postalCode}`);
+    const res = await fetch(`/q/japanpost/searchcode`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        value: postalCode,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+    });
     if (!res.ok) {
       const message = `Postal code lookup failed with status ${res.status}`;
 
@@ -53,16 +63,33 @@ const dataSource: JapanAddressDataSource = {
       });
     }
     const payload = await res.json();
-    if (!Array.isArray(payload.addresses)) {
+    if (
+      !Array.isArray(payload.elements) ||
+      typeof payload.totalElements !== "number" ||
+      typeof payload.pageNumber !== "number" ||
+      typeof payload.rowsPerPage !== "number"
+    ) {
       throw createJapanAddressError(
         "bad_response",
-        "Postal code lookup returned an invalid payload",
+        "Postal code lookup returned an invalid page payload",
       );
     }
-    return payload.addresses;
+    return payload as Page<JapanAddress>;
   },
   async searchAddress(query) {
-    const res = await fetch(`/addresszip?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`/q/japanpost/addresszip`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        freeword: query,
+        pageNumber: 0,
+        rowsPerPage: 20,
+        includeCityDetails: false,
+        includePrefectureDetails: false,
+      }),
+    });
     if (!res.ok) {
       const message = `Address search failed with status ${res.status}`;
 
@@ -89,13 +116,18 @@ const dataSource: JapanAddressDataSource = {
       });
     }
     const payload = await res.json();
-    if (!Array.isArray(payload.addresses)) {
+    if (
+      !Array.isArray(payload.elements) ||
+      typeof payload.totalElements !== "number" ||
+      typeof payload.pageNumber !== "number" ||
+      typeof payload.rowsPerPage !== "number"
+    ) {
       throw createJapanAddressError(
         "bad_response",
-        "Address search returned an invalid payload",
+        "Address search returned an invalid page payload",
       );
     }
-    return payload.addresses;
+    return payload as Page<JapanAddress>;
   },
 };
 
@@ -111,7 +143,8 @@ export function PostalForm() {
           {error.code}: {error.message}
         </p>
       )}
-      {data?.addresses.map((addr) => (
+      <p>Total results: {data?.totalElements ?? 0}</p>
+      {data?.elements.map((addr) => (
         <p key={addr.postalCode + addr.address}>{addr.address}</p>
       ))}
     </div>
@@ -131,7 +164,7 @@ export function PostalForm() {
 - `useJapanAddress`
 - `PostalCodeInput`
 - `AddressSearchInput`
-- Public types including `JapanAddress` and `JapanAddressDataSource`
+- Public types including `JapanAddress`, `JapanAddressDataSource`, and `Page`
 - Request options type: `JapanAddressRequestOptions`
 
 ## Utility Notes
@@ -177,8 +210,11 @@ All hooks require `dataSource` at runtime.
 
 ## Error Handling Notes
 
-`JapanAddressDataSource` should return `JapanAddress[]` directly from both
-methods. The hooks wrap those arrays into lookup/search result objects.
+`JapanAddressDataSource` should return `Page<JapanAddress>` directly from both
+methods. Hooks preserve that page payload as-is, so consumers can read
+`data.elements`, `data.totalElements`, `data.pageNumber`, and
+`data.rowsPerPage` directly. The public contract no longer includes
+`totalPages`, `offset`, `isFirst`, `isLast`, or `nextKey`.
 
 Both methods may also receive an optional second argument:
 
@@ -204,8 +240,9 @@ Recommended error-code mapping:
 | Other backend failures | `data_source_error` |
 
 In this repository's reference demo flow, the sample `dataSource` maps `400
-/searchcode/...` to `invalid_postal_code`, `400 /addresszip?...` to
-`invalid_query`, `404` to `not_found`, and `504` to `timeout`.
+/q/japanpost/searchcode` to `invalid_postal_code`, `400
+/q/japanpost/addresszip` to `invalid_query`, `404` to `not_found`, and `504`
+to `timeout`.
 
 ## Headless Components
 

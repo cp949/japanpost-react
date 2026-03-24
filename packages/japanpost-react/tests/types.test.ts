@@ -5,6 +5,7 @@ import type {
   JapanAddress,
   JapanPostApiAddressRecord,
   JapanAddressDataSource,
+  Page,
   JapanAddressError,
   JapanAddressErrorCode,
   JapanPostAddressZipResponse,
@@ -29,13 +30,19 @@ describe("core types", () => {
       address: "Tokyo Chiyoda-ku Chiyoda",
       provider: "japan-post",
     };
+    const page: Page<JapanAddress> = {
+      elements: [address],
+      totalElements: 1,
+      pageNumber: 0,
+      rowsPerPage: 20,
+    };
 
     const dataSource: JapanAddressDataSource = {
       async lookupPostalCode() {
-        return [address];
+        return page;
       },
       async searchAddress() {
-        return [address];
+        return page;
       },
     };
     const postalCodeInputProps: PostalCodeInputProps = {
@@ -68,6 +75,8 @@ describe("core types", () => {
     expect(addressSearchInputProps.value).toBe("Tokyo");
     expect(searchCodeResponse.addresses?.[0]?.zip_code).toBe("1000001");
     expect(addressZipResponse.addresses?.[0]?.zip_code).toBe("1000001");
+    expect(page.elements[0]?.postalCode).toBe("1000001");
+    expect(page.totalElements).toBe(1);
     expect(address).not.toHaveProperty("formattedAddress");
   });
 });
@@ -78,6 +87,12 @@ expectTypeOf<NormalizedJapanAddressRecord>().toMatchTypeOf<{
   prefecture: string;
   city: string;
   town: string;
+}>();
+expectTypeOf<Page<JapanAddress>>().toMatchTypeOf<{
+  elements: JapanAddress[];
+  totalElements: number;
+  pageNumber: number;
+  rowsPerPage: number;
 }>();
 expectTypeOf<JapanAddressErrorCode>().toMatchTypeOf<
   | "invalid_postal_code"

@@ -37,7 +37,7 @@ export default function App() {
     retryHealthCheck,
   } = useDemoApiHealth(demoApiBaseUrl, loading);
 
-  const addresses = data?.addresses ?? [];
+  const addresses = data?.elements ?? [];
   const searchDisabled = loading || apiHealthLoading || !apiReady;
 
   function handleReset() {
