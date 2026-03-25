@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import { execFileSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
@@ -21,22 +23,200 @@ const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
   >;
 };
 
+function createPackedConsumerProject(): {
+  cleanup: () => void;
+  consumerDir: string;
+  tarballPath: string;
+} {
+  const sandboxDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "japanpost-react-pack-consumer-"),
+  );
+  const tarballDir = path.join(sandboxDir, "pack");
+  const consumerDir = path.join(sandboxDir, "consumer");
+
+  fs.mkdirSync(tarballDir, { recursive: true });
+  fs.mkdirSync(consumerDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(consumerDir, "package.json"),
+    JSON.stringify(
+      {
+        name: "japanpost-react-pack-consumer",
+        private: true,
+      },
+      null,
+      2,
+    ),
+  );
+
+  execFileSync(
+    "pnpm",
+    ["pack", "--pack-destination", tarballDir],
+    {
+      cwd: packageDir,
+      encoding: "utf8",
+    },
+  );
+
+  const [tarballName] = fs
+    .readdirSync(tarballDir)
+    .filter((entry) => entry.endsWith(".tgz"));
+
+  if (!tarballName) {
+    throw new Error("Expected pnpm pack to produce a tarball");
+  }
+
+  const tarballPath = path.join(tarballDir, tarballName);
+
+  execFileSync(
+    "pnpm",
+    [
+      "add",
+      tarballPath,
+      "react",
+      "react-dom",
+    ],
+    {
+      cwd: consumerDir,
+      encoding: "utf8",
+    },
+  );
+
+  return {
+    cleanup: () => fs.rmSync(sandboxDir, { force: true, recursive: true }),
+    consumerDir,
+    tarballPath,
+  };
+}
+
 describe("package artifacts", () => {
-  it("publishes the files declared in package metadata", () => {
+  it("declares an ESM-only root package contract", () => {
     const exportEntry = packageJson.exports?.["."] ?? {};
-    const artifactPaths = [
+
+    expect(exportEntry.import).toBe("./dist/index.es.js");
+    expect(exportEntry.types).toBe("./dist/index.d.ts");
+    expect(exportEntry.require).toBeUndefined();
+    expect(packageJson.main).toBe("dist/index.es.js");
+    expect(packageJson.module).toBe("dist/index.es.js");
+    expect(packageJson.types).toBe("dist/index.d.ts");
+  });
+
+  it("publishes only the expected ESM runtime artifacts", () => {
+    const clientExportEntry = packageJson.exports?.["./client"] ?? {};
+    const runtimeArtifacts = [
       packageJson.main,
       packageJson.module,
-      packageJson.types,
-      exportEntry.import,
-      exportEntry.require,
-      exportEntry.types,
+      packageJson.exports?.["."]?.import,
+      clientExportEntry.import,
     ].filter((value): value is string => Boolean(value));
 
-    expect(artifactPaths.length).toBeGreaterThan(0);
+    expect(runtimeArtifacts).toContain("dist/index.es.js");
+    expect(runtimeArtifacts).toContain("./dist/client.es.js");
+    expect(runtimeArtifacts).not.toContain("dist/index.umd.cjs");
+    expect(fs.existsSync(path.join(packageDir, "dist/index.es.js"))).toBe(true);
+    expect(fs.existsSync(path.join(packageDir, "dist/client.es.js"))).toBe(true);
+    expect(fs.existsSync(path.join(packageDir, "dist/index.umd.cjs"))).toBe(false);
 
-    for (const artifactPath of new Set(artifactPaths)) {
+    for (const artifactPath of new Set(runtimeArtifacts)) {
       expect(fs.existsSync(path.join(packageDir, artifactPath))).toBe(true);
+    }
+  });
+
+  it("publishes a dedicated client entry for Next.js client components", () => {
+    const clientExportEntry = packageJson.exports?.["./client"] ?? {};
+    const clientImportPath = clientExportEntry.import;
+    const clientTypesPath = clientExportEntry.types;
+
+    expect(clientImportPath).toBeTruthy();
+    expect(clientTypesPath).toBeTruthy();
+    expect(fs.existsSync(path.join(packageDir, clientImportPath!))).toBe(true);
+    expect(fs.existsSync(path.join(packageDir, clientTypesPath!))).toBe(true);
+
+    const clientEntrySource = fs.readFileSync(
+      path.join(packageDir, clientImportPath!),
+      "utf8",
+    );
+
+    expect(clientEntrySource.startsWith('"use client";')).toBe(true);
+  });
+
+  it("keeps the published ESM entry importable in Node ESM environments", () => {
+    const exportEntry = packageJson.exports?.["."] ?? {};
+    const importPath = exportEntry.import;
+
+    expect(importPath).toBeTruthy();
+
+    const stdout = execFileSync(
+      "node",
+      [
+        "--input-type=module",
+        "-e",
+        `import(${JSON.stringify(`./${importPath}`)}).then(() => console.log("import-ok"))`,
+      ],
+      {
+        cwd: packageDir,
+        encoding: "utf8",
+      },
+    );
+
+    expect(stdout.trim()).toBe("import-ok");
+  });
+
+  it("keeps the packed tarball importable only through ESM package exports", () => {
+    const { cleanup, consumerDir, tarballPath } = createPackedConsumerProject();
+
+    try {
+      const tarballEntries = execFileSync("tar", ["-tzf", tarballPath], {
+        encoding: "utf8",
+      })
+        .trim()
+        .split("\n");
+
+      expect(tarballEntries).toContain("package/dist/index.es.js");
+      expect(tarballEntries).toContain("package/dist/client.es.js");
+      expect(tarballEntries).not.toContain("package/dist/index.umd.cjs");
+
+      const importStdout = execFileSync(
+        "node",
+        [
+          "--input-type=module",
+          "-e",
+          'import("@cp949/japanpost-react").then(() => console.log("import-ok"))',
+        ],
+        {
+          cwd: consumerDir,
+          encoding: "utf8",
+        },
+      );
+
+      expect(importStdout.trim()).toBe("import-ok");
+      expect(() =>
+        execFileSync(
+          "node",
+          [
+            "-e",
+            'require("@cp949/japanpost-react"); console.log("require-ok")',
+          ],
+          {
+            cwd: consumerDir,
+            encoding: "utf8",
+          },
+        ),
+      ).toThrowError(/ERR_PACKAGE_PATH_NOT_EXPORTED/);
+      expect(() =>
+        execFileSync(
+          "node",
+          [
+            "-e",
+            'require("@cp949/japanpost-react/client"); console.log("require-client-ok")',
+          ],
+          {
+            cwd: consumerDir,
+            encoding: "utf8",
+          },
+        ),
+      ).toThrowError(/ERR_PACKAGE_PATH_NOT_EXPORTED/);
+    } finally {
+      cleanup();
     }
   });
 
@@ -50,10 +230,16 @@ describe("package artifacts", () => {
     expect(englishReadme).toContain("[한국어 README](./README.ko.md)");
     expect(englishReadme).not.toContain("[English](#english) | [한국어](#한국어)");
     expect(englishReadme).not.toContain("## 한국어");
+    expect(englishReadme).toContain('`require("@cp949/japanpost-react")`');
+    expect(englishReadme).toContain('`require("@cp949/japanpost-react/client")`');
+    expect(englishReadme).toContain('`const pkg = await import("@cp949/japanpost-react");`');
 
     expect(koreanFirstLine).toBe("# @cp949/japanpost-react");
     expect(koreanReadme).toContain("[English README](./README.md)");
     expect(koreanReadme).not.toContain("## English");
+    expect(koreanReadme).toContain('`require("@cp949/japanpost-react")`');
+    expect(koreanReadme).toContain('`require("@cp949/japanpost-react/client")`');
+    expect(koreanReadme).toContain('`const pkg = await import("@cp949/japanpost-react");`');
   });
 });
 

@@ -20,18 +20,16 @@ export default defineConfig({
   build: {
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
-      name: "JapanPostcodeReact",
-      fileName: (format) =>
-        format === "umd" ? "index.umd.cjs" : `index.${format}.js`,
+      formats: ["es"],
+      fileName: () => "index.es.js",
     },
     rollupOptions: {
-      external: ["react", "react-dom"],
-      output: {
-        globals: {
-          react: "React",
-          "react-dom": "ReactDOM",
-        },
-      },
+      external: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+      ],
     },
   },
 });

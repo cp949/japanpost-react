@@ -14,6 +14,28 @@ pnpm add @cp949/japanpost-react
 
 - 지원 React 버전: React 18, React 19
 
+이 패키지는 ESM으로 배포됩니다. 서버 유틸리티와 공용 타입은
+`@cp949/japanpost-react`에서 가져오고, Next.js App Router에서 훅이나
+headless 입력 컴포넌트는 `@cp949/japanpost-react/client`를 사용하세요.
+`require("@cp949/japanpost-react")`,
+`require("@cp949/japanpost-react/client")`는 지원되지 않으며, CommonJS
+소비자는 `const pkg = await import("@cp949/japanpost-react");` 같은 ESM
+interop을 사용해야 합니다.
+
+## Next.js
+
+Next.js App Router에서 훅이나 headless 입력 컴포넌트를 쓸 때는
+클라이언트 컴포넌트 안에서 `@cp949/japanpost-react/client` 경로를
+사용하는 것을 권장합니다. 유틸리티 함수와 공용 타입은 루트 엔트리에서
+가져오면 됩니다.
+
+```tsx
+"use client";
+
+import { PostalCodeInput, useJapanPostalCode } from "@cp949/japanpost-react/client";
+import { normalizeJapanPostalCode, type JapanAddressDataSource } from "@cp949/japanpost-react";
+```
+
 ## 빠른 시작
 
 ```tsx
@@ -152,6 +174,9 @@ export function PostalForm() {
 계약에서는 빈 주소 검색 요청과 우편번호 miss가 `200 + empty page`로 정상
 성공할 수 있고, `404 -> not_found`는 miss를 오류로 노출하는 백엔드에서만
 선택적으로 쓰면 됩니다.
+
+Next.js에서도 `dataSource`는 자체 서버 API를 바라보도록 두고, Japan Post
+업스트림 자격 증명과 토큰 교환은 브라우저가 아니라 서버에서 처리하세요.
 
 ## Exports
 
@@ -341,5 +366,6 @@ timeout 메시지는 토큰 발급 단계와 실제 조회 단계 중 어느 쪽
 ## SSR
 
 `dataSource` 구현에서는 서버 측 API를 사용하고, 토큰 교환과 업스트림 서명은
-서버에서만 처리하세요. React 훅과 UI 컴포넌트는 클라이언트 컴포넌트에서
+서버에서만 처리하세요. Next.js App Router에서는 React 훅과 UI 컴포넌트를
+`@cp949/japanpost-react/client`에서 import해 클라이언트 컴포넌트에서
 사용하는 것이 안전합니다.

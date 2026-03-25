@@ -21,6 +21,26 @@ pnpm add @cp949/japanpost-react
   `packages/japanpost-react`
 - Demo app in this repository: `apps/demo`
 
+This package is published as ESM. Keep server utilities and shared types on
+`@cp949/japanpost-react`, and import hooks or headless input components for the
+Next.js App Router from `@cp949/japanpost-react/client`. CommonJS consumers
+must use ESM interop. `require("@cp949/japanpost-react")` and
+`require("@cp949/japanpost-react/client")` are not supported. In CommonJS, use
+ESM interop such as `const pkg = await import("@cp949/japanpost-react");`.
+
+## Next.js
+
+When you use hooks or headless input components in the Next.js App Router,
+import them from `@cp949/japanpost-react/client` inside a Client Component.
+Keep utility functions and shared types on the root entry.
+
+```tsx
+"use client";
+
+import { PostalCodeInput, useJapanPostalCode } from "@cp949/japanpost-react/client";
+import { normalizeJapanPostalCode, type JapanAddressDataSource } from "@cp949/japanpost-react";
+```
+
 ## What The Package Provides
 
 - Hooks for postal-code lookup and address search:
@@ -162,6 +182,10 @@ export function PostalCodeLookupExample() {
 The example paths above match this repository's reference backend. In your own
 app, the backend routes can be different as long as your `dataSource`
 implementation returns the same public types.
+
+In Next.js, keep the `dataSource` implementation pointed at your own server-side
+API routes. Do not expose Japan Post credentials or token exchange logic to the
+browser.
 
 ## Core Contract
 
