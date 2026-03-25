@@ -1,10 +1,12 @@
-import { formatJapanPostalCode } from "@cp949/japanpost-react";
+import {
+  formatJapanAddressDisplay,
+  formatJapanPostalCode,
+} from "@cp949/japanpost-react";
 import type { JapanAddress } from "@cp949/japanpost-react";
 import { Button, Stack, TextField } from "@mui/material";
 import { useState } from "react";
 
 import { JapanAddressSearchDialog } from "./JapanAddressSearchDialog";
-import { formatJapanAddressDisplay } from "./japanAddressDisplay";
 
 type JapanPostalAddressFieldProps = {
   demoApiBaseUrl: string;

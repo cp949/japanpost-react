@@ -8,6 +8,8 @@ import type {
   JapanAddressSearchInput,
   JapanAddressSearchResult,
   JapanPostSearchcodeRequest,
+  JapanPostApiDataSourceOptions,
+  JapanPostFetchDataSourceOptions,
   JapanPostalCodeLookupResult,
   JapanPostalCodeSearchInput,
   Page,
@@ -48,7 +50,11 @@ describe("public exports", () => {
     });
     expect(library).toEqual(
       expect.objectContaining({
+        createJapanPostApiDataSource: expect.any(Function),
+        createJapanPostFetchDataSource: expect.any(Function),
         createJapanAddressError: expect.any(Function),
+        formatJapanAddressDisplay: expect.any(Function),
+        formatJapanAddressSearchResultLabel: expect.any(Function),
         formatJapanPostalCode: expect.any(Function),
         isValidJapanPostalCode: expect.any(Function),
         normalizeJapanPostalCode: expect.any(Function),
@@ -166,6 +172,25 @@ describe("public exports", () => {
   });
 
   it("exports the hook option and result contracts", () => {
+    expectTypeOf<JapanPostFetchDataSourceOptions>().toEqualTypeOf<{
+      baseUrl: string;
+      fetch?: typeof fetch;
+      paths?: {
+        lookupPostalCode?: string;
+        searchAddress?: string;
+      };
+      resolveErrorCode?: (
+        status: number,
+        path: string,
+      ) => JapanAddressErrorCode;
+    }>();
+    expectTypeOf<JapanPostApiDataSourceOptions<unknown, Page<JapanAddress>>>().toEqualTypeOf<{
+      createContext?: (
+        options?: JapanAddressRequestOptions,
+      ) => unknown;
+      mapPage?: (page: Page<JapanAddress>) => Page<JapanAddress>;
+    }>();
+
     expectTypeOf<UseJapanPostalCodeOptions>().toEqualTypeOf<{
       dataSource: JapanAddressDataSource;
     }>();

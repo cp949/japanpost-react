@@ -1,14 +1,8 @@
-import type {
-  JapanAddressDataSource,
-  JapanAddressRequestOptions,
+import {
+  createJapanAddressError,
+  createJapanPostFetchDataSource,
+  type JapanAddressDataSource,
 } from "@cp949/japanpost-react";
-import type {
-  JapanAddress,
-  JapanPostAddresszipRequest,
-  JapanPostSearchcodeRequest,
-  Page,
-} from "@cp949/japanpost-react";
-import { createJapanAddressError } from "@cp949/japanpost-react";
 
 // 데모 앱은 기본적으로 Vite 개발 서버 프록시 아래의 `/minimal-api` 를 바라본다.
 export const DEFAULT_DEMO_API_BASE_URL = "/minimal-api";
@@ -46,56 +40,28 @@ function isNetworkError(error: unknown): error is TypeError {
   return error instanceof TypeError;
 }
 
-function ensurePagerPayload(payload: unknown): Page<JapanAddress> {
-  // 최소한의 런타임 검증으로 응답이 페이지네이션 구조를 갖췄는지 확인한다.
-  if (
-    typeof payload !== "object" ||
-    payload === null ||
-    !("elements" in payload) ||
-    !Array.isArray((payload as { elements?: unknown }).elements) ||
-    typeof (payload as { totalElements?: unknown }).totalElements !==
-      "number" ||
-    typeof (payload as { pageNumber?: unknown }).pageNumber !== "number" ||
-    typeof (payload as { rowsPerPage?: unknown }).rowsPerPage !== "number"
-  ) {
-    throw createJapanAddressError(
-      "bad_response",
-      "Response payload must include a valid page payload",
-    );
+function normalizeRequestHeaders(headers: HeadersInit | undefined): HeadersInit | undefined {
+  if (headers === undefined) {
+    return undefined;
   }
 
-  return payload as Page<JapanAddress>;
-}
+  if (headers instanceof Headers) {
+    const normalized = new Headers();
 
-function resolveErrorCode(
-  status: number,
-  input: string,
-):
-  | "invalid_postal_code"
-  | "invalid_query"
-  | "not_found"
-  | "timeout"
-  | "data_source_error" {
-  // 데모 API HTTP 상태 코드를 라이브러리에서 이해하는 도메인 에러 코드로 매핑한다.
-  if (status === 404) {
-    return "not_found";
+    headers.forEach((value, key) => {
+      normalized.append(key.toLowerCase(), value);
+    });
+
+    return normalized;
   }
 
-  if (status === 504) {
-    return "timeout";
+  if (Array.isArray(headers)) {
+    return headers.map(([key, value]) => [key.toLowerCase(), value]);
   }
 
-  if (status === 400) {
-    if (input.startsWith("/q/japanpost/searchcode")) {
-      return "invalid_postal_code";
-    }
-
-    if (input.startsWith("/q/japanpost/addresszip")) {
-      return "invalid_query";
-    }
-  }
-
-  return "data_source_error";
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value]),
+  );
 }
 
 function resolveDemoApiUrl(baseUrl: string, path: string): string {
@@ -105,6 +71,105 @@ function resolveDemoApiUrl(baseUrl: string, path: string): string {
   }
 
   return `${normalizeBaseUrl(baseUrl)}${path}`;
+}
+
+function createDemoApiFetch(): typeof fetch {
+  return async (input, init) => {
+    let response: Response;
+
+    try {
+      response = await fetch(input, {
+        ...init,
+        headers: normalizeRequestHeaders(init?.headers),
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
+      throw new TypeError("Network request failed");
+    }
+
+    if (response.ok) {
+      return response;
+    }
+
+    return {
+      ok: false,
+      status: response.status,
+      json: async () => ({}),
+    } as Response;
+  };
+}
+
+function normalizeDemoApiError(error: unknown): never {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    (error as { name?: unknown }).name !== "JapanAddressError"
+  ) {
+    throw error;
+  }
+
+  const japanAddressError = error as Error & {
+    code?: string;
+    status?: number;
+    cause?: unknown;
+  };
+  const code = japanAddressError.code;
+  const status = japanAddressError.status;
+  const cause = japanAddressError.cause;
+
+  if (code === "timeout" && status === 0) {
+    throw createJapanAddressError("timeout", "Request timed out", {
+      cause,
+      status,
+    });
+  }
+
+  if (code === "network_error") {
+    throw createJapanAddressError("network_error", "Network request failed", {
+      cause,
+      status,
+    });
+  }
+
+  if (code === "bad_response") {
+    if (japanAddressError.message.includes("not a valid pager payload")) {
+      throw createJapanAddressError(
+        "bad_response",
+        "Response payload must include a valid page payload",
+        {
+          cause,
+          status,
+        },
+      );
+    }
+
+    if (japanAddressError.message.includes("Failed to parse JSON response")) {
+      throw createJapanAddressError(
+        "bad_response",
+        "Response payload was not valid JSON",
+        {
+          cause,
+          status,
+        },
+      );
+    }
+  }
+
+  if (typeof status === "number" && status > 0) {
+    throw createJapanAddressError(
+      code ?? "data_source_error",
+      `Request failed with status ${status}`,
+      {
+        cause,
+        status,
+      },
+    );
+  }
+
+  throw error;
 }
 
 export async function readDemoApiHealth(
@@ -144,90 +209,46 @@ export async function readDemoApiHealth(
 export function createDemoApiDataSource(
   baseUrl: string,
 ): JapanAddressDataSource {
-  async function readJson<T>(
-    input: string,
-    init: RequestInit,
-    options?: JapanAddressRequestOptions,
-  ): Promise<T> {
-    let response: Response;
+  const dataSource = createJapanPostFetchDataSource({
+    baseUrl: resolveDemoApiUrl(baseUrl, ""),
+    fetch: createDemoApiFetch(),
+    resolveErrorCode(status, path) {
+      if (status === 404) {
+        return "not_found";
+      }
 
-    try {
-      // 라이브러리 훅이 넘긴 AbortSignal 을 그대로 전달해
-      // 빠른 재검색이나 컴포넌트 언마운트 시 요청을 취소할 수 있게 한다.
-      response = await fetch(resolveDemoApiUrl(baseUrl, input), {
-        ...init,
-        signal: options?.signal,
-      });
-    } catch (error) {
-      throw createJapanAddressError(
-        isAbortError(error) ? "timeout" : "network_error",
-        isAbortError(error) ? "Request timed out" : "Network request failed",
-        {
-          cause: error,
-        },
-      );
-    }
+      if (status === 504) {
+        return "timeout";
+      }
 
-    if (!response.ok) {
-      // HTTP 에러는 단순 실패가 아니라 훅이 분기할 수 있는 도메인 에러로 변환한다.
-      throw createJapanAddressError(
-        resolveErrorCode(response.status, input),
-        `Request failed with status ${response.status}`,
-        {
-          status: response.status,
-        },
-      );
-    }
+      if (status === 400) {
+        if (path.startsWith("/q/japanpost/searchcode")) {
+          return "invalid_postal_code";
+        }
 
-    try {
-      return (await response.json()) as T;
-    } catch (error) {
-      throw createJapanAddressError(
-        "bad_response",
-        "Response payload was not valid JSON",
-        { cause: error },
-      );
-    }
-  }
+        if (path.startsWith("/q/japanpost/addresszip")) {
+          return "invalid_query";
+        }
+      }
+
+      return "data_source_error";
+    },
+  });
 
   return {
-    async lookupPostalCode(
-      request: JapanPostSearchcodeRequest,
-      options?: JapanAddressRequestOptions,
-    ) {
-      // 우편번호 검색 엔드포인트는 데모 서버의 searchcode API 와 1:1 대응한다.
-      return ensurePagerPayload(
-        await readJson<unknown>(
-          "/q/japanpost/searchcode",
-          {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-            },
-            body: JSON.stringify(request),
-          },
-          options,
-        ),
-      );
+    async lookupPostalCode(request, options) {
+      try {
+        return await dataSource.lookupPostalCode(request, options);
+      } catch (error) {
+        return normalizeDemoApiError(error);
+      }
     },
-    async searchAddress(
-      request: JapanPostAddresszipRequest,
-      options?: JapanAddressRequestOptions,
-    ) {
-      // 주소 키워드 검색 엔드포인트는 addresszip API 와 1:1 대응한다.
-      return ensurePagerPayload(
-        await readJson<unknown>(
-          "/q/japanpost/addresszip",
-          {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-            },
-            body: JSON.stringify(request),
-          },
-          options,
-        ),
-      );
+    async searchAddress(request, options) {
+      try {
+        return await dataSource.searchAddress(request, options);
+      } catch (error) {
+        return normalizeDemoApiError(error);
+      }
     },
   };
 }

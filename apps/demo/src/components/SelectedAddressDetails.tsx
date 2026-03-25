@@ -1,8 +1,9 @@
-import { formatJapanPostalCode } from "@cp949/japanpost-react";
+import {
+  formatJapanAddressDisplay,
+  formatJapanPostalCode,
+} from "@cp949/japanpost-react";
 import type { JapanAddress } from "@cp949/japanpost-react";
 import { Box, Stack, TextField, Typography } from "@mui/material";
-
-import { formatJapanAddressDisplay } from "./japanAddressDisplay";
 
 type SelectedAddressDetailsProps = {
   value: JapanAddress;

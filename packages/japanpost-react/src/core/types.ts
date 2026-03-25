@@ -389,6 +389,59 @@ export type JapanAddressDataSource = {
 };
 
 /**
+ * fetch 기반 data source가 사용할 endpoint 경로 오버라이드.
+ * 기본 경로를 유지하되, minimal-api 래퍼나 커스텀 백엔드가 다른 라우팅을 쓰는 경우에만 선택적으로 덮어쓴다.
+ */
+export type JapanPostFetchDataSourcePaths = {
+  lookupPostalCode?: string;
+  searchAddress?: string;
+};
+
+/**
+ * Japan Post fetch data source factory 옵션.
+ * baseUrl은 필수이며, fetch/경로/status resolver는 테스트나 커스텀 배포환경에서만 바꾼다.
+ */
+export type JapanPostFetchDataSourceOptions = {
+  baseUrl: string;
+  fetch?: typeof fetch;
+  paths?: JapanPostFetchDataSourcePaths;
+  resolveErrorCode?: (
+    status: number,
+    path: string,
+  ) => JapanAddressErrorCode;
+};
+
+/**
+ * Japan Post API 클라이언트 계약.
+ * 앱에서 이미 쓰고 있는 `searchcode` / `addresszip` 메서드에 어댑터를 얇게 씌우기 위한 제네릭 타입이다.
+ */
+export type JapanPostApiClient<
+  TContext = unknown,
+  TPage = Page<JapanAddress>,
+> = {
+  searchcode: (
+    request: JapanPostSearchcodeRequest & { ctx?: TContext },
+  ) => Promise<TPage>;
+  addresszip: (
+    request: JapanPostAddresszipRequest & { ctx?: TContext },
+  ) => Promise<TPage>;
+};
+
+/**
+ * Japan Post API 클라이언트 data source 어댑터 옵션.
+ * 컨텍스트 생성과 페이지 정규화는 필요한 경우에만 주입한다.
+ */
+export type JapanPostApiDataSourceOptions<
+  TContext = unknown,
+  TPage = Page<JapanAddress>,
+> = {
+  createContext?: (
+    options?: JapanAddressRequestOptions,
+  ) => TContext | undefined;
+  mapPage?: (page: TPage) => Page<JapanAddress>;
+};
+
+/**
  * useJapanPostalCode 훅 옵션.
  * data source 주입 방식으로 브라우저 직접 호출, BFF, mock을 모두 같은 훅으로 다룬다.
  */

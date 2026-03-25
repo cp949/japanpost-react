@@ -1,5 +1,7 @@
 import {
   formatJapanPostalCode,
+  formatJapanAddressDisplay,
+  formatJapanAddressSearchResultLabel,
   normalizeJapanPostalCode,
   type JapanPostalCodeSearchInput,
 } from "@cp949/japanpost-react";
@@ -21,10 +23,6 @@ import {
 import { useMemo, useState, type FormEvent } from "react";
 
 import { createDemoApiDataSource } from "../demoApi";
-import {
-  formatJapanAddressDisplay,
-  formatJapanAddressSearchResultLabel,
-} from "./japanAddressDisplay";
 import { SelectedAddressDetails } from "./SelectedAddressDetails";
 
 type UseJapanPostalCodePanelProps = {

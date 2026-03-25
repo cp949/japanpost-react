@@ -1,5 +1,7 @@
 import {
   formatJapanPostalCode,
+  formatJapanAddressDisplay,
+  formatJapanAddressSearchResultLabel,
   normalizeJapanPostalCode,
 } from "@cp949/japanpost-react";
 import {
@@ -27,10 +29,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createDemoApiDataSource } from "../../demoApi";
-import {
-  formatJapanAddressDisplay,
-  formatJapanAddressSearchResultLabel,
-} from "../japanAddressDisplay";
 
 type JapanAddressSearchDialogProps = {
   demoApiBaseUrl: string;

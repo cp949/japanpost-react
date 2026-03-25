@@ -188,13 +188,77 @@ export function PostalForm() {
 Next.js에서도 `dataSource`는 자체 서버 API를 바라보도록 두고, Japan Post
 업스트림 자격 증명과 토큰 교환은 브라우저가 아니라 서버에서 처리하세요.
 
+## Consumer Helpers
+
+루트 엔트리에는 직접 소비자 UI를 만들 때 유용한 헬퍼도 함께 있습니다.
+
+- `formatJapanAddressDisplay(address)`는 `address.address`를 읽기 쉬운 한 줄 문자열로 정리합니다.
+- `formatJapanAddressSearchResultLabel(address)`는 접근성용 결과 라벨 앞에 포맷된 우편번호를 붙입니다.
+- `createJapanPostFetchDataSource({ baseUrl, ... })`는 패키지의 요청/응답 계약을 따르는 fetch 기반 백엔드를 감쌉니다.
+- `createJapanPostApiDataSource(api, options?)`는 기존 `searchcode` / `addresszip` 클라이언트를 `JapanAddressDataSource`로 어댑터합니다.
+
+### Formatter Usage
+
+```tsx
+import {
+  formatJapanAddressDisplay,
+  formatJapanAddressSearchResultLabel,
+} from "@cp949/japanpost-react";
+
+const displayText = formatJapanAddressDisplay(address);
+const labelText = formatJapanAddressSearchResultLabel(address);
+```
+
+### Fetch-Based Data Source Usage
+
+```tsx
+import {
+  createJapanPostFetchDataSource,
+  useJapanPostalCode,
+} from "@cp949/japanpost-react";
+
+export function PostalCodeLookupExample() {
+  const dataSource = createJapanPostFetchDataSource({
+    baseUrl: "/minimal-api",
+  });
+  const postalCode = useJapanPostalCode({ dataSource });
+
+  return <button onClick={() => void postalCode.search("1000001")}>Search</button>;
+}
+```
+
+### API-Client Adapter Usage
+
+```tsx
+import {
+  createJapanPostApiDataSource,
+  useJapanAddressSearch,
+  type JapanAddress,
+  type JapanPostApiClient,
+  type Page,
+} from "@cp949/japanpost-react";
+
+declare const apiClient: JapanPostApiClient<unknown, Page<JapanAddress>>;
+
+export function AddressSearchExample() {
+  const dataSource = createJapanPostApiDataSource(apiClient);
+  const addressSearch = useJapanAddressSearch({ dataSource });
+
+  return <button onClick={() => void addressSearch.search("Tokyo")}>Search</button>;
+}
+```
+
 ## Exports
 
 - `normalizeJapanPostalCode`
 - `formatJapanPostalCode`
+- `formatJapanAddressDisplay`
+- `formatJapanAddressSearchResultLabel`
 - `normalizeJapanPostAddressRecord`
 - `isValidJapanPostalCode`
 - `createJapanAddressError`
+- `createJapanPostFetchDataSource`
+- `createJapanPostApiDataSource`
 - `useJapanPostalCode`
 - `useJapanAddressSearch`
 - `useJapanAddress`

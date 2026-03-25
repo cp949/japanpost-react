@@ -60,8 +60,10 @@ import { normalizeJapanPostalCode, type JapanAddressDataSource } from "@cp949/ja
   `PostalCodeInput`, `AddressSearchInput`
 - Utilities:
   `normalizeJapanPostalCode`, `formatJapanPostalCode`,
+  `formatJapanAddressDisplay`, `formatJapanAddressSearchResultLabel`,
   `isValidJapanPostalCode`, `normalizeJapanPostAddressRecord`,
-  `createJapanAddressError`
+  `createJapanAddressError`, `createJapanPostFetchDataSource`,
+  `createJapanPostApiDataSource`
 - Public types for the request, response, error, and data-source contracts
 
 ## Quick Start
@@ -196,6 +198,71 @@ implementation returns the same public types.
 In Next.js, keep the `dataSource` implementation pointed at your own server-side
 API routes. Do not expose Japan Post credentials or token exchange logic to the
 browser.
+
+## Consumer Helpers
+
+The root entry also exports a small set of helpers that are convenient when
+you build your own consumer UI:
+
+- `formatJapanAddressDisplay(address)` normalizes `address.address` to a
+  readable single line.
+- `formatJapanAddressSearchResultLabel(address)` prefixes the formatted postal
+  code for accessible result labels.
+- `createJapanPostFetchDataSource({ baseUrl, ... })` wraps fetch-based
+  backends that follow the package request/response contract.
+- `createJapanPostApiDataSource(api, options?)` adapts an existing
+  `searchcode` / `addresszip` client to `JapanAddressDataSource`.
+
+### Formatter Usage
+
+```tsx
+import {
+  formatJapanAddressDisplay,
+  formatJapanAddressSearchResultLabel,
+} from "@cp949/japanpost-react";
+
+const displayText = formatJapanAddressDisplay(address);
+const labelText = formatJapanAddressSearchResultLabel(address);
+```
+
+### Fetch-Based Data Source Usage
+
+```tsx
+import {
+  createJapanPostFetchDataSource,
+  useJapanPostalCode,
+} from "@cp949/japanpost-react";
+
+export function PostalCodeLookupExample() {
+  const dataSource = createJapanPostFetchDataSource({
+    baseUrl: "/minimal-api",
+  });
+  const postalCode = useJapanPostalCode({ dataSource });
+
+  return <button onClick={() => void postalCode.search("1000001")}>Search</button>;
+}
+```
+
+### API-Client Adapter Usage
+
+```tsx
+import {
+  createJapanPostApiDataSource,
+  useJapanAddressSearch,
+  type JapanAddress,
+  type JapanPostApiClient,
+  type Page,
+} from "@cp949/japanpost-react";
+
+declare const apiClient: JapanPostApiClient<unknown, Page<JapanAddress>>;
+
+export function AddressSearchExample() {
+  const dataSource = createJapanPostApiDataSource(apiClient);
+  const addressSearch = useJapanAddressSearch({ dataSource });
+
+  return <button onClick={() => void addressSearch.search("Tokyo")}>Search</button>;
+}
+```
 
 ## Core Contract
 

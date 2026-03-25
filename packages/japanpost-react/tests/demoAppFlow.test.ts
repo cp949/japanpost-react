@@ -18,6 +18,19 @@ import {
 } from "@cp949/japanpost-react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@cp949/japanpost-react", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@cp949/japanpost-react")>();
+
+  return {
+    ...actual,
+    formatJapanAddressDisplay: vi.fn(actual.formatJapanAddressDisplay),
+    formatJapanAddressSearchResultLabel: vi.fn(
+      actual.formatJapanAddressSearchResultLabel,
+    ),
+  };
+});
+
 // Intentionally kept in the package test suite for now.
 // This demo integration flow depends on the package-local jsdom +
 // Testing Library + jest-dom harness, and moving it would require
@@ -25,7 +38,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../../../apps/demo/src/App";
 import * as demoApi from "../../../apps/demo/src/demoApi";
 import { JapanPostalAddressField } from "../../../apps/demo/src/components/JapanPostalAddressField";
-import { formatJapanAddressDisplay } from "../../../apps/demo/src/components/japanAddressDisplay";
+import {
+  formatJapanAddressDisplay,
+  formatJapanAddressSearchResultLabel,
+} from "@cp949/japanpost-react";
 
 type MockJsonResponse = {
   ok: boolean;
@@ -45,6 +61,14 @@ function jsonResponse(status: number, body: unknown): MockJsonResponse {
 
 function parseRequestBody(init?: RequestInit): MockRequestBody {
   return JSON.parse(String(init?.body ?? "{}")) as MockRequestBody;
+}
+
+function formatJapanAddressDisplayText(address: JapanAddress): string {
+  return address.address.replace(/\s+/g, " ").trim();
+}
+
+function formatJapanAddressResultLabel(address: JapanAddress): string {
+  return `${formatJapanPostalCode(address.postalCode)} ${formatJapanAddressDisplayText(address)}`;
 }
 
 const TEST_INITIAL_ADDRESS: JapanAddress = {
@@ -85,10 +109,6 @@ const TEST_KYOTO_ADDRESS: JapanAddress = {
   address: " Kyoto Kyoto-shi Shimogyo-ku ",
   provider: "japan-post",
 };
-
-function formatJapanAddressResultLabel(address: JapanAddress): string {
-  return `${formatJapanPostalCode(address.postalCode)} ${formatJapanAddressDisplay(address)}`;
-}
 
 function SelectedAddressHarness() {
   const [selectedAddress, setSelectedAddress] = useState(TEST_INITIAL_ADDRESS);
@@ -218,6 +238,10 @@ describe("demo app flow", () => {
       name: formatJapanAddressResultLabel(TEST_SELECTED_ADDRESS),
     });
 
+    expect(formatJapanAddressSearchResultLabel).toHaveBeenCalledWith(
+      TEST_SELECTED_ADDRESS,
+    );
+
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/custom-demo-api/q/japanpost/addresszip",
@@ -234,6 +258,27 @@ describe("demo app flow", () => {
           signal: expect.any(AbortSignal),
         }),
       );
+    });
+  });
+
+  it("maps unexpected demo fetch failures to network_error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("Connection reset by peer")),
+    );
+
+    const dataSource = demoApi.createDemoApiDataSource("http://localhost:8787");
+
+    await expect(
+      dataSource.searchAddress({
+        addressQuery: "Tokyo",
+        pageNumber: 0,
+        rowsPerPage: TEST_DIALOG_ROWS_PER_PAGE,
+      }),
+    ).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "network_error",
+      message: "Network request failed",
     });
   });
 
@@ -1003,6 +1048,8 @@ describe("demo app flow", () => {
         "Tokyo Chiyoda-ku Chiyoda",
       );
     });
+
+    expect(formatJapanAddressDisplay).toHaveBeenCalledWith(TEST_SELECTED_ADDRESS);
   });
 
   it("closes the dialog with an explicit close button", async () => {
