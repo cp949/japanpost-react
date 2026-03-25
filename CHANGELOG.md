@@ -7,6 +7,8 @@ Versioning for published package releases where applicable.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-03-26
+
 - Breaking change: clarified the public entrypoint policy for
   `@cp949/japanpost-react` and `@cp949/japanpost-react/client`, removing the
   dedicated contracts subpath and making the root entry the single source for
