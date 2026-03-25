@@ -356,6 +356,40 @@ describe("package artifacts", () => {
     }
   });
 
+  it("keeps the packed component refs typed as HTMLInputElement refs", () => {
+    const { cleanup, consumerDir } = createPackedConsumerProject();
+
+    try {
+      const typecheckStdout = runPackedConsumerTypecheck(
+        consumerDir,
+        [
+          'import { createRef } from "react";',
+          'import { AddressSearchInput, PostalCodeInput } from "@cp949/japanpost-react";',
+          "",
+          "const postalRef = createRef<HTMLInputElement>();",
+          "const addressRef = createRef<HTMLInputElement>();",
+          "",
+          "const postalElement = (",
+          '  <PostalCodeInput onSearch={() => {}} ref={postalRef} />',
+          ");",
+          "",
+          "const addressElement = (",
+          '  <AddressSearchInput onSearch={() => {}} ref={addressRef} />',
+          ");",
+          "",
+          "void postalElement;",
+          "void addressElement;",
+          "",
+        ].join("\n"),
+        "index.tsx",
+      );
+
+      expect(typecheckStdout).toBe("");
+    } finally {
+      cleanup();
+    }
+  });
+
   it("keeps English and Korean package readmes split by file", () => {
     const englishReadme = fs.readFileSync(packageReadmePath, "utf8");
     const koreanReadme = fs.readFileSync(packageReadmeKoPath, "utf8");

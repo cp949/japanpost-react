@@ -1,5 +1,29 @@
 import { createJapanAddressError } from "../core/errors";
-import type { JapanAddressError } from "../core/types";
+import type { JapanAddressError, JapanAddressErrorCode } from "../core/types";
+
+const JAPAN_ADDRESS_ERROR_CODES = new Set<JapanAddressErrorCode>([
+  "invalid_postal_code",
+  "invalid_query",
+  "network_error",
+  "timeout",
+  "not_found",
+  "bad_response",
+  "data_source_error",
+]);
+
+function isJapanAddressError(error: unknown): error is JapanAddressError {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const maybeError = error as { name?: unknown; code?: unknown };
+
+  return (
+    maybeError.name === "JapanAddressError" &&
+    typeof maybeError.code === "string" &&
+    JAPAN_ADDRESS_ERROR_CODES.has(maybeError.code as JapanAddressErrorCode)
+  );
+}
 
 /**
  * 알 수 없는 에러를 JapanAddressError로 변환한다.
@@ -7,13 +31,8 @@ import type { JapanAddressError } from "../core/types";
  * 훅 바깥으로는 항상 같은 오류 계약만 보이게 맞춘다.
  */
 export function toJapanAddressError(error: unknown): JapanAddressError {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof (error as { code?: unknown }).code === "string"
-  ) {
-    return error as JapanAddressError;
+  if (isJapanAddressError(error)) {
+    return error;
   }
 
   return createJapanAddressError(

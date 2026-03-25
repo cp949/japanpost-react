@@ -1,3 +1,4 @@
+import type { ComponentProps, Ref } from "react";
 import { describe, expect, it, expectTypeOf } from "vitest";
 
 import type {
@@ -5,6 +6,7 @@ import type {
   JapanPostSearchcodeRequest,
   NormalizedJapanAddressRecord,
 } from "../src";
+import { AddressSearchInput, PostalCodeInput } from "../src";
 import type {
   JapanAddress,
   JapanPostApiAddressRecord,
@@ -123,6 +125,12 @@ expectTypeOf<JapanAddressErrorCode>().toExtend<
   | "bad_response"
   | "data_source_error"
 >();
+expectTypeOf<ComponentProps<typeof PostalCodeInput>>().toExtend<{
+  ref?: Ref<HTMLInputElement>;
+}>();
+expectTypeOf<ComponentProps<typeof AddressSearchInput>>().toExtend<{
+  ref?: Ref<HTMLInputElement>;
+}>();
 
 // @ts-expect-error dataSource is required for postal-code hooks
 const invalidPostalCodeOptions: UseJapanPostalCodeOptions = {};

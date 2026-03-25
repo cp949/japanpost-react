@@ -58,4 +58,13 @@ describe("AddressSearchInput", () => {
     expect(input).toHaveAttribute("autocomplete", "street-address");
     expect(button).toHaveAttribute("name", "submitAddressSearch");
   });
+
+  it("forwards a ref to the underlying input element", () => {
+    const onSearch = vi.fn();
+    const ref = { current: null as HTMLInputElement | null };
+
+    render(<AddressSearchInput onSearch={onSearch} ref={ref} />);
+
+    expect(ref.current).toBe(screen.getByLabelText("Address keyword"));
+  });
 });

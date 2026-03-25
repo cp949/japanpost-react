@@ -1,4 +1,4 @@
-import { type SyntheticEvent, useState } from "react";
+import { forwardRef, type SyntheticEvent, useState } from "react";
 import type { AddressSearchInputProps } from "../core/types";
 
 /**
@@ -6,17 +6,23 @@ import type { AddressSearchInputProps } from "../core/types";
  * value를 전달하면 제어 모드, 전달하지 않으면 비제어 모드로 동작한다.
  * 검색 시 trim 처리를 내부에서 수행해 공백만 다른 입력이 별도 쿼리로 번지지 않게 한다.
  */
-export function AddressSearchInput({
-  defaultValue = "",
-  value,
-  disabled,
-  label = "Address keyword",
-  buttonLabel = "Search",
-  inputProps,
-  buttonProps,
-  onChange,
-  onSearch,
-}: AddressSearchInputProps) {
+export const AddressSearchInput = forwardRef<
+  HTMLInputElement,
+  AddressSearchInputProps
+>(function AddressSearchInput(
+  {
+    defaultValue = "",
+    value,
+    disabled,
+    label = "Address keyword",
+    buttonLabel = "Search",
+    inputProps,
+    buttonProps,
+    onChange,
+    onSearch,
+  }: AddressSearchInputProps,
+  ref,
+) {
   // 비제어 모드에서 사용하는 내부 상태
   const [internalValue, setInternalValue] = useState(defaultValue);
 
@@ -50,6 +56,7 @@ export function AddressSearchInput({
         {label}
         <input
           {...inputProps}
+          ref={ref}
           disabled={disabled}
           value={currentValue}
           onChange={(event) => handleChange(event.target.value)}
@@ -60,4 +67,4 @@ export function AddressSearchInput({
       </button>
     </form>
   );
-}
+});

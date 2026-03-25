@@ -28,10 +28,16 @@ const packageRoot = process.cwd();
 
 describe("public exports", () => {
   it("exports the public API surface", () => {
+    expect(library.AddressSearchInput).toMatchObject({
+      $$typeof: Symbol.for("react.forward_ref"),
+      render: expect.any(Function),
+    });
+    expect(library.PostalCodeInput).toMatchObject({
+      $$typeof: Symbol.for("react.forward_ref"),
+      render: expect.any(Function),
+    });
     expect(library).toEqual(
       expect.objectContaining({
-        AddressSearchInput: expect.any(Function),
-        PostalCodeInput: expect.any(Function),
         createJapanAddressError: expect.any(Function),
         formatJapanPostalCode: expect.any(Function),
         isValidJapanPostalCode: expect.any(Function),

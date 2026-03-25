@@ -59,4 +59,13 @@ describe("PostalCodeInput", () => {
     expect(input).toHaveAttribute("inputmode", "numeric");
     expect(button).toHaveAttribute("name", "submitPostalCode");
   });
+
+  it("forwards a ref to the underlying input element", () => {
+    const onSearch = vi.fn();
+    const ref = { current: null as HTMLInputElement | null };
+
+    render(<PostalCodeInput onSearch={onSearch} ref={ref} />);
+
+    expect(ref.current).toBe(screen.getByLabelText("Postal code"));
+  });
 });
