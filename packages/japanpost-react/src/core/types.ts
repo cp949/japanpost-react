@@ -317,8 +317,9 @@ export type Page<T> = {
 export type JapanPostalCodeLookupResult = Page<JapanAddress>;
 
 /**
- * 키워드 주소 검색 결과.
- * postal code 조회와 동일한 pager 형태를 사용해 두 검색 모드를 같은 UI로 렌더링할 수 있게 한다.
+ * 주소 검색 결과.
+ * 키워드 검색과 구조화 검색 모두 postal code 조회와 같은 pager 형태를 사용해
+ * 두 검색 모드를 같은 UI로 렌더링할 수 있게 한다.
  */
 export type JapanAddressSearchResult = Page<JapanAddress>;
 
@@ -328,12 +329,12 @@ export type JapanAddressSearchResult = Page<JapanAddress>;
  */
 export type JapanAddressErrorCode =
   | "invalid_postal_code" // 유효하지 않은 우편번호 형식
-  | "invalid_query"       // 빈 검색어 등 유효하지 않은 쿼리
-  | "network_error"       // 네트워크 통신 실패
-  | "timeout"             // 요청 시간 초과
-  | "not_found"           // 해당하는 주소 없음
-  | "bad_response"        // API가 예상치 못한 응답을 반환함
-  | "data_source_error";  // 기타 data source 레벨 오류
+  | "invalid_query" // 빈 검색어 등 유효하지 않은 쿼리
+  | "network_error" // 네트워크 통신 실패
+  | "timeout" // 요청 시간 초과
+  | "not_found" // 해당하는 주소 없음
+  | "bad_response" // API가 예상치 못한 응답을 반환함
+  | "data_source_error"; // 기타 data source 레벨 오류
 
 /**
  * 라이브러리 전용 에러 타입. 훅과 data source 전반에서 일관되게 사용된다.
@@ -399,21 +400,20 @@ export type JapanPostFetchDataSourcePaths = {
 
 /**
  * Japan Post fetch data source factory 옵션.
- * baseUrl은 필수이며, fetch/경로/status resolver는 테스트나 커스텀 배포환경에서만 바꾼다.
+ * `baseUrl`만 필수이고, `fetch`/`paths`/`resolveErrorCode`는
+ * 테스트나 커스텀 백엔드 계약에 맞출 때만 선택적으로 바꾼다.
  */
 export type JapanPostFetchDataSourceOptions = {
   baseUrl: string;
   fetch?: typeof fetch;
   paths?: JapanPostFetchDataSourcePaths;
-  resolveErrorCode?: (
-    status: number,
-    path: string,
-  ) => JapanAddressErrorCode;
+  resolveErrorCode?: (status: number, path: string) => JapanAddressErrorCode;
 };
 
 /**
  * Japan Post API 클라이언트 계약.
- * 앱에서 이미 쓰고 있는 `searchcode` / `addresszip` 메서드에 어댑터를 얇게 씌우기 위한 제네릭 타입이다.
+ * 앱이 이미 보유한 `searchcode` / `addresszip` 메서드에
+ * `createJapanPostApiDataSource`를 연결하기 위한 최소 계약이다.
  */
 export type JapanPostApiClient<
   TContext = unknown,
@@ -429,7 +429,8 @@ export type JapanPostApiClient<
 
 /**
  * Japan Post API 클라이언트 data source 어댑터 옵션.
- * 컨텍스트 생성과 페이지 정규화는 필요한 경우에만 주입한다.
+ * `createContext`는 요청별 `ctx`를 주입하고,
+ * `mapPage`는 업스트림 반환 타입이 기본 `Page<JapanAddress>`가 아닐 때만 필요하다.
  */
 export type JapanPostApiDataSourceOptions<
   TContext = unknown,
@@ -479,7 +480,7 @@ export type UseJapanAddressOptions = {
   dataSource: JapanAddressDataSource;
 
   /*
-   * 키워드 검색 디바운스 지연 시간 (ms)
+   * 주소 검색 디바운스 지연 시간 (ms)
    */
   debounceMs?: number;
 };
@@ -630,7 +631,6 @@ type BaseTextSearchInputProps = {
  * onSearch는 표시 문자열이 아니라 정규화된 우편번호를 받는다는 점이 핵심 계약이다.
  */
 export type PostalCodeInputProps = BaseTextSearchInputProps & {
-
   /*
    * 값 변경 콜백
    */

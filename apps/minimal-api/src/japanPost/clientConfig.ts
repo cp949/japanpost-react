@@ -7,7 +7,7 @@ import type {
 
 /**
  * 일본우정 클라이언트의 환경변수 기반 설정과 엔드포인트 조립을 담당한다.
- * 문자열 env 값을 여기서 미리 정규화해 실제 fetch 계층은 이미 검증된 값만 다루게 한다.
+ * 문자열 env 값을 여기서 먼저 정규화해 실제 HTTP 계층이 런타임 보정 로직을 반복하지 않게 한다.
  */
 const DEFAULT_BASE_URL = "https://api.da.pf.japanpost.jp";
 const DEFAULT_TOKEN_PATH = "/api/v2/j/token";
@@ -27,7 +27,7 @@ export type JapanPostClientConfig = {
 function normalizeBaseUrl(value: string): string {
   const trimmedValue = value.trim();
 
-  // 스킴이 생략되면 https를 기본으로 붙여 운영 환경 오타를 줄인다.
+  // 스킴이 빠진 호스트 값은 https URL로 보정해 환경변수 입력 실수를 줄인다.
   if (/^[a-z][a-z\d+\-.]*:\/\//i.test(trimmedValue)) {
     return trimmedValue;
   }
@@ -97,8 +97,7 @@ export function createJapanPostClientConfig(
     baseUrl: normalizeBaseUrl(env.JAPANPOST_BASE_URL ?? DEFAULT_BASE_URL),
     ecUid: env.JAPANPOST_EC_UID,
     forwardedFor: env.JAPANPOST_X_FORWARDED_FOR,
-    searchCodePath:
-      env.JAPANPOST_SEARCH_CODE_PATH ?? DEFAULT_SEARCH_CODE_PATH,
+    searchCodePath: env.JAPANPOST_SEARCH_CODE_PATH ?? DEFAULT_SEARCH_CODE_PATH,
     searchCodeQuery: {
       ec_uid: env.JAPANPOST_EC_UID,
       choikitype: parseSearchCodeChoikiType(
@@ -117,7 +116,7 @@ export function createSearchCodeEndpoint(
   postalCode: string,
   overrides: JapanPostSearchCodeQuery = {},
 ): URL {
-  // searchcode는 path parameter + query 조합이므로 trailing slash를 정리한 뒤 이어붙인다.
+  // searchcode는 path parameter를 이어붙이므로 마지막 slash를 정리한 뒤 조립한다.
   const endpoint = new URL(
     `${config.searchCodePath.replace(/\/$/, "")}/${postalCode}`,
     config.baseUrl,
@@ -137,7 +136,7 @@ export function createAddressZipRequest(
   endpoint: URL;
   requestBody: JapanPostAddressZipRequestBody;
 } {
-  // addresszip은 body 기반이라 URL에는 공통 ec_uid 정도만 붙이고 나머지는 그대로 body로 유지한다.
+  // addresszip은 검색 조건 대부분을 body로 보내므로 URL에는 공통 query만 붙인다.
   const endpoint = new URL(config.addressZipPath, config.baseUrl);
   appendEcUid(endpoint, config.ecUid);
 

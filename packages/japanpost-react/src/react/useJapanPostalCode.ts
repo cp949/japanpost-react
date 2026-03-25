@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from "react";
-import { normalizeJapanPostalCode } from "../core/formatters";
 import { createJapanAddressError } from "../core/errors";
+import { normalizeJapanPostalCode } from "../core/formatters";
 import type {
   JapanAddressDataSource,
-  JapanPostalCodeLookupResult,
   JapanAddressRequestOptions,
+  JapanPostalCodeLookupResult,
   JapanPostalCodeSearchInput,
   UseJapanPostalCodeOptions,
   UseJapanPostalCodeResult,
@@ -14,7 +14,7 @@ import { useLatestRequestState } from "./useLatestRequestState";
 
 /**
  * useJapanPostalCode가 사용할 data source를 강제한다.
- * 훅 내부에서는 존재를 전제로 동작하므로 초기에 명확하게 실패시키는 편이 디버깅이 쉽다.
+ * search 시점까지 미루지 않고 초기화 단계에서 계약 위반을 드러낸다.
  */
 function resolvePostalCodeDataSource(dataSource?: JapanAddressDataSource) {
   if (dataSource) {
@@ -31,7 +31,7 @@ function resolvePostalCodeDataSource(dataSource?: JapanAddressDataSource) {
 export function useJapanPostalCode(
   options: UseJapanPostalCodeOptions,
 ): UseJapanPostalCodeResult {
-  // dataSource 참조가 바뀔 때만 새 인스턴스를 쓰도록 고정해 불필요한 훅 내부 리셋을 줄인다.
+  // options.dataSource가 바뀔 때만 존재 여부 검증을 다시 수행한다.
   const dataSource = useMemo(
     () => resolvePostalCodeDataSource(options.dataSource),
     [options.dataSource],
@@ -61,7 +61,7 @@ export function useJapanPostalCode(
       try {
         const requestInput: Exclude<JapanPostalCodeSearchInput, string> =
           typeof input === "string" ? { postalCode: input } : input;
-        // 사용자가 입력한 표시 형식을 그대로 계약으로 넘기지 않고 숫자만 남긴다.
+        // 표시 형식과 무관하게 data source 계약에는 숫자만 전달한다.
         const postalCode = normalizeJapanPostalCode(requestInput.postalCode);
 
         if (!/^\d{3,7}$/.test(postalCode)) {
@@ -74,7 +74,7 @@ export function useJapanPostalCode(
         const requestOptions: JapanAddressRequestOptions = {
           signal,
         };
-        // pageNumber/rowsPerPage는 공개 결과가 pager payload라는 계약을 유지하기 위해 항상 명시한다.
+        // pager 반환 계약을 유지하기 위해 기본 page 정보를 항상 채운다.
         const request = {
           postalCode,
           pageNumber: requestInput.pageNumber ?? 0,
@@ -98,7 +98,7 @@ export function useJapanPostalCode(
         if (signal.aborted) {
           return null;
         }
-        // data source가 어떤 형태의 예외를 던지더라도 라이브러리 공개 에러 형태로 맞춘다.
+        // data source 구현별 예외를 라이브러리 공개 에러 형태로 맞춘다.
         return setFailure(requestId, toJapanAddressError(caughtError));
       } finally {
         finishRequest(requestId);

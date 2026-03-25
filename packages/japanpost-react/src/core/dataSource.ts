@@ -4,9 +4,9 @@ import type {
   JapanAddressDataSource,
   JapanAddressErrorCode,
   JapanAddressRequestOptions,
+  JapanPostAddresszipRequest,
   JapanPostApiClient,
   JapanPostApiDataSourceOptions,
-  JapanPostAddresszipRequest,
   JapanPostFetchDataSourceOptions,
   JapanPostSearchcodeRequest,
   Page,
@@ -222,8 +222,9 @@ async function requestJson(
 }
 
 /**
- * 기존 앱에서 이미 보유한 `searchcode` / `addresszip` 클라이언트를
- * `JapanAddressDataSource` 계약으로 얇게 감싸는 어댑터 팩토리.
+ * 기존 앱의 `searchcode` / `addresszip` 클라이언트를
+ * 라이브러리의 `JapanAddressDataSource` 계약으로 맞추는 어댑터 팩토리.
+ * 필요하면 요청별 `ctx`를 붙이고, 업스트림 page 모양이 다를 때만 `mapPage`로 정규화한다.
  */
 export function createJapanPostApiDataSource<TContext>(
   api: JapanPostApiClient<TContext, Page<JapanAddress>>,
@@ -258,7 +259,9 @@ export function createJapanPostApiDataSource<TContext, TPage>(
   }
 
   function mapPage(page: TPage) {
-    return options?.mapPage ? options.mapPage(page) : (page as Page<JapanAddress>);
+    return options?.mapPage
+      ? options.mapPage(page)
+      : (page as Page<JapanAddress>);
   }
 
   return {

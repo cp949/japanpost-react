@@ -7,14 +7,14 @@ import { useJapanAddressSearch } from "./useJapanAddressSearch";
 import { useJapanPostalCode } from "./useJapanPostalCode";
 
 /**
- * 우편번호 조회와 키워드 주소 검색을 하나의 인터페이스로 제공하는 통합 훅.
- * 두 검색 모드가 공유하는 data source를 내부에서 재사용하고,
- * 마지막으로 실행된 검색 종류만 외부에 노출해 두 결과가 섞이지 않도록 한다.
+ * 우편번호 조회와 주소 검색을 하나의 인터페이스로 제공하는 통합 훅.
+ * 주소 검색은 키워드 문자열과 구조화된 주소 필드를 모두 지원하고,
+ * 마지막으로 실행한 검색 모드만 외부 결과로 노출해 두 상태가 섞이지 않게 한다.
  */
 export function useJapanAddress(
   options: UseJapanAddressOptions,
 ): UseJapanAddressResult {
-  // 두 내부 훅이 서로 다른 data source를 참조하면 결과 비교가 무의미해지므로 동일 참조를 공유한다.
+  // 두 내부 훅이 같은 data source를 바라보게 고정한다.
   const dataSource = useMemo(() => {
     if (options.dataSource) {
       return options.dataSource;
@@ -23,9 +23,9 @@ export function useJapanAddress(
     throw new Error("useJapanAddress requires options.dataSource");
   }, [options.dataSource]);
 
-  // 우편번호 조회 훅 (디바운스 없음)
+  // 우편번호 조회는 즉시 실행된다.
   const postalCode = useJapanPostalCode({ dataSource });
-  // 키워드 주소 검색 훅 (debounceMs 옵션 전달)
+  // 주소 검색은 필요하면 debounce를 적용한다.
   const addressSearch = useJapanAddressSearch({
     dataSource,
     debounceMs: options.debounceMs,
@@ -35,32 +35,38 @@ export function useJapanAddress(
   const resetAddressSearch = addressSearch.reset;
   const searchAddressKeyword = addressSearch.search;
 
-  // 마지막으로 실행된 검색 종류를 추적해 "통합 훅의 현재 결과"를 결정한다.
+  // 마지막으로 실행한 검색 종류가 통합 훅의 현재 결과를 결정한다.
   const [activeSearch, setActiveSearch] = useState<
     "postalCode" | "addressQuery" | null
   >(null);
 
   /**
    * 우편번호로 검색한다.
-   * 이전 키워드 결과를 먼저 지워야 검색 전환 직후에도 화면이 새 모드 기준으로 일관되게 보인다.
+   * 반대쪽 검색 상태를 먼저 비워 새 모드 기준으로 화면이 정렬되게 한다.
    */
   const searchByPostalCode: UseJapanAddressResult["searchByPostalCode"] =
-    useCallback(async (input) => {
-      resetAddressSearch();
-      setActiveSearch("postalCode");
-      return searchPostalCode(input);
-    }, [resetAddressSearch, searchPostalCode]);
+    useCallback(
+      async (input) => {
+        resetAddressSearch();
+        setActiveSearch("postalCode");
+        return searchPostalCode(input);
+      },
+      [resetAddressSearch, searchPostalCode],
+    );
 
   /**
    * 주소 질의 문자열 또는 구조화된 주소 필드로 검색한다.
-   * 반대쪽 검색 상태를 비워 이전 모드의 error/data가 현재 모드에 남지 않게 한다.
+   * 반대쪽 검색 상태를 먼저 비워 이전 모드의 data/error가 남지 않게 한다.
    */
   const searchByAddressQuery: UseJapanAddressResult["searchByAddressQuery"] =
-    useCallback(async (input) => {
-      resetPostalCode();
-      setActiveSearch("addressQuery");
-      return searchAddressKeyword(input);
-    }, [resetPostalCode, searchAddressKeyword]);
+    useCallback(
+      async (input) => {
+        resetPostalCode();
+        setActiveSearch("addressQuery");
+        return searchAddressKeyword(input);
+      },
+      [resetPostalCode, searchAddressKeyword],
+    );
 
   /**
    * 두 검색 상태를 모두 초기화한다.
@@ -86,7 +92,7 @@ export function useJapanAddress(
         : null;
 
   return {
-    // 사용자는 현재 활성 모드만 보더라도, 내부에서는 두 훅 중 하나라도 정리 중이면 로딩으로 본다.
+    // 외부에는 현재 모드만 보이더라도 내부 훅 둘 중 하나가 진행 중이면 loading으로 본다.
     loading: postalCode.loading || addressSearch.loading,
     data,
     error,

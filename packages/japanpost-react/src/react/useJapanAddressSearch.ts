@@ -13,8 +13,8 @@ import { toJapanAddressError } from "./toJapanAddressError";
 import { useLatestRequestState } from "./useLatestRequestState";
 
 /**
- * 키워드 검색 훅에서 사용할 data source를 강제한다.
- * search 실행 시점까지 미루지 않고 훅 초기화 단계에서 실패시켜 계약 위반을 빨리 드러낸다.
+ * 주소 검색 훅에서 사용할 data source를 강제한다.
+ * search 시점까지 미루지 않고 초기화 단계에서 계약 위반을 드러낸다.
  */
 function resolveAddressSearchDataSource(dataSource?: JapanAddressDataSource) {
   if (dataSource) {
@@ -108,26 +108,26 @@ function waitForAbort(signal: AbortSignal) {
 }
 
 /**
- * 자유 형식 키워드로 일본 주소를 검색하는 훅.
+ * 자유 형식 검색어 또는 구조화된 주소 필드로 일본 주소를 검색하는 훅.
  * 디바운스를 지원하며 loading / data / error 상태와 search / reset 함수를 제공한다.
  */
 export function useJapanAddressSearch(
   options: UseJapanAddressSearchOptions,
 ): UseJapanAddressSearchResult {
-  // data source가 안정적이어야 debounce 중에도 같은 업스트림 계약으로 요청을 보낸다.
+  // debounce 대기 중에도 같은 data source를 참조하도록 고정한다.
   const dataSource = useMemo(
     () => resolveAddressSearchDataSource(options.dataSource),
     [options.dataSource],
   );
 
-  // 0 이하면 "검색 버튼/엔터 즉시 호출" 모드로 간주한다.
+  // 0 이하면 즉시 호출 모드로 본다.
   const debounceMs = options.debounceMs ?? 0;
 
-  // 아직 실제 네트워크 요청으로 승격되지 않은 디바운스 타이머를 추적한다.
+  // 아직 실제 요청으로 넘어가지 않은 디바운스 타이머를 추적한다.
   const timeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(
     null,
   );
-  // search는 항상 Promise를 반환하므로, 디바운스 중 취소된 호출도 resolve 경로를 가져야 한다.
+  // search는 항상 Promise를 반환하므로 취소된 디바운스도 resolve 되어야 한다.
   const pendingResolveRef = useRef<
     ((value: JapanAddressSearchResult | null) => void) | null
   >(null);
@@ -146,8 +146,7 @@ export function useJapanAddressSearch(
 
   /**
    * 대기 중인 디바운스 타이머를 취소하고 pending Promise를 주어진 result로 해소한다.
-   * reset이나 새로운 search 호출 시 이전 디바운스를 정리하기 위해 사용하며,
-   * resolve를 호출해 두어 호출자 Promise가 영원히 대기 상태로 남지 않게 한다.
+   * 새 search나 reset 시 이전 Promise가 영원히 pending 상태로 남지 않게 한다.
    */
   const clearPendingDebounce = useCallback(
     (result: JapanAddressSearchResult | null) => {
@@ -156,7 +155,7 @@ export function useJapanAddressSearch(
         timeoutRef.current = null;
       }
 
-      // 디바운스가 취소되어도 호출자 입장에서는 "취소됨(null)"으로 종료되게 맞춘다.
+      // 호출자 입장에서는 취소도 정상 종료(null)처럼 보이게 맞춘다.
       pendingResolveRef.current?.(result);
       pendingResolveRef.current = null;
     },
@@ -179,7 +178,7 @@ export function useJapanAddressSearch(
 
   /**
    * 현재 활성 요청과 대기 중인 디바운스를 취소한다.
-   * settled 된 data/error는 유지해 UI가 마지막 성공/실패 결과를 계속 보여줄 수 있게 한다.
+   * 이미 settled 된 data/error는 유지한다.
    */
   const cancel = useCallback(() => {
     clearPendingDebounce(null);
@@ -188,47 +187,49 @@ export function useJapanAddressSearch(
 
   /**
    * 실제 API 호출을 수행하는 내부 함수.
-   * 정규화된 요청만 받아 실제 상태 반영은 useLatestRequestState가 최신 요청에만 허용한다.
+   * 최신 요청만 상태에 반영하는 판단은 `useLatestRequestState`에 맡긴다.
    */
-  const runSearch = useCallback(async (
-    requestId: number,
-    signal: AbortSignal,
-    request: JapanPostAddresszipRequest,
-  ): Promise<JapanAddressSearchResult | null> => {
-    try {
-      const requestOptions: JapanAddressRequestOptions = {
-        signal,
-      };
-      const searchPromise = dataSource.searchAddress(
-        request,
-        requestOptions,
-      );
-      const result = await Promise.race([
-        searchPromise,
-        waitForAbort(signal),
-      ]);
-      if (signal.aborted || result === null) {
-        return null;
+  const runSearch = useCallback(
+    async (
+      requestId: number,
+      signal: AbortSignal,
+      request: JapanPostAddresszipRequest,
+    ): Promise<JapanAddressSearchResult | null> => {
+      try {
+        const requestOptions: JapanAddressRequestOptions = {
+          signal,
+        };
+        const searchPromise = dataSource.searchAddress(request, requestOptions);
+        const result = await Promise.race([
+          searchPromise,
+          waitForAbort(signal),
+        ]);
+        if (signal.aborted || result === null) {
+          return null;
+        }
+        setSuccess(requestId, result);
+        return result;
+      } catch (caughtError) {
+        if (signal.aborted) {
+          return null;
+        }
+        return setFailure(requestId, toJapanAddressError(caughtError));
+      } finally {
+        finishRequest(requestId);
       }
-      setSuccess(requestId, result);
-      return result;
-    } catch (caughtError) {
-      if (signal.aborted) {
-        return null;
-      }
-      return setFailure(requestId, toJapanAddressError(caughtError));
-    } finally {
-      finishRequest(requestId);
-    }
-  }, [dataSource, finishRequest, setFailure, setSuccess]);
+    },
+    [dataSource, finishRequest, setFailure, setSuccess],
+  );
 
   /**
-   * 키워드 검색을 시작한다.
+   * 주소 검색을 시작한다.
    * debounceMs > 0 이면 지정된 시간만큼 지연 후 API를 호출한다.
    * 지연 중에 새 검색이 들어오면 이전 타이머는 취소되고, 이전 Promise는 null로 종료된다.
    */
   const search = useCallback(
-    (input: JapanAddressSearchInput): Promise<JapanAddressSearchResult | null> => {
+    (
+      input: JapanAddressSearchInput,
+    ): Promise<JapanAddressSearchResult | null> => {
       const request = normalizeAddressSearchInput(input);
       const { requestId, signal } = beginRequest();
       // 새 요청이 들어오면 아직 실행 전인 이전 검색은 superseded 처리한다.
@@ -237,16 +238,13 @@ export function useJapanAddressSearch(
       if (request === null) {
         const result = setFailure(
           requestId,
-          createJapanAddressError(
-            "invalid_query",
-            "Address query is required",
-          ),
+          createJapanAddressError("invalid_query", "Address query is required"),
         );
         finishRequest(requestId);
         return Promise.resolve(result);
       }
 
-      // 디바운스를 쓰지 않는 소비자도 동일한 반환 타입을 사용한다.
+      // 디바운스를 쓰지 않아도 반환 타입은 동일하게 유지한다.
       if (debounceMs <= 0) {
         return new Promise((resolve) => {
           pendingResolveRef.current = resolve;
@@ -259,14 +257,14 @@ export function useJapanAddressSearch(
         });
       }
 
-      // 디바운스: 지정된 시간 후 실제 네트워크 요청으로 승격한다.
+      // 지정된 시간이 지나면 실제 네트워크 요청을 시작한다.
       return new Promise((resolve) => {
         pendingResolveRef.current = resolve;
         timeoutRef.current = globalThis.setTimeout(() => {
           timeoutRef.current = null;
           const pendingResolve = pendingResolveRef.current;
           pendingResolveRef.current = null;
-          // 타이머가 끝난 시점에도 requestId/signal은 유지되어 최신 요청 판정이 계속 유효하다.
+          // 타이머 이후에도 requestId/signal은 그대로라 최신 요청 판정이 유지된다.
           void runSearch(requestId, signal, request).then((result) => {
             pendingResolve?.(result);
           });
