@@ -41,7 +41,7 @@
   "scripts": {
     "dev": "tsup --config tsup.config.ts --watch",
     "build": "tsup --config tsup.config.ts && node scripts/postbuild-client.mjs",
-    "release": "pnpm --dir ../.. readme:package && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
+    "release": "pnpm --dir ../.. readme:package && pnpm lint && pnpm check-types && pnpm --dir ../.. verify:release && pnpm build && pnpm publish --access public",
     "lint": "biome lint .",
     "check-types": "tsc --noEmit",
     "test": "pnpm test:unit",

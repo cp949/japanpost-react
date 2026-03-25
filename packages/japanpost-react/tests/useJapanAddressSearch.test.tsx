@@ -224,7 +224,12 @@ describe("useJapanAddressSearch", () => {
         reject(new Error("superseded search stayed pending after abort"));
       }, 20);
     });
-    const firstSettledPromise = Promise.race([firstPromise!, timeoutPromise]);
+
+    if (!firstPromise) {
+      throw new Error("Expected first search promise to be created");
+    }
+
+    const firstSettledPromise = Promise.race([firstPromise, timeoutPromise]);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20);
@@ -300,8 +305,12 @@ describe("useJapanAddressSearch", () => {
       }, 20);
     });
 
+    if (!searchPromise) {
+      throw new Error("Expected search promise to be created");
+    }
+
     const racePromise = Promise.race([
-      searchPromise!,
+      searchPromise,
       timeoutPromise,
     ]);
 

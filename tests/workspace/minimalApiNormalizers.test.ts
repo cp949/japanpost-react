@@ -1,17 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeAddressRecord, normalizePostalCode } from "../../../apps/minimal-api/src/japanPost/normalizers";
 import {
-  normalizeAddressRecord as legacyNormalizeAddressRecord,
-  normalizePostalCode as legacyNormalizePostalCode,
-} from "../../../apps/minimal-api/src/adapter/normalizers";
+  normalizeAddressRecord,
+  normalizePostalCode,
+} from "../../apps/minimal-api/src/japanPost/normalizers";
 
 describe("minimal api normalizers", () => {
-  it("exposes the adapter shim as a re-export of the JapanPost normalizers", () => {
-    expect(legacyNormalizePostalCode).toBe(normalizePostalCode);
-    expect(legacyNormalizeAddressRecord).toBe(normalizeAddressRecord);
-  });
-
   it("normalizes postal codes by stripping non-digits", () => {
     expect(normalizePostalCode(" 10-20072 ")).toBe("1020072");
   });

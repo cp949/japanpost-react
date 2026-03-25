@@ -1,7 +1,9 @@
 import type {
-  JapanAddress,
   JapanAddressDataSource,
   JapanAddressRequestOptions,
+} from "@cp949/japanpost-react";
+import type {
+  JapanAddress,
   JapanPostAddresszipRequest,
   JapanPostSearchcodeRequest,
   Page,

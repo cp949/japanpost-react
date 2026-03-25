@@ -20,6 +20,23 @@ export function resolveDemoApiProxyTarget(env: DemoProxyEnv): string {
   return `http://127.0.0.1:${port}`;
 }
 
+export const demoWorkspaceAliases = [
+  {
+    find: "@cp949/japanpost-react/client",
+    replacement: path.resolve(
+      __dirname,
+      "../../packages/japanpost-react/src/client.ts",
+    ),
+  },
+  {
+    find: "@cp949/japanpost-react",
+    replacement: path.resolve(
+      __dirname,
+      "../../packages/japanpost-react/src/index.ts",
+    ),
+  },
+];
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -34,14 +51,9 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      // 배포 패키지 대신 워크스페이스 소스를 직접 바라보게 해서
-      // 데모에서 라이브러리 최신 변경분을 즉시 확인할 수 있게 한다.
-      "@cp949/japanpost-react": path.resolve(
-        __dirname,
-        "../../packages/japanpost-react/src/index.ts",
-      ),
-    },
+    // 더 구체적인 subpath alias를 루트 alias보다 앞에 두어
+    // Vite/Rolldown이 `@cp949/japanpost-react/client`를 루트 prefix로 잘못 해석하지 않게 한다.
+    alias: demoWorkspaceAliases,
     dedupe: ["react", "react-dom"],
   },
 });

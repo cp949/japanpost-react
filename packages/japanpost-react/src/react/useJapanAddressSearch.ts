@@ -227,51 +227,61 @@ export function useJapanAddressSearch(
    * debounceMs > 0 이면 지정된 시간만큼 지연 후 API를 호출한다.
    * 지연 중에 새 검색이 들어오면 이전 타이머는 취소되고, 이전 Promise는 null로 종료된다.
    */
-  const search = useCallback((input: JapanAddressSearchInput): Promise<JapanAddressSearchResult | null> => {
-    const request = normalizeAddressSearchInput(input);
-    const { requestId, signal } = beginRequest();
-    // 새 요청이 들어오면 아직 실행 전인 이전 검색은 superseded 처리한다.
-    clearPendingDebounce(null);
+  const search = useCallback(
+    (input: JapanAddressSearchInput): Promise<JapanAddressSearchResult | null> => {
+      const request = normalizeAddressSearchInput(input);
+      const { requestId, signal } = beginRequest();
+      // 새 요청이 들어오면 아직 실행 전인 이전 검색은 superseded 처리한다.
+      clearPendingDebounce(null);
 
-    if (request === null) {
-      const result = setFailure(
-        requestId,
-        createJapanAddressError(
-          "invalid_query",
-          "Address query is required",
-        ),
-      );
-      finishRequest(requestId);
-      return Promise.resolve(result);
-    }
+      if (request === null) {
+        const result = setFailure(
+          requestId,
+          createJapanAddressError(
+            "invalid_query",
+            "Address query is required",
+          ),
+        );
+        finishRequest(requestId);
+        return Promise.resolve(result);
+      }
 
-    // 디바운스를 쓰지 않는 소비자도 동일한 반환 타입을 사용한다.
-    if (debounceMs <= 0) {
+      // 디바운스를 쓰지 않는 소비자도 동일한 반환 타입을 사용한다.
+      if (debounceMs <= 0) {
+        return new Promise((resolve) => {
+          pendingResolveRef.current = resolve;
+          void runSearch(requestId, signal, request).then((result) => {
+            resolve(result);
+            if (pendingResolveRef.current === resolve) {
+              pendingResolveRef.current = null;
+            }
+          });
+        });
+      }
+
+      // 디바운스: 지정된 시간 후 실제 네트워크 요청으로 승격한다.
       return new Promise((resolve) => {
         pendingResolveRef.current = resolve;
-        void runSearch(requestId, signal, request).then((result) => {
-          resolve(result);
-          if (pendingResolveRef.current === resolve) {
-            pendingResolveRef.current = null;
-          }
-        });
+        timeoutRef.current = globalThis.setTimeout(() => {
+          timeoutRef.current = null;
+          const pendingResolve = pendingResolveRef.current;
+          pendingResolveRef.current = null;
+          // 타이머가 끝난 시점에도 requestId/signal은 유지되어 최신 요청 판정이 계속 유효하다.
+          void runSearch(requestId, signal, request).then((result) => {
+            pendingResolve?.(result);
+          });
+        }, debounceMs);
       });
-    }
-
-    // 디바운스: 지정된 시간 후 실제 네트워크 요청으로 승격한다.
-    return new Promise((resolve) => {
-      pendingResolveRef.current = resolve;
-      timeoutRef.current = globalThis.setTimeout(() => {
-        timeoutRef.current = null;
-        const pendingResolve = pendingResolveRef.current;
-        pendingResolveRef.current = null;
-        // 타이머가 끝난 시점에도 requestId/signal은 유지되어 최신 요청 판정이 계속 유효하다.
-        void runSearch(requestId, signal, request).then((result) => {
-          pendingResolve?.(result);
-        });
-      }, debounceMs);
-    });
-  }, [beginRequest, clearPendingDebounce, debounceMs, runSearch]);
+    },
+    [
+      beginRequest,
+      clearPendingDebounce,
+      debounceMs,
+      finishRequest,
+      runSearch,
+      setFailure,
+    ],
+  );
 
   return {
     loading,

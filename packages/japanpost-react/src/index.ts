@@ -21,20 +21,22 @@ export { normalizeJapanPostAddressRecord } from "./core/normalizers";
 
 // 공개 타입
 export type {
-  AddressSearchInputProps,
   JapanAddress,
+  JapanPostAddresszipRequest,
+  JapanPostSearchcodeRequest,
+  Page,
+} from "./core/types";
+export type {
+  AddressSearchInputProps,
   JapanAddressDataSource,
   JapanAddressError,
   JapanAddressErrorCode,
   JapanAddressSearchInput,
-  JapanPostAddresszipRequest,
-  JapanPostalCodeSearchInput,
-  JapanPostSearchcodeRequest,
   JapanAddressRequestOptions,
   JapanAddressSearchResult,
   JapanPostalCodeLookupResult,
+  JapanPostalCodeSearchInput,
   NormalizedJapanAddressRecord,
-  Page,
   PostalCodeInputProps,
   UseJapanAddressOptions,
   UseJapanAddressResult,

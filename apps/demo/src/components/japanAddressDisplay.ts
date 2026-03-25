@@ -1,7 +1,5 @@
-import {
-  formatJapanPostalCode,
-  type JapanAddress,
-} from "@cp949/japanpost-react";
+import { formatJapanPostalCode } from "@cp949/japanpost-react";
+import type { JapanAddress } from "@cp949/japanpost-react";
 
 // 라이브러리 응답에는 공백과 줄바꿈이 섞일 수 있어
 // 데모 화면에서는 하나의 깔끔한 주소 문자열로 정규화해 사용한다.

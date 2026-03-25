@@ -1,27 +1,41 @@
 import type {
-  AdapterOptions,
-  AddressAdapter,
-  HealthStatus,
   JapanAddress,
   JapanPostAddresszipRequest,
   JapanPostSearchcodeRequest,
   Page,
-} from "./japanPostAdapterTypes.js";
+} from "@cp949/japanpost-react";
+
 import type { JapanPostSearchCodeAddress } from "./japanPost/clientTypes.js";
 
+export type AdapterOptions = {
+  env?: NodeJS.ProcessEnv;
+  fetch?: typeof fetch;
+};
+
+export type HealthStatus = {
+  ok: boolean;
+  error?: string;
+  // readiness check 스크립트가 다른 서버 인스턴스를 오인하지 않도록 선택적으로 포함된다.
+  instanceId?: string;
+};
+
+export type AddressAdapter = {
+  // health는 프로세스 생존 여부가 아니라 "업스트림 호출 준비 완료 여부"를 뜻한다.
+  getHealth(): Promise<HealthStatus>;
+  searchcode(request: JapanPostSearchcodeRequest): Promise<Page<JapanAddress>>;
+  addresszip(request: JapanPostAddresszipRequest): Promise<Page<JapanAddress>>;
+};
+
 export type {
-  AdapterOptions,
-  AddressAdapter,
-  HealthStatus,
   JapanAddress,
   JapanPostAddresszipRequest,
   JapanPostSearchcodeRequest,
   Page,
-} from "./japanPostAdapterTypes.js";
-export { createHttpError } from "./adapter/errors.js";
+};
+export { createHttpError } from "./japanPost/errors.js";
 
 import { createJapanPostClient } from "./japanPost/client.js";
-import { createHttpError, isAdapterHttpError } from "./adapter/errors.js";
+import { createHttpError, isAdapterHttpError } from "./japanPost/errors.js";
 import {
   normalizeAddressRecord,
   normalizePostalCode,

@@ -3,9 +3,16 @@ import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "@cp949/japanpost-react": path.resolve(__dirname, "./src/index.ts"),
-    },
+    alias: [
+      {
+        find: "@cp949/japanpost-react/client",
+        replacement: path.resolve(__dirname, "./src/client.ts"),
+      },
+      {
+        find: "@cp949/japanpost-react",
+        replacement: path.resolve(__dirname, "./src/index.ts"),
+      },
+    ],
   },
   test: {
     exclude: [...configDefaults.exclude, "browser/**"],

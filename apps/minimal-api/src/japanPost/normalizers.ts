@@ -1,7 +1,7 @@
-import type { JapanAddress } from "../japanPostAdapterTypes.js";
+import type { JapanAddress } from "@cp949/japanpost-react";
 
 import type { JapanPostSearchCodeAddress } from "./clientTypes.js";
-import { createHttpError } from "../adapter/errors.js";
+import { createHttpError } from "./errors.js";
 
 /**
  * 일본우정 원본 응답을 minimal-api 공개 주소 계약으로 정규화한다.

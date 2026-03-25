@@ -6,7 +6,11 @@ This repository uses a `pnpm workspace + turbo` layout.
 
 - Node.js 20+
 - pnpm 10+
-- Bash on Linux or WSL for repository scripts
+- `.secrets/env` for `pnpm demo:full` and `pnpm api:check`
+
+`pnpm test`, `pnpm verify:release`, `pnpm demo:full`, and `pnpm api:check`
+run through Node-based entrypoints and do not require Bash.
+Direct `scripts/*.sh` execution remains a Bash-only convenience path.
 
 ## Setup
 
@@ -22,9 +26,21 @@ Run the repository verification path:
 pnpm test
 ```
 
-This covers generated package README sync, package unit tests, and the shell
-regressions around `scripts/check-api.sh` and `scripts/dev-demo.sh`. It does
-not rebuild package artifacts.
+This cross-platform path covers generated package README sync, package unit
+tests, and workspace integration tests around `apps/minimal-api` and the local
+development helper scripts. It also keeps the demo workspace wiring for
+`@cp949/japanpost-react` and `@cp949/japanpost-react/client` under test. It
+does not rebuild package artifacts.
+
+For release-sensitive changes, run the standard release-grade verification path:
+
+```bash
+pnpm verify:release
+```
+
+This cross-platform path extends `pnpm test` with package artifact verification
+so build, pack, and consumer smoke regressions are caught before the package
+release command.
 
 For package-only changes, this focused path runs the package unit tests without rebuilding artifacts:
 
@@ -38,6 +54,13 @@ When you only need the package unit tests without rebuilding artifacts:
 pnpm test:package:unit
 ```
 
+For demo-only import or alias changes, this focused check keeps the local Vite
+app's type-resolution path honest:
+
+```bash
+pnpm --filter demo check-types
+```
+
 ## Documentation
 
 - Package README content is generated. Edit `packages/japanpost-react/docs/README.en.md`
@@ -49,4 +72,10 @@ pnpm test:package:unit
 
 - Keep changes small and focused.
 - Do not commit secrets. Local credentials belong in `.secrets/env`.
-- The demo and minimal API are reference implementations for local verification.
+- For local dev entrypoints, explicit shell env overrides `.secrets/env` when
+  both provide the same key.
+- `apps/demo` is a local verification app.
+- `apps/minimal-api` is intentionally a small, local-only sample server for
+  `pnpm demo:full` and `pnpm api:check`.
+- Do not grow `apps/minimal-api` into a reference backend or an operational
+  policy example. Production backend policy examples belong elsewhere.

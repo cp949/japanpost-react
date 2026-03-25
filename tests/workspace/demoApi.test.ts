@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDemoApiDataSource,
   readDemoApiHealth,
-} from "../../../apps/demo/src/demoApi";
+} from "../../apps/demo/src/demoApi";
 
 afterEach(() => {
   vi.unstubAllGlobals();

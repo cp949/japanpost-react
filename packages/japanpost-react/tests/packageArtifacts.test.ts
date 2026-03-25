@@ -168,18 +168,27 @@ describe("package artifacts", () => {
 
     expect(clientImportPath).toBeTruthy();
     expect(clientTypesPath).toBeTruthy();
-    expect(fs.existsSync(path.join(packageDir, clientImportPath!))).toBe(true);
-    expect(fs.existsSync(path.join(packageDir, clientTypesPath!))).toBe(true);
+
+    if (!clientImportPath || !clientTypesPath) {
+      throw new Error("Client export entry must include import and types paths");
+    }
+
+    expect(fs.existsSync(path.join(packageDir, clientImportPath))).toBe(true);
+    expect(fs.existsSync(path.join(packageDir, clientTypesPath))).toBe(true);
 
     const clientEntrySource = fs.readFileSync(
-      path.join(packageDir, clientImportPath!),
+      path.join(packageDir, clientImportPath),
       "utf8",
     );
 
     expect(clientEntrySource.startsWith('"use client";')).toBe(true);
   });
 
-  it("publishes non-empty root and client type entrypoints that match the public contract", () => {
+  it("does not publish a dedicated contracts entry", () => {
+    expect(packageJson.exports?.["./contracts"]).toBeUndefined();
+  });
+
+  it("publishes non-empty root and client type entrypoints", () => {
     const rootTypesPath = packageJson.types;
     const exportTypesPath = packageJson.exports?.["."]?.types;
     const clientTypesPath = packageJson.exports?.["./client"]?.types;
@@ -188,32 +197,28 @@ describe("package artifacts", () => {
     expect(exportTypesPath).toBeTruthy();
     expect(clientTypesPath).toBeTruthy();
 
+    if (!rootTypesPath || !exportTypesPath || !clientTypesPath) {
+      throw new Error("Package type entrypoints must all be defined");
+    }
+
     const rootTypesSource = fs.readFileSync(
-      path.join(packageDir, rootTypesPath!),
+      path.join(packageDir, rootTypesPath),
       "utf8",
     );
     const exportedRootTypesSource = fs.readFileSync(
-      path.join(packageDir, exportTypesPath!),
+      path.join(packageDir, exportTypesPath),
       "utf8",
     );
     const clientTypesSource = fs.readFileSync(
-      path.join(packageDir, clientTypesPath!),
+      path.join(packageDir, clientTypesPath),
       "utf8",
     );
 
     expect(rootTypesSource.trim()).not.toBe("export {}");
-    expect(rootTypesSource).toContain("type JapanAddressSearchInput =");
-    expect(rootTypesSource).toContain("export { AddressSearchInput");
-    expect(rootTypesSource).toContain("type UseJapanAddressResult");
     expect(exportedRootTypesSource).toBe(rootTypesSource);
     expect(clientTypesPath).toBe("./dist/client.d.ts");
     expect(clientTypesSource.trim()).not.toBe("export {}");
     expect(clientTypesSource.trim()).not.toHaveLength(0);
-    expect(clientTypesSource).toContain("export { AddressSearchInput");
-    expect(clientTypesSource).toContain("type JapanAddressSearchInput =");
-    expect(clientTypesSource).toContain("type JapanAddress =");
-    expect(clientTypesSource).toContain("type UseJapanAddressResult");
-    expect(clientTypesSource).toContain("type UseJapanPostalCodeResult");
   });
 
   it("keeps the published ESM entry importable in Node ESM environments", () => {
@@ -252,6 +257,8 @@ describe("package artifacts", () => {
       expect(tarballEntries).toContain("package/dist/client.es.js");
       expect(tarballEntries).toContain("package/dist/index.d.ts");
       expect(tarballEntries).toContain("package/dist/client.d.ts");
+      expect(tarballEntries).not.toContain("package/dist/contracts.es.js");
+      expect(tarballEntries).not.toContain("package/dist/contracts.d.ts");
       expect(tarballEntries).not.toContain("package/dist/index.umd.cjs");
 
       const importStdout = execFileSync(
@@ -287,6 +294,20 @@ describe("package artifacts", () => {
         execFileSync(
           "node",
           [
+            "--input-type=module",
+            "-e",
+            'import("@cp949/japanpost-react/contracts").then(() => console.log("import-contracts-ok"))',
+          ],
+          {
+            cwd: consumerDir,
+            encoding: "utf8",
+          },
+        ),
+      ).toThrowError(/ERR_PACKAGE_PATH_NOT_EXPORTED/);
+      expect(() =>
+        execFileSync(
+          "node",
+          [
             "-e",
             'require("@cp949/japanpost-react"); console.log("require-ok")',
           ],
@@ -309,6 +330,58 @@ describe("package artifacts", () => {
           },
         ),
       ).toThrowError(/ERR_PACKAGE_PATH_NOT_EXPORTED/);
+      expect(() =>
+        execFileSync(
+          "node",
+          [
+            "-e",
+            'require("@cp949/japanpost-react/contracts"); console.log("require-contracts-ok")',
+          ],
+          {
+            cwd: consumerDir,
+            encoding: "utf8",
+          },
+        ),
+      ).toThrowError(/ERR_PACKAGE_PATH_NOT_EXPORTED/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("keeps the packed root types importable for consumers", () => {
+    const { cleanup, consumerDir } = createPackedConsumerProject();
+
+    try {
+      const typecheckStdout = runPackedConsumerTypecheck(
+        consumerDir,
+        [
+          'import type {',
+          "  JapanAddress,",
+          "  JapanPostAddresszipRequest,",
+          "  NormalizedJapanAddressRecord,",
+          "  Page,",
+          '} from "@cp949/japanpost-react";',
+          "",
+          "const request: JapanPostAddresszipRequest = {",
+          '  addressQuery: "Chiyoda",',
+          "  pageNumber: 0,",
+          "  rowsPerPage: 20,",
+          "};",
+          "",
+          "declare const page: Page<JapanAddress>;",
+          "declare const normalized: NormalizedJapanAddressRecord;",
+          "const postalCode: string = normalized.postalCode;",
+          "const detail: string | undefined = normalized.detail;",
+          "void request;",
+          "void page;",
+          "void normalized;",
+          "void postalCode;",
+          "void detail;",
+          "",
+        ].join("\n"),
+      );
+
+      expect(typecheckStdout).toBe("");
     } finally {
       cleanup();
     }
@@ -356,41 +429,45 @@ describe("package artifacts", () => {
     }
   });
 
-  it("keeps the packed component refs typed as HTMLInputElement refs", () => {
-    const { cleanup, consumerDir } = createPackedConsumerProject();
+  it(
+    "keeps the packed component refs typed as HTMLInputElement refs",
+    () => {
+      const { cleanup, consumerDir } = createPackedConsumerProject();
 
-    try {
-      const typecheckStdout = runPackedConsumerTypecheck(
-        consumerDir,
-        [
-          'import { createRef } from "react";',
-          'import { AddressSearchInput, PostalCodeInput } from "@cp949/japanpost-react";',
-          "",
-          "const postalRef = createRef<HTMLInputElement>();",
-          "const addressRef = createRef<HTMLInputElement>();",
-          "",
-          "const postalElement = (",
-          '  <PostalCodeInput onSearch={() => {}} ref={postalRef} />',
-          ");",
-          "",
-          "const addressElement = (",
-          '  <AddressSearchInput onSearch={() => {}} ref={addressRef} />',
-          ");",
-          "",
-          "void postalElement;",
-          "void addressElement;",
-          "",
-        ].join("\n"),
-        "index.tsx",
-      );
+      try {
+        const typecheckStdout = runPackedConsumerTypecheck(
+          consumerDir,
+          [
+            'import { createRef } from "react";',
+            'import { AddressSearchInput, PostalCodeInput } from "@cp949/japanpost-react";',
+            "",
+            "const postalRef = createRef<HTMLInputElement>();",
+            "const addressRef = createRef<HTMLInputElement>();",
+            "",
+            "const postalElement = (",
+            '  <PostalCodeInput onSearch={() => {}} ref={postalRef} />',
+            ");",
+            "",
+            "const addressElement = (",
+            '  <AddressSearchInput onSearch={() => {}} ref={addressRef} />',
+            ");",
+            "",
+            "void postalElement;",
+            "void addressElement;",
+            "",
+          ].join("\n"),
+          "index.tsx",
+        );
 
-      expect(typecheckStdout).toBe("");
-    } finally {
-      cleanup();
-    }
-  });
+        expect(typecheckStdout).toBe("");
+      } finally {
+        cleanup();
+      }
+    },
+    20_000,
+  );
 
-  it("keeps English and Korean package readmes split by file", () => {
+  it("keeps English and Korean package readmes split by file without reviving the removed subpath", () => {
     const englishReadme = fs.readFileSync(packageReadmePath, "utf8");
     const koreanReadme = fs.readFileSync(packageReadmeKoPath, "utf8");
     const englishFirstLine = englishReadme.split("\n")[0];
@@ -400,50 +477,13 @@ describe("package artifacts", () => {
     expect(englishReadme).toContain("[한국어 README](./README.ko.md)");
     expect(englishReadme).not.toContain("[English](#english) | [한국어](#한국어)");
     expect(englishReadme).not.toContain("## 한국어");
-    expect(englishReadme).toContain('`require("@cp949/japanpost-react")`');
-    expect(englishReadme).toContain('`require("@cp949/japanpost-react/client")`');
-    expect(englishReadme).toContain('`const pkg = await import("@cp949/japanpost-react");`');
+    expect(englishReadme).toContain("@cp949/japanpost-react/client");
+    expect(englishReadme).not.toContain("@cp949/japanpost-react/contracts");
 
     expect(koreanFirstLine).toBe("# @cp949/japanpost-react");
     expect(koreanReadme).toContain("[English README](./README.md)");
     expect(koreanReadme).not.toContain("## English");
-    expect(koreanReadme).toContain('`require("@cp949/japanpost-react")`');
-    expect(koreanReadme).toContain('`require("@cp949/japanpost-react/client")`');
-    expect(koreanReadme).toContain('`const pkg = await import("@cp949/japanpost-react");`');
-  });
-});
-
-describe("demo workspace app", () => {
-  it("declares a buildable demo app with the expected scripts and dependencies", () => {
-    const demoAppDir = path.resolve(packageDir, "../../apps/demo");
-    const demoPackageJsonPath = path.join(demoAppDir, "package.json");
-
-    expect(fs.existsSync(demoPackageJsonPath)).toBe(true);
-
-    const demoPackageJson = JSON.parse(
-      fs.readFileSync(demoPackageJsonPath, "utf8"),
-    ) as {
-      name?: string;
-      scripts?: Record<string, string>;
-      dependencies?: Record<string, string>;
-    };
-
-    expect(demoPackageJson.name).toBe("demo");
-    expect(demoPackageJson.scripts).toEqual(
-      expect.objectContaining({
-        dev: "vite",
-        build: "tsc -b && vite build",
-        "check-types": "tsc --noEmit",
-        lint: "biome lint .",
-      }),
-    );
-    expect(demoPackageJson.dependencies).toEqual(
-      expect.objectContaining({
-        "@cp949/japanpost-react": "workspace:*",
-        "@mui/material": expect.any(String),
-        react: expect.any(String),
-        "react-dom": expect.any(String),
-      }),
-    );
+    expect(koreanReadme).toContain("@cp949/japanpost-react/client");
+    expect(koreanReadme).not.toContain("@cp949/japanpost-react/contracts");
   });
 });

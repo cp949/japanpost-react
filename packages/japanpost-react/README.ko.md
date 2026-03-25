@@ -18,20 +18,31 @@ pnpm add @cp949/japanpost-react
 
 - 지원 React 버전: React 18, React 19
 
-이 패키지는 ESM으로 배포됩니다. 서버 유틸리티와 공용 타입은
-`@cp949/japanpost-react`에서 가져오고, Next.js App Router에서 훅이나
-headless 입력 컴포넌트는 `@cp949/japanpost-react/client`를 사용하세요.
+이 패키지는 ESM으로 배포됩니다. 기본 앱 엔트리는
+`@cp949/japanpost-react`이며, 요청/응답/페이지 타입도 이 루트 엔트리에서
+`import type`으로 가져오세요. Next.js App Router client component 엔트리는
+`@cp949/japanpost-react/client`입니다.
 `require("@cp949/japanpost-react")`,
 `require("@cp949/japanpost-react/client")`는 지원되지 않으며, CommonJS
 소비자는 `const pkg = await import("@cp949/japanpost-react");` 같은 ESM
 interop을 사용해야 합니다.
 
+breaking change: 전용 `./contracts` 서브패스는 제거되었고, 이제 루트 엔트리가
+공개 타입의 단일 출처입니다.
+
+## 엔트리 포인트
+
+- `@cp949/japanpost-react`: 유틸리티, 훅, headless 입력 컴포넌트, 공개 타입을
+  위한 기본 엔트리
+- `@cp949/japanpost-react/client`: Next.js App Router client component용
+  엔트리
+
 ## Next.js
 
 Next.js App Router에서 훅이나 headless 입력 컴포넌트를 쓸 때는
 클라이언트 컴포넌트 안에서 `@cp949/japanpost-react/client` 경로를
-사용하는 것을 권장합니다. 유틸리티 함수와 공용 타입은 루트 엔트리에서
-가져오면 됩니다.
+사용하는 것을 권장합니다. 유틸리티 함수와 백엔드나 sample server와 공유할
+요청/응답/페이지 타입은 루트 엔트리에서 `import type`으로 가져오세요.
 
 ```tsx
 "use client";
@@ -47,9 +58,8 @@ import { useJapanPostalCode } from "@cp949/japanpost-react";
 import type {
   JapanAddressDataSource,
   JapanAddressRequestOptions,
-  JapanAddress,
-  Page,
 } from "@cp949/japanpost-react";
+import type { JapanAddress, Page } from "@cp949/japanpost-react";
 import { createJapanAddressError } from "@cp949/japanpost-react";
 
 // 현재 지원 방식은 실제 서버 연동뿐입니다.
@@ -196,9 +206,9 @@ Next.js에서도 `dataSource`는 자체 서버 API를 바라보도록 두고, Ja
 - `AddressSearchInput`
 - `JapanAddress`, `JapanAddressDataSource`, `JapanPostalCodeSearchInput`,
   `JapanAddressSearchInput`, `JapanPostSearchcodeRequest`,
-  `JapanPostAddresszipRequest`, `Page`를 포함한
-  공개 타입
+  `JapanPostAddresszipRequest`, `Page`를 포함한 공개 타입
 - 요청 옵션 타입: `JapanAddressRequestOptions`
+  루트 엔트리에서 `import type`으로 가져오는 공개 타입
 
 ## 유틸리티 메모
 
@@ -329,7 +339,7 @@ type JapanAddressRequestOptions = {
 | 성공 응답 shape 이상 | `bad_response` |
 | 그 외 백엔드 오류 | `data_source_error` |
 
-이 저장소의 참고 demo 흐름에서는 예시 `dataSource`가 실패 요청을 오직 HTTP
+이 저장소의 demo 흐름에서는 예시 `dataSource`가 실패 요청을 오직 HTTP
 status code로만 분류합니다. 현재 beta와 정렬된 흐름에서는 빈 `addresszip`
 요청과 우편번호 miss가 모두 `200 + empty page`로 올 수 있고, 이런 경우는 정상
 성공 page로 유지합니다. 그 외 `400` 응답은 `invalid_query`로 매핑할 수 있고,
@@ -356,12 +366,16 @@ miss를 오류로 노출하는 백엔드에서는 `404 -> not_found`, `504 -> ti
 공식 연동은 토큰 기반 인증을 사용하므로, 브라우저에서 업스트림 자격증명을
 직접 보관하면 안 됩니다. 현재 지원 방식은 실제 서버 연동뿐입니다.
 
-이 저장소의 `apps/minimal-api`는 로컬 기준 참고 서버 구현입니다. Japan Post
-API ver 2.0을 감싸며, 로컬 개발과 통합 확인 용도로 쓰는 구성을 목표로
-합니다. demo의 `/minimal-api` 경로는 개발 편의를 위한 로컬 경로 연결입니다.
+이 저장소의 `apps/minimal-api`는 로컬 기준 sample server 구현입니다. Japan
+Post API ver 2.0을 감싸며, 로컬 개발과 통합 확인 용도로만 쓰는 구성을
+목표로 합니다. demo의 `/minimal-api` 경로는 개발 편의를 위한 로컬 경로
+연결입니다.
 업스트림 payload에 구조화된 주소 필드와 원본 전체 주소 문자열인 `address`가 함께
-있더라도, 참고 서버는 둘을 그대로 이어붙이지 않고 중복 없는 표시 주소를
+있더라도, sample server는 둘을 그대로 이어붙이지 않고 중복 없는 표시 주소를
 우선 사용합니다.
+
+백엔드나 sample server 코드가 공유 계약 타입만 필요할 때는 루트 엔트리의
+public types를 사용하세요. `import type`으로 가져오면 됩니다.
 
 timeout 메시지는 토큰 발급 단계와 실제 조회 단계 중 어느 쪽에서 timeout이
 발생했는지에 따라 달라질 수 있지만, 두 경우 모두 `timeout` 코드로 다루면

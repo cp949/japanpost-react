@@ -1,11 +1,11 @@
 import {
   formatJapanPostalCode,
   normalizeJapanPostalCode,
-  useJapanAddress,
-  type JapanAddress,
   type JapanAddressSearchInput,
   type JapanPostalCodeSearchInput,
 } from "@cp949/japanpost-react";
+import { useJapanAddress } from "@cp949/japanpost-react/client";
+import type { JapanAddress } from "@cp949/japanpost-react";
 import {
   Alert,
   Box,

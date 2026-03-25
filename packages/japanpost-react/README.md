@@ -21,18 +21,29 @@ pnpm add @cp949/japanpost-react
   `packages/japanpost-react`
 - Demo app in this repository: `apps/demo`
 
-This package is published as ESM. Keep server utilities and shared types on
-`@cp949/japanpost-react`, and import hooks or headless input components for the
-Next.js App Router from `@cp949/japanpost-react/client`. CommonJS consumers
-must use ESM interop. `require("@cp949/japanpost-react")` and
-`require("@cp949/japanpost-react/client")` are not supported. In CommonJS, use
-ESM interop such as `const pkg = await import("@cp949/japanpost-react");`.
+This package is published as ESM. Use `@cp949/japanpost-react` as the default
+app entry and source of public request, response, and paging types, and use
+`@cp949/japanpost-react/client` for Next.js App Router client components.
+CommonJS consumers must use ESM interop. `require("@cp949/japanpost-react")`
+and `require("@cp949/japanpost-react/client")` are not supported. In
+CommonJS, use ESM interop such as `const pkg = await import("@cp949/japanpost-react");`.
+
+Breaking change: the dedicated `./contracts` subpath has been removed, so the
+root entry is now the single source for shared public types.
+
+## Entry Points
+
+- `@cp949/japanpost-react`: default app entry for utilities, hooks, headless
+  inputs, and public types
+- `@cp949/japanpost-react/client`: client-component entry for Next.js App
+  Router usage
 
 ## Next.js
 
 When you use hooks or headless input components in the Next.js App Router,
 import them from `@cp949/japanpost-react/client` inside a Client Component.
-Keep utility functions and shared types on the root entry.
+Keep utility functions and shared request, response, and page types on the
+root entry via `import type`.
 
 ```tsx
 "use client";
@@ -67,11 +78,10 @@ import {
   PostalCodeInput,
   createJapanAddressError,
   useJapanPostalCode,
-  type JapanAddress,
   type JapanAddressDataSource,
   type JapanAddressRequestOptions,
-  type Page,
 } from "@cp949/japanpost-react";
+import type { JapanAddress, Page } from "@cp949/japanpost-react";
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
@@ -179,8 +189,8 @@ export function PostalCodeLookupExample() {
 }
 ```
 
-The example paths above match this repository's reference backend. In your own
-app, the backend routes can be different as long as your `dataSource`
+The example paths above match this repository's local sample server. In your
+own app, the backend routes can be different as long as your `dataSource`
 implementation returns the same public types.
 
 In Next.js, keep the `dataSource` implementation pointed at your own server-side
@@ -189,7 +199,8 @@ browser.
 
 ## Core Contract
 
-`Page<T>` is the result shape shared by the hooks and the reference backend:
+`Page<T>` is the result shape shared by the hooks, your backend integration,
+and this repository's local sample server:
 
 ```ts
 type Page<T> = {
@@ -318,6 +329,10 @@ The package exports types for both sides of the integration:
 - `JapanAddressSearchInput`
 - `JapanAddressRequestOptions`
 
+Prefer the root entry when backend or sample-server code only needs the shared
+request, response, and page contract types. `import type` keeps the intent
+clear without adding another public entry point.
+
 The optional second argument to each data-source method is:
 
 ```ts
@@ -329,7 +344,7 @@ type JapanAddressRequestOptions = {
 The hooks pass `signal` so your data source can cancel superseded requests,
 `cancel()` calls, `reset()` calls, and unmount cleanup.
 
-This repository's reference backend uses these routes:
+This repository's local sample server uses these routes:
 
 - `POST /q/japanpost/searchcode`
 - `POST /q/japanpost/addresszip`

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createJapanPostAdapter } from "../../../apps/minimal-api/src/japanPostAdapter";
+import { createJapanPostAdapter } from "../../apps/minimal-api/src/japanPostAdapter";
 
 describe("createJapanPostAdapter facade", () => {
   it("reports health success through the facade", async () => {

@@ -1,5 +1,5 @@
-import type { JapanAddress } from "@cp949/japanpost-react";
 import { formatJapanPostalCode } from "@cp949/japanpost-react";
+import type { JapanAddress } from "@cp949/japanpost-react";
 import { Button, Stack, TextField } from "@mui/material";
 import { useState } from "react";
 

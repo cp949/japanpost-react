@@ -13,7 +13,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@cp949/japanpost-react": ["../../packages/japanpost-react/src/index.ts"]
+      "@cp949/japanpost-react": ["../../packages/japanpost-react/src/index.ts"],
+      "@cp949/japanpost-react/client": [
+        "../../packages/japanpost-react/src/client.ts"
+      ]
     },
     "strict": true,
     "noUnusedLocals": true,

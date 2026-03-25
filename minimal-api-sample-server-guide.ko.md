@@ -1,12 +1,16 @@
-# `japanpost-react` 연동 서버 개발 가이드
+# `japanpost-react` 연동 서버 계약 메모
+
+> 이 문서는 `apps/minimal-api`를
+> 운영 가이드나 공식 reference backend로 소개하려는 문서가 아니다. 로컬 sample
+> server에서 드러난 공유 계약과 구현 경계만 정리한 메모다.
 
 이 문서는 다른 프로젝트에서 `japanpost-react` 라이브러리를 사용하기 위해, 서버
 사이드에 `apps/minimal-api`와 같은 역할의 백엔드를 구현할 때 참고하는 한글
-가이드다.
+메모다.
 
-초점은 demo 앱이 아니라 `japanpost-react` 라이브러리가 기대하는 조회 계약에 있다.
-즉 이 문서는 "브라우저 앞에 어떤 서버를 두어야 이 라이브러리를 안정적으로 쓸 수
-있는가"를 정리한다.
+초점은 demo 앱 자체가 아니라 `japanpost-react` 라이브러리가 기대하는 조회 계약에
+있다. 즉 이 문서는 "로컬 sample server가 어떤 shared contract를 보여 주고 있으며,
+다른 프로젝트에서 어떤 최소 계약을 맞춰야 하는가"를 정리한다.
 
 ## 1. 전제
 
@@ -44,8 +48,8 @@ React 앱
 - `lookupPostalCode(request)`
 - `searchAddress(request)`
 
-여기서 `request` shape는 현재 `@cp949/japanpost-react`의 공개 타입과 맞춰 두는 것이
-좋다.
+여기서 `request` shape는 현재 `@cp949/japanpost-react`의 공유 타입과
+맞춰 두는 것이 좋다.
 
 - 우편번호 조회: `JapanPostSearchcodeRequest`
 - 주소 검색: `JapanPostAddresszipRequest`
@@ -209,9 +213,13 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 ## 6. 인증과 업스트림 호출
 
 `apps/minimal-api/src/japanPostAdapter.ts`는 orchestration entry point이고,
-실제 세부 책임은 `apps/minimal-api/src/adapter/*`로 나눠 둘 수 있다. 예를 들면
-설정 파싱은 `config.ts`, 토큰 캐시는 `tokenClient.ts`, 인증된 upstream 호출은
-`japanPostGateway.ts`, 응답 정규화는 `normalizers.ts`가 맡는다. 다른 프로젝트에서도
+실제 세부 책임은 `apps/minimal-api/src/japanPost/*`에 모아 두는 편이 가장 읽기
+쉽다. 예를 들면 설정 파싱은 `clientConfig.ts`, 토큰 캐시는 `tokenClient.ts`,
+인증된 upstream 호출은 `gateway.ts`, 응답 정규화는 `normalizers.ts`가 맡는다.
+또한 `JapanAddress`, `Page`, `JapanPostSearchcodeRequest`,
+`JapanPostAddresszipRequest` 같은 공개 계약 타입은
+`@cp949/japanpost-react`를 단일 출처로 삼아 sample server와 다른 백엔드가
+`import type`으로 참조하도록 두면 드리프트를 줄일 수 있다. 다른 프로젝트에서도
 이 책임 자체는 서버에 두는 것이 맞다.
 
 필수 설정:
@@ -354,20 +362,20 @@ const dataSource: JapanAddressDataSource = {
 };
 ```
 
-## 9. 운영 환경에서 반드시 챙길 것
+## 9. 실제 운영 백엔드에서 별도로 설계할 것
 
-이 문서의 초점은 라이브러리 연동이지만, 운영 서버라면 아래 항목은 기본으로 챙겨야
-한다.
+이 문서와 `apps/minimal-api`는 shared contract와 로컬 smoke check 흐름만 보여
+준다. 실제 운영 백엔드를 만들 때는 아래 항목을 이 샘플과 별도로 설계해야 한다.
 
-- CORS 허용 origin 제한
 - 시크릿 안전 보관
 - 요청/응답 로깅과 요청 ID
 - 업스트림 타임아웃
 - 레이트 리밋 또는 abuse 방어
 - 장애 분석을 위한 메트릭
 
-중요한 점은, 이 서버가 `japanpost-react`를 위한 단순 어댑터 역할을 하더라도 운영
-환경에서는 외부 API를 대신 호출하는 경계면이라는 사실이 바뀌지 않는다는 점이다.
+중요한 점은, `apps/minimal-api`가 로컬 sample server라는 사실과 실제 운영
+백엔드의 경계 책임은 분리해서 봐야 한다는 점이다. sample server는 로컬 demo 연결에
+필요한 최소 동작만 남겨 두었고, 운영 정책 자체를 문서화하거나 검증하지 않는다.
 
 ## 10. 참고 구현에서 직접 볼 파일
 

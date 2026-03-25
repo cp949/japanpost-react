@@ -14,12 +14,14 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
+    "types": ["node"],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@cp949/japanpost-react": ["./src/index.ts"]
+      "@cp949/japanpost-react": ["./src/index.ts"],
+      "@cp949/japanpost-react/client": ["./src/client.ts"]
     }
   },
   "include": ["src", "tests"],

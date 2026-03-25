@@ -18,6 +18,10 @@ import {
 } from "@cp949/japanpost-react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// Intentionally kept in the package test suite for now.
+// This demo integration flow depends on the package-local jsdom +
+// Testing Library + jest-dom harness, and moving it would require
+// expanding the root workspace test setup beyond the current minimal scope.
 import App from "../../../apps/demo/src/App";
 import * as demoApi from "../../../apps/demo/src/demoApi";
 import { JapanPostalAddressField } from "../../../apps/demo/src/components/JapanPostalAddressField";

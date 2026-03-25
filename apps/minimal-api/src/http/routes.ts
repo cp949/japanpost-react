@@ -1,11 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { createHttpError } from "../adapter/errors.js";
 import type {
-  AddressAdapter,
   JapanPostAddresszipRequest,
   JapanPostSearchcodeRequest,
-} from "../japanPostAdapter.js";
+} from "@cp949/japanpost-react";
+
+import { createHttpError } from "../japanPost/errors.js";
+import type { AddressAdapter } from "../japanPostAdapter.js";
 import { handleError } from "./errors.js";
 import { writeJson, writeNoContent } from "./responses.js";
 
@@ -67,7 +68,7 @@ export async function handleMinimalApiRequest(
   }
 
   if (request.method === "OPTIONS") {
-    writeNoContent(response);
+    writeNoContent(response, 204);
     return;
   }
 
@@ -79,7 +80,11 @@ export async function handleMinimalApiRequest(
   try {
     if (request.method === "GET" && url.pathname === "/health") {
       const health = await adapter.getHealth();
-      writeJson(response, health.ok ? 200 : 503, withInstanceId(env, health));
+      writeJson(
+        response,
+        health.ok ? 200 : 503,
+        withInstanceId(env, health),
+      );
       return;
     }
 

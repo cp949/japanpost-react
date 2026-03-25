@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createJapanPostClient,
   type JapanPostClientOptions,
-} from "../../../apps/minimal-api/src/japanPost/client";
+} from "../../apps/minimal-api/src/japanPost/client";
 
 function requireTokenResolve(
   resolve: ((value: Response | PromiseLike<Response>) => void) | null,

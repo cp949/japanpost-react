@@ -9,8 +9,8 @@ import {
   createMinimalApiServer,
   createMinimalApiServerWithAdapter,
   loadMinimalApiEnvForStartup,
-} from "../../../apps/minimal-api/src/server";
-import type { AddressAdapter } from "../../../apps/minimal-api/src/japanPostAdapter";
+} from "../../apps/minimal-api/src/server";
+import type { AddressAdapter } from "../../apps/minimal-api/src/japanPostAdapter";
 
 type RunningServer = {
   close: () => Promise<void>;
@@ -147,7 +147,7 @@ describe("minimal api server", () => {
     }
   });
 
-  it("returns 204 for OPTIONS requests with POST enabled in CORS", async () => {
+  it("returns 204 for OPTIONS requests with the fixed sample-server CORS headers", async () => {
     const server = await startServer({});
     activeServers.push(server);
 
