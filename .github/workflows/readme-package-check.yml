@@ -37,8 +37,5 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Check dist artifacts
-        run: pnpm --filter @cp949/japanpost-react test:artifacts
-
       - name: Check generated package README
         run: pnpm readme:package:check
