@@ -14,8 +14,8 @@ describe("createJapanPostAdapter facade", () => {
 
     const adapter = createJapanPostAdapter({
       env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
       },
       fetch: fetchMock,
     });
@@ -31,7 +31,7 @@ describe("createJapanPostAdapter facade", () => {
 
     await expect(adapter.getHealth()).resolves.toEqual({
       ok: false,
-      error: "JAPAN_POST_CLIENT_ID is required",
+      error: "JAPANPOST_CLIENT_ID is required",
     });
   });
 
@@ -62,15 +62,15 @@ describe("createJapanPostAdapter facade", () => {
 
     const adapter = createJapanPostAdapter({
       env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
       },
       fetch: fetchMock,
     });
 
     await expect(
       adapter.searchcode({
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 10,
         includeParenthesesTown: true,
@@ -134,15 +134,15 @@ describe("createJapanPostAdapter facade", () => {
 
     const adapter = createJapanPostAdapter({
       env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
       },
       fetch: fetchMock,
     });
 
     await expect(
       adapter.addresszip({
-        freeword: "  Jingumae  ",
+        addressQuery: "  Jingumae  ",
         pageNumber: 0,
         rowsPerPage: 20,
         includeCityDetails: false,
@@ -206,15 +206,15 @@ describe("createJapanPostAdapter facade", () => {
 
     const adapter = createJapanPostAdapter({
       env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
       },
       fetch: fetchMock,
     });
 
     await expect(
       adapter.searchcode({
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 10,
       }),
@@ -251,15 +251,15 @@ describe("createJapanPostAdapter facade", () => {
 
     const adapter = createJapanPostAdapter({
       env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
       },
       fetch: fetchMock,
     });
 
     await expect(
       adapter.searchcode({
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 10,
       }),
@@ -288,15 +288,15 @@ describe("createJapanPostAdapter facade", () => {
 
     const adapter = createJapanPostAdapter({
       env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
       },
       fetch: fetchMock,
     });
 
     await expect(
       adapter.addresszip({
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 20,
       }),

@@ -1,10 +1,14 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createMinimalApiServer,
   createMinimalApiServerWithAdapter,
+  loadMinimalApiEnvForStartup,
 } from "../../../apps/minimal-api/src/server";
 import type { AddressAdapter } from "../../../apps/minimal-api/src/japanPostAdapter";
 
@@ -80,6 +84,69 @@ afterEach(async () => {
 });
 
 describe("minimal api server", () => {
+  it("loads startup env values from a .secrets/env file when process env is missing them", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "minimal-api-env-"));
+
+    try {
+      const secretsDir = join(tempDir, ".secrets");
+      await mkdir(secretsDir, { recursive: true });
+      await writeFile(
+        join(secretsDir, "env"),
+        [
+          "export JAPANPOST_BASE_URL=api.example.test",
+          "export JAPANPOST_CLIENT_ID=file-client",
+          "export JAPANPOST_SECRET_KEY=file-secret",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const loadedEnv = loadMinimalApiEnvForStartup({
+        env: {},
+        envFilePath: join(secretsDir, "env"),
+      });
+
+      expect(loadedEnv).toMatchObject({
+        JAPANPOST_BASE_URL: "api.example.test",
+        JAPANPOST_CLIENT_ID: "file-client",
+        JAPANPOST_SECRET_KEY: "file-secret",
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps explicit process env values instead of overriding them from .secrets/env", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "minimal-api-env-"));
+
+    try {
+      const secretsDir = join(tempDir, ".secrets");
+      await mkdir(secretsDir, { recursive: true });
+      await writeFile(
+        join(secretsDir, "env"),
+        [
+          "export JAPANPOST_CLIENT_ID=file-client",
+          "export JAPANPOST_SECRET_KEY=file-secret",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const loadedEnv = loadMinimalApiEnvForStartup({
+        env: {
+          JAPANPOST_CLIENT_ID: "process-client",
+          JAPANPOST_SECRET_KEY: "process-secret",
+        },
+        envFilePath: join(secretsDir, "env"),
+      });
+
+      expect(loadedEnv.JAPANPOST_CLIENT_ID).toBe("process-client");
+      expect(loadedEnv.JAPANPOST_SECRET_KEY).toBe("process-secret");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("returns 204 for OPTIONS requests with POST enabled in CORS", async () => {
     const server = await startServer({});
     activeServers.push(server);
@@ -108,13 +175,13 @@ describe("minimal api server", () => {
     expect(response.status).toBe(503);
     expect(payload).toEqual({
       ok: false,
-      error: "JAPAN_POST_CLIENT_ID is required",
+      error: "JAPANPOST_CLIENT_ID is required",
     });
   });
 
   it("returns 503 health when only the secret key is missing", async () => {
     const server = await startServer({
-      JAPAN_POST_CLIENT_ID: "demo-client-id",
+      JAPANPOST_CLIENT_ID: "demo-client-id",
     });
     activeServers.push(server);
 
@@ -124,16 +191,16 @@ describe("minimal api server", () => {
     expect(response.status).toBe(503);
     expect(payload).toEqual({
       ok: false,
-      error: "JAPAN_POST_SECRET_KEY is required",
+      error: "JAPANPOST_SECRET_KEY is required",
     });
   });
 
   it("returns ok: true health when credentials are configured and token succeeds", async () => {
     const server = await startServer(
       {
-        JAPAN_POST_CLIENT_ID: "demo-client-id",
+        JAPANPOST_CLIENT_ID: "demo-client-id",
         MINIMAL_API_INSTANCE_ID: "instance-123",
-        JAPAN_POST_SECRET_KEY: "demo-secret-key",
+        JAPANPOST_SECRET_KEY: "demo-secret-key",
       },
       async () =>
         ({
@@ -187,9 +254,9 @@ describe("minimal api server", () => {
 
   it("returns 503 health when token exchange fails even though credentials are configured", async () => {
     const server = await startServer({
-      JAPAN_POST_CLIENT_ID: "demo-client-id",
-      JAPAN_POST_SECRET_KEY: "demo-secret-key",
-      JAPAN_POST_BASE_URL: "http://127.0.0.1:9",
+      JAPANPOST_CLIENT_ID: "demo-client-id",
+      JAPANPOST_SECRET_KEY: "demo-secret-key",
+      JAPANPOST_BASE_URL: "http://127.0.0.1:9",
     });
     activeServers.push(server);
 
@@ -211,7 +278,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 10,
       }),
@@ -220,7 +287,7 @@ describe("minimal api server", () => {
 
     expect(response.status).toBe(500);
     expect(payload).toEqual({
-      error: "JAPAN_POST_CLIENT_ID is required",
+      error: "JAPANPOST_CLIENT_ID is required",
     });
   });
 
@@ -234,7 +301,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 20,
       }),
@@ -243,14 +310,14 @@ describe("minimal api server", () => {
 
     expect(response.status).toBe(500);
     expect(payload).toEqual({
-      error: "JAPAN_POST_CLIENT_ID is required",
+      error: "JAPANPOST_CLIENT_ID is required",
     });
   });
 
   it("rejects malformed postal-code inputs before sending the request upstream", async () => {
     const server = await startServer({
-      JAPAN_POST_CLIENT_ID: "demo-client-id",
-      JAPAN_POST_SECRET_KEY: "demo-secret-key",
+      JAPANPOST_CLIENT_ID: "demo-client-id",
+      JAPANPOST_SECRET_KEY: "demo-secret-key",
     });
     activeServers.push(server);
 
@@ -260,7 +327,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        value: "12",
+        postalCode: "12",
         pageNumber: 0,
         rowsPerPage: 10,
       }),
@@ -278,7 +345,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        value: "100000123",
+        postalCode: "100000123",
         pageNumber: 0,
         rowsPerPage: 10,
       }),
@@ -326,7 +393,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        freeword: "   ",
+        addressQuery: "   ",
         pageNumber: 0,
         rowsPerPage: 20,
       }),
@@ -371,8 +438,8 @@ describe("minimal api server", () => {
 
     const server = await startServer(
       {
-        JAPAN_POST_CLIENT_ID: "demo-client-id",
-        JAPAN_POST_SECRET_KEY: "demo-secret-key",
+        JAPANPOST_CLIENT_ID: "demo-client-id",
+        JAPANPOST_SECRET_KEY: "demo-secret-key",
       },
       fetchMock,
     );
@@ -384,7 +451,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        value: "1020072",
+        postalCode: "1020072",
         pageNumber: 0,
         rowsPerPage: 10,
       }),
@@ -436,8 +503,8 @@ describe("minimal api server", () => {
 
     const server = await startServer(
       {
-        JAPAN_POST_CLIENT_ID: "demo-client-id",
-        JAPAN_POST_SECRET_KEY: "demo-secret-key",
+        JAPANPOST_CLIENT_ID: "demo-client-id",
+        JAPANPOST_SECRET_KEY: "demo-secret-key",
       },
       fetchMock,
     );
@@ -449,7 +516,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        value: "1020072",
+        postalCode: "1020072",
         pageNumber: 0,
         rowsPerPage: 10,
       }),
@@ -489,8 +556,8 @@ describe("minimal api server", () => {
 
     const server = await startServer(
       {
-        JAPAN_POST_CLIENT_ID: "demo-client-id",
-        JAPAN_POST_SECRET_KEY: "demo-secret-key",
+        JAPANPOST_CLIENT_ID: "demo-client-id",
+        JAPANPOST_SECRET_KEY: "demo-secret-key",
       },
       fetchMock,
     );
@@ -502,7 +569,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        freeword: "千代田",
+        addressQuery: "千代田",
         pageNumber: 0,
         rowsPerPage: 20,
         includeCityDetails: false,
@@ -553,8 +620,8 @@ describe("minimal api server", () => {
 
     const server = await startServer(
       {
-        JAPAN_POST_CLIENT_ID: "demo-client-id",
-        JAPAN_POST_SECRET_KEY: "demo-secret-key",
+        JAPANPOST_CLIENT_ID: "demo-client-id",
+        JAPANPOST_SECRET_KEY: "demo-secret-key",
       },
       fetchMock,
     );
@@ -566,7 +633,7 @@ describe("minimal api server", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        freeword: "千代田",
+        addressQuery: "千代田",
         pageNumber: 0,
         rowsPerPage: 20,
       }),

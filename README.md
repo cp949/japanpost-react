@@ -2,111 +2,183 @@
 
 [한국어](./README.ko.md)
 
-React + TypeScript workspace for Japan postal-code and address lookup.
+Monorepo for `@cp949/japanpost-react`, a React package for Japan postal-code
+and address lookup, plus a demo app and a reference backend used to verify the
+integration flow locally.
 
-The repository uses a `pnpm workspace + turbo` layout and contains:
+## Overview
 
-- `packages/japanpost-react`: published React hooks and headless inputs
-- `apps/minimal-api`: local reference server for real upstream integration
-- `apps/demo`: Vite demo app for end-to-end verification
+This repository has three main parts.
+
+- `packages/japanpost-react`: the published package. It exports React hooks,
+  headless input components, postal-code utilities, and public TypeScript
+  types.
+- `apps/demo`: a Vite + MUI demo app that exercises the package against a
+  backend API.
+- `apps/minimal-api`: a small Node HTTP server that authenticates against the
+  Japan Post API and normalizes responses to the same paged contract used by
+  the package.
+
+The supported integration model in this repository is server-backed:
+
+```text
+browser app
+  -> your backend API
+  -> Japan Post API
+```
+
+For local development in this workspace, the flow is:
+
+```text
+apps/demo
+  -> /minimal-api/* on the Vite dev server
+  -> apps/minimal-api on http://127.0.0.1:8788
+  -> Japan Post API
+```
+
+Both the package and the reference backend use the same paged response shape:
+
+```ts
+type Page<T> = {
+  elements: T[];
+  totalElements: number;
+  pageNumber: number;
+  rowsPerPage: number;
+};
+```
 
 ## Recommended Environment
 
 - Node.js 20+
 - pnpm 10+
-- Linux or WSL with Bash, `curl`, `ps`, `awk`, `setsid` available on PATH for repository scripts
-- A `.secrets/env` file when running the full local demo stack
+- Linux or WSL Bash for repository shell scripts
 
-## Running Locally
-
-Install dependencies first:
-
-```bash
-pnpm install
-```
-
-Start the full local stack:
-
-```bash
-pnpm demo:full
-```
-
-This starts both the browser demo and `apps/minimal-api`. The script requires a
-root-level `.secrets/env` file, waits for `GET /health` to return HTTP `200`
-with `{ "ok": true }`, and verifies that the response came from the exact
-minimal-api instance it started. The default ports are `8788` for the API
-server and `5173` for the demo app.
-
-Minimum `.secrets/env` example:
-
-```bash
-export JAPAN_POST_BASE_URL=...
-export JAPAN_POST_CLIENT_ID=...
-export JAPAN_POST_SECRET_KEY=...
-```
-
-If you change `PORT`, the demo dev proxy now follows that port automatically.
-If you need a different upstream entirely, set `DEMO_API_PROXY_URL`.
-
-You can also run the pieces separately:
-
-```bash
-pnpm api:dev
-pnpm demo:dev
-```
-
-To verify the real upstream-backed server integration:
-
-```bash
-pnpm api:check
-```
-
-This command expects a usable `.secrets/env` file with real upstream
-credentials because it starts `apps/minimal-api` and exercises `/health`,
-`/q/japanpost/searchcode`, and `/q/japanpost/addresszip`.
-
-To run the repository verification path:
-
-```bash
-pnpm test
-```
-
-That root entrypoint runs the package test suite, verifies the generated
-package README is in sync with `packages/japanpost-react/docs`, and runs the
-Linux/WSL-oriented shell regressions for `check-api.sh` and `dev-demo.sh`,
-including the instance-readiness checks for both entrypoints.
-
-## Install
+## Install The Published Package
 
 ```bash
 pnpm add @cp949/japanpost-react
 ```
 
-- Supported React versions: React 18 and React 19
-- The published package lives in [`packages/japanpost-react`](./packages/japanpost-react)
-- Package usage docs live in [`packages/japanpost-react/README.md`](./packages/japanpost-react/README.md)
+The package usage guide lives in
+[`packages/japanpost-react/README.md`](./packages/japanpost-react/README.md).
 
-## Page-Aware Public Contract
+## Demo App Examples
 
-The published `@cp949/japanpost-react` contract stays aligned with the
-reference `minimal-api` high-level pager contract.
+`apps/demo` is the fastest way to see how the package is meant to be wired in a
+real React app. Run `pnpm demo:full` to explore these examples:
 
-- `JapanAddressDataSource.lookupPostalCode()` and `.searchAddress()` return
-  `Promise<Page<JapanAddress>>`.
-- Hook results expose the `Page<JapanAddress>` payload itself.
-- `useJapanPostalCode`, `useJapanAddressSearch`, and `useJapanAddress` use
-  `data.elements` and `data.totalElements`.
-- `Page<T>` keeps `elements`, `totalElements`, `pageNumber`, and
-  `rowsPerPage`.
+- `Dialog`: a search-button + modal flow built around
+  `JapanPostalAddressField`.
+- `Embedded`: the same lookup flow embedded directly in the page instead of a
+  dialog.
+- `useJapanAddressSearch()`: an address-search hook example focused on request
+  and result handling.
+- `useJapanPostalCode()`: a postal-code lookup hook example.
+- `useJapanAddress()`: a combined example that handles both postal-code lookup
+  and address search through one hook.
 
-```ts
-const addresses = data?.elements ?? [];
-const total = data?.totalElements ?? 0;
+## Quick Start
+
+Install dependencies:
+
+```bash
+pnpm install
 ```
 
-## More Docs
+If you want to run `pnpm demo:full` or `pnpm api:check`, create
+`.secrets/env` first. Those scripts read that file directly; exporting the
+variables only in your current shell is not enough for those entrypoints.
+The reference backend requires `JAPANPOST_CLIENT_ID` and
+`JAPANPOST_SECRET_KEY`. `JAPANPOST_BASE_URL` is optional because the code has
+its own default.
 
-- Internal development and API integration notes: [`japanpost-development-guide.md`](./japanpost-development-guide.md)
-- Production server guide for the `minimal-api` role (Korean): [`minimal-api-production-guide.ko.md`](./minimal-api-production-guide.ko.md)
-- Demo app source: [`apps/demo`](./apps/demo)
-- Local reference server: [`apps/minimal-api`](./apps/minimal-api)
+```bash
+mkdir -p .secrets
+cat > .secrets/env <<'EOF'
+export JAPANPOST_CLIENT_ID=...
+export JAPANPOST_SECRET_KEY=...
+# Optional:
+# export JAPANPOST_BASE_URL=...
+EOF
+```
+
+Then start both the demo app and the reference backend:
+
+```bash
+pnpm demo:full
+```
+
+`pnpm demo:full` starts `apps/minimal-api`, waits until `GET /health` returns
+HTTP `200` with `{ ok: true }` from the instance it launched, and only then
+starts `apps/demo`. The default ports are:
+
+- demo app: `5173`
+- minimal-api: `8788`
+
+## Common Commands
+
+- `pnpm demo:full`: run the demo app and the reference backend together.
+  Requires `.secrets/env`.
+- `pnpm api:dev`: run `apps/minimal-api` only.
+- `pnpm demo:dev`: run `apps/demo` only. By default, the Vite proxy forwards
+  `/minimal-api/*` to `http://127.0.0.1:${PORT:-8788}`.
+- `pnpm api:check`: start the reference backend and verify `/health`,
+  `/q/japanpost/searchcode`, and `/q/japanpost/addresszip` against the real
+  upstream. Requires `.secrets/env`.
+- `pnpm test`: run the repository verification path. This checks generated
+  package README sync and the package test suite.
+- `pnpm check-types`: run workspace type checks through Turbo.
+
+`demo:full`, `api:check`, and the shell regression scripts assume a Linux or
+WSL-style Bash environment.
+
+## Workspace Layout
+
+```text
+.
+├── apps/
+│   ├── demo/                 Vite demo app
+│   └── minimal-api/          Reference backend for local verification
+├── packages/
+│   └── japanpost-react/      Published package
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── README.md
+```
+
+The workspace is wired with `pnpm-workspace.yaml` and `turbo.json`.
+
+## Package, Demo, And Server Relationship
+
+- The package does not ship a backend client. Consumers must provide a
+  `JapanAddressDataSource`.
+- `apps/demo/src/demoApi.ts` is the repository's example data-source adapter.
+  It is local demo code, not a package export.
+- `apps/demo/vite.config.ts` aliases `@cp949/japanpost-react` to
+  `packages/japanpost-react/src/index.ts`, so the demo uses workspace source
+  files directly during development.
+- `apps/minimal-api` exposes `GET /health`, `POST /q/japanpost/searchcode`,
+  and `POST /q/japanpost/addresszip`.
+
+## Related Docs
+
+- Package guide:
+  [`packages/japanpost-react/README.md`](./packages/japanpost-react/README.md)
+- Korean repository guide:
+  [`README.ko.md`](./README.ko.md)
+- Minimal-api production guide in Korean:
+  [`minimal-api-production-guide.ko.md`](./minimal-api-production-guide.ko.md)
+- Contribution notes:
+  [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- Release history:
+  [`CHANGELOG.md`](./CHANGELOG.md)
+
+## Notes
+
+- The reference backend currently sends `access-control-allow-origin: "*"`.
+  That is for local development only.
+- Blank address searches are normalized to an empty page by the reference
+  backend instead of a hard error.
+- Package README files in `packages/japanpost-react` are generated from
+  `packages/japanpost-react/docs/README.en.md` and
+  `packages/japanpost-react/docs/README.ko.md`.

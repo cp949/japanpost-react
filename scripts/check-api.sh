@@ -157,7 +157,7 @@ fi
 POSTAL_CODE_BODY="$(curl -fsS \
   -X POST \
   -H 'content-type: application/json' \
-  --data '{"value":"1020072","pageNumber":0,"rowsPerPage":10}' \
+  --data '{"postalCode":"1020072","pageNumber":0,"rowsPerPage":10}' \
   "$BASE_URL/q/japanpost/searchcode" 2>>"$SERVER_LOG")" || {
   echo "CHECK searchcode: FAIL"
   cat "$SERVER_LOG"
@@ -177,7 +177,7 @@ fi
 ADDRESS_SEARCH_BODY="$(curl -fsS \
   -X POST \
   -H 'content-type: application/json' \
-  --data '{"freeword":"大手町","pageNumber":0,"rowsPerPage":20,"includeCityDetails":false,"includePrefectureDetails":false}' \
+  --data '{"addressQuery":"大手町","pageNumber":0,"rowsPerPage":20,"includeCityDetails":false,"includePrefectureDetails":false}' \
   "$BASE_URL/q/japanpost/addresszip" 2>>"$SERVER_LOG")" || {
   echo "CHECK addresszip: FAIL"
   cat "$SERVER_LOG"

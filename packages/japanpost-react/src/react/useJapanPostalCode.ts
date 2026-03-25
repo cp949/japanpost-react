@@ -5,6 +5,7 @@ import type {
   JapanAddressDataSource,
   JapanPostalCodeLookupResult,
   JapanAddressRequestOptions,
+  JapanPostalCodeSearchInput,
   UseJapanPostalCodeOptions,
   UseJapanPostalCodeResult,
 } from "../core/types";
@@ -44,6 +45,7 @@ export function useJapanPostalCode(
     setSuccess,
     setFailure,
     finishRequest,
+    cancel,
     reset,
   } = useLatestRequestState<JapanPostalCodeLookupResult>();
 
@@ -52,47 +54,64 @@ export function useJapanPostalCode(
    * 입력은 하이픈 포함 여부와 무관하게 숫자만 추출해 최소 3자리~최대 7자리까지 허용한다.
    * 언마운트되거나 더 최신 요청이 있으면 내부 상태 업데이트는 무시된다.
    */
-  const search = useCallback(async (value: string) => {
-    const { requestId, signal } = beginRequest();
+  const search: UseJapanPostalCodeResult["search"] = useCallback(
+    async (input: JapanPostalCodeSearchInput) => {
+      const { requestId, signal } = beginRequest();
 
-    try {
-      // 사용자가 입력한 표시 형식을 그대로 계약으로 넘기지 않고 숫자만 남긴다.
-      const postalCode = normalizeJapanPostalCode(value);
+      try {
+        const requestInput: Exclude<JapanPostalCodeSearchInput, string> =
+          typeof input === "string" ? { postalCode: input } : input;
+        // 사용자가 입력한 표시 형식을 그대로 계약으로 넘기지 않고 숫자만 남긴다.
+        const postalCode = normalizeJapanPostalCode(requestInput.postalCode);
 
-      if (!/^\d{3,7}$/.test(postalCode)) {
-        throw createJapanAddressError(
-          "invalid_postal_code",
-          "Postal code must contain between 3 and 7 digits",
+        if (!/^\d{3,7}$/.test(postalCode)) {
+          throw createJapanAddressError(
+            "invalid_postal_code",
+            "Postal code must contain between 3 and 7 digits",
+          );
+        }
+
+        const requestOptions: JapanAddressRequestOptions = {
+          signal,
+        };
+        // pageNumber/rowsPerPage는 공개 결과가 pager payload라는 계약을 유지하기 위해 항상 명시한다.
+        const request = {
+          postalCode,
+          pageNumber: requestInput.pageNumber ?? 0,
+          rowsPerPage: requestInput.rowsPerPage ?? 100,
+          ...(requestInput.includeParenthesesTown === undefined
+            ? {}
+            : {
+                includeParenthesesTown: requestInput.includeParenthesesTown,
+              }),
+        };
+        const result = await dataSource.lookupPostalCode(
+          request,
+          requestOptions,
         );
+        if (signal.aborted) {
+          return null;
+        }
+        setSuccess(requestId, result);
+        return result;
+      } catch (caughtError) {
+        if (signal.aborted) {
+          return null;
+        }
+        // data source가 어떤 형태의 예외를 던지더라도 라이브러리 공개 에러 형태로 맞춘다.
+        return setFailure(requestId, toJapanAddressError(caughtError));
+      } finally {
+        finishRequest(requestId);
       }
-
-      const requestOptions: JapanAddressRequestOptions = {
-        signal,
-      };
-      // pageNumber/rowsPerPage는 공개 결과가 pager payload라는 계약을 유지하기 위해 항상 명시한다.
-      const request = {
-        value: postalCode,
-        pageNumber: 0,
-        rowsPerPage: 100,
-      };
-      const result = await dataSource.lookupPostalCode(
-        request,
-        requestOptions,
-      );
-      setSuccess(requestId, result);
-      return result;
-    } catch (caughtError) {
-      // data source가 어떤 형태의 예외를 던지더라도 라이브러리 공개 에러 형태로 맞춘다.
-      return setFailure(requestId, toJapanAddressError(caughtError));
-    } finally {
-      finishRequest(requestId);
-    }
-  }, [beginRequest, dataSource, finishRequest, setFailure, setSuccess]);
+    },
+    [beginRequest, dataSource, finishRequest, setFailure, setSuccess],
+  );
 
   return {
     loading,
     data,
     error,
+    cancel,
     reset,
     search,
   };

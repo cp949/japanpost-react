@@ -99,7 +99,7 @@ expectTypeOf<Page<JapanAddress>>().toExtend<{
   rowsPerPage: number;
 }>();
 expectTypeOf<JapanPostSearchcodeRequest>().toExtend<{
-  value: string;
+  postalCode: string;
   pageNumber: number;
   rowsPerPage: number;
 }>();
@@ -110,7 +110,7 @@ type HasIncludeBusinessAddresses =
 expectTypeOf<HasIncludeBusinessAddresses>().toEqualTypeOf<false>();
 
 expectTypeOf<JapanPostAddresszipRequest>().toExtend<{
-  freeword?: string | null;
+  addressQuery?: string | null;
   pageNumber: number;
   rowsPerPage: number;
 }>();

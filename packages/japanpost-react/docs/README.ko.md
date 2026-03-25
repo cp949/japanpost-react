@@ -165,8 +165,10 @@ export function PostalForm() {
 - `useJapanAddress`
 - `PostalCodeInput`
 - `AddressSearchInput`
-- `JapanAddress`, `JapanAddressDataSource`, `JapanPostSearchcodeRequest`,
-  `JapanPostAddresszipRequest`, `Page`를 포함한 공개 타입
+- `JapanAddress`, `JapanAddressDataSource`, `JapanPostalCodeSearchInput`,
+  `JapanAddressSearchInput`, `JapanPostSearchcodeRequest`,
+  `JapanPostAddresszipRequest`, `Page`를 포함한
+  공개 타입
 - 요청 옵션 타입: `JapanAddressRequestOptions`
 
 ## 유틸리티 메모
@@ -178,56 +180,94 @@ export function PostalForm() {
 
 ### useJapanPostalCode
 
-우편번호로 주소를 조회합니다. `3~7자리` 숫자 입력을 받아 `3~6자리`일 때는
-prefix 검색으로 동작합니다.
+우편번호로 주소를 조회합니다. 문자열 입력과 구조화된 요청 입력을 모두
+받을 수 있고, `3~6자리` 입력일 때는 prefix 검색으로 동작합니다.
 
 ```tsx
-const { loading, data, error, search, reset } = useJapanPostalCode({
+const { loading, data, error, search, cancel, reset } = useJapanPostalCode({
   dataSource,
 });
 ```
 
+```tsx
+void search("1000001");
+void search({
+  postalCode: "1000001",
+  pageNumber: 1,
+  rowsPerPage: 10,
+  includeParenthesesTown: true,
+});
+```
+
+`cancel()`은 진행 중인 조회를 중단하고 현재 data/error 상태는 그대로 유지합니다.
+`reset()`은 `cancel()`을 호출한 뒤 data/error까지 비워 훅을 idle 상태로
+되돌립니다.
+
 ### useJapanAddressSearch
 
-자유 형식 키워드로 주소를 검색하며 `debounceMs`를 지원합니다.
+자유 형식 키워드 또는 구조화된 필드로 주소를 검색하며 `debounceMs`를 지원합니다.
 
 ```tsx
-const { loading, data, error, search, reset } = useJapanAddressSearch({
+const { loading, data, error, search, cancel, reset } = useJapanAddressSearch({
   dataSource,
   debounceMs: 300,
 });
 ```
 
+```tsx
+void search("Tokyo");
+void search({
+  addressQuery: "Tokyo",
+  pageNumber: 1,
+  rowsPerPage: 10,
+  includeCityDetails: true,
+});
+void search({
+  prefName: "東京都",
+  cityName: "千代田区",
+});
+```
+
+`search("Tokyo")`는 `addressQuery` 검색의 축약형입니다. 구조화된 필드는
+`addressQuery` 없이도 사용할 수 있어서, 도도부현/시/동 단위로만 검색하고 싶을 때
+유용합니다.
+
 이 훅은 빈 검색어에 대해 여전히 클라이언트 선제 검증을 수행하고, 요청을 보내기
 전에 `invalid_query`를 반환합니다. 이 검증은 UX 보조 장치이며 서버 검증이나
 서버 계약 처리를 대체하지 않습니다.
 
+`cancel()`은 진행 중인 요청이나 대기 중인 debounce 타이머를 중단하고,
+현재 data/error 상태는 그대로 유지합니다. `reset()`은 `cancel()`을 호출한 뒤
+data와 error까지 비워 훅을 idle 상태로 되돌립니다.
+
 ### useJapanAddress
 
-우편번호 조회와 키워드 검색을 하나의 훅으로 합칩니다.
+우편번호 조회와 주소 질의 검색을 하나의 훅으로 합칩니다.
 
 ```tsx
-const { loading, data, error, searchByPostalCode, searchByKeyword, reset } =
+const { loading, data, error, searchByPostalCode, searchByAddressQuery, reset } =
   useJapanAddress({ dataSource, debounceMs: 300 });
 ```
 
 모든 훅은 런타임에서 `dataSource`가 필요합니다.
 
-훅의 public API는 계속 문자열 기반입니다.
+`useJapanPostalCode().search`, `useJapanAddressSearch().search`,
+`useJapanAddress`의 편의 메서드는 모두 같은 공개 검색 입력 타입을 받습니다.
 
-- `useJapanPostalCode().search(value: string)`
-- `useJapanAddressSearch().search(query: string)`
-- `useJapanAddress().searchByPostalCode(value: string)`
-- `useJapanAddress().searchByKeyword(query: string)`
+- `useJapanPostalCode().search(input: JapanPostalCodeSearchInput)`
+- `useJapanAddressSearch().search(input: JapanAddressSearchInput)`
+- `useJapanAddress().searchByPostalCode(input: JapanPostalCodeSearchInput)`
+- `useJapanAddress().searchByAddressQuery(input: JapanAddressSearchInput)`
 
 대신 훅 내부에서 `dataSource` 호출 전에 request object를 조립합니다.
 
-- 우편번호 조회: `{ value, pageNumber: 0, rowsPerPage: 100 }`
-- 주소 검색: `{ freeword, pageNumber: 0, rowsPerPage: 100 }`
+- 우편번호 조회: `{ postalCode, pageNumber: 0, rowsPerPage: 100 }`
+- 주소 검색: `{ addressQuery, pageNumber: 0, rowsPerPage: 100 }`
 
-`includeCityDetails`, `includePrefectureDetails` 같은 optional flag는
-기본적으로 넣지 않으며, 필요하면 사용자 data source 구현에서 직접
-지정하면 됩니다.
+`useJapanAddressSearch`에서는 `addressQuery`를 생략한 구조화 요청도 가능하므로
+도도부현, 시, 동 필드만으로 검색할 수 있습니다. `includeCityDetails`,
+`includePrefectureDetails` 같은 optional flag는 기본적으로 넣지 않으며,
+필요하면 사용자 data source 구현에서 직접 지정하면 됩니다.
 
 ## 에러 처리 메모
 
@@ -244,9 +284,9 @@ type JapanAddressRequestOptions = {
 };
 ```
 
-훅은 superseded 요청, `reset()`, unmount 정리 상황에서 이전 요청을 취소할 수
-있도록 `signal`을 전달합니다. 백엔드 레이어가 abort를 지원하면 그대로 활용할 수
-있습니다.
+훅은 superseded 요청, `cancel()`, `reset()`, unmount 정리 상황에서 이전
+요청을 취소할 수 있도록 `signal`을 전달합니다. 백엔드 레이어가 abort를 지원하면
+그대로 활용할 수 있습니다.
 
 권장 에러 코드 매핑:
 

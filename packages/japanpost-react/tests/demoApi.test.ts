@@ -9,10 +9,208 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("demo API contract", () => {
+  it("keeps 503 health payloads readable without throwing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        ok: false,
+        error: "warming up",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(readDemoApiHealth("http://localhost:8787")).resolves.toEqual({
+      ok: false,
+      error: "warming up",
+    });
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:8787/health");
+  });
+
+  it("maps backend 404 lookup responses into not_found errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        detail: "No matching addresses found",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(
+      dataSource.lookupPostalCode({
+        postalCode: "5555555",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      }),
+    ).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "not_found",
+      status: 404,
+      message: "Request failed with status 404",
+    });
+  });
+
+  it("maps 504 address-search responses into timeout errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 504,
+      json: async () => ({
+        detail: "Address provider request timed out",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(
+      dataSource.searchAddress({
+        addressQuery: "Tokyo",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      }),
+    ).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "timeout",
+      status: 504,
+      message: "Request failed with status 504",
+    });
+  });
+
+  it("rejects malformed success payloads with bad_response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        elements: null,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("http://localhost:8787");
+
+    await expect(
+      dataSource.lookupPostalCode({
+        postalCode: "1000001",
+        pageNumber: 0,
+        rowsPerPage: 100,
+      }),
+    ).rejects.toMatchObject({
+      name: "JapanAddressError",
+      code: "bad_response",
+      message: "Response payload must include a valid page payload",
+    });
+  });
+});
+
 describe("demo API integration helpers", () => {
+  it("mirrors the demo searchcode route contract", async () => {
+    const request = {
+      postalCode: "1000001",
+      pageNumber: 0,
+      rowsPerPage: 100,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("/minimal-api");
+
+    await expect(dataSource.lookupPostalCode(request)).resolves.toEqual({
+      elements: [],
+      totalElements: 0,
+      pageNumber: 0,
+      rowsPerPage: 20,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/minimal-api/q/japanpost/searchcode",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(request),
+        signal: undefined,
+      },
+    );
+  });
+
+  it("mirrors the demo addresszip route contract", async () => {
+    const request = {
+      addressQuery: "Tokyo",
+      pageNumber: 0,
+      rowsPerPage: 100,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        elements: [{ postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" }],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dataSource = createDemoApiDataSource("/minimal-api");
+
+    await expect(dataSource.searchAddress(request)).resolves.toEqual({
+      elements: [{ postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" }],
+      totalElements: 1,
+      pageNumber: 0,
+      rowsPerPage: 20,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/minimal-api/q/japanpost/addresszip",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(request),
+        signal: undefined,
+      },
+    );
+  });
+
+  it("mirrors the demo health route contract", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(readDemoApiHealth("/minimal-api")).resolves.toEqual({
+      ok: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/minimal-api/health");
+  });
+
   it("supports relative API base paths for browser-served demos", async () => {
     const request = {
-      value: "1000001",
+      postalCode: "1000001",
       pageNumber: 0,
       rowsPerPage: 100,
     };
@@ -52,7 +250,7 @@ describe("demo API integration helpers", () => {
 
   it("posts addresszip requests and returns the full pager payload", async () => {
     const request = {
-      freeword: "Tokyo",
+      addressQuery: "Tokyo",
       pageNumber: 0,
       rowsPerPage: 100,
     };
@@ -122,7 +320,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.lookupPostalCode({
-        value: "5555555",
+        postalCode: "5555555",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -139,7 +337,7 @@ describe("demo API integration helpers", () => {
       ok: false,
       status: 500,
       json: async () => ({
-        message: "JAPAN_POST_CLIENT_ID is required",
+        message: "JAPANPOST_CLIENT_ID is required",
       }),
     });
 
@@ -149,7 +347,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.searchAddress({
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -177,7 +375,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.searchAddress({
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -205,7 +403,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.lookupPostalCode({
-        value: "12",
+        postalCode: "12",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -235,7 +433,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.searchAddress({
-        freeword: "",
+        addressQuery: "",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -265,7 +463,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.lookupPostalCode({
-        value: "9999999",
+        postalCode: "9999999",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -292,7 +490,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.searchAddress({
-        freeword: "",
+        addressQuery: "",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -319,7 +517,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.searchAddress({
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -342,7 +540,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.searchAddress({
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -368,7 +566,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.lookupPostalCode({
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -394,7 +592,7 @@ describe("demo API integration helpers", () => {
 
     await expect(
       dataSource.lookupPostalCode({
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 100,
       }),
@@ -411,7 +609,7 @@ describe("demo API integration helpers", () => {
       status: 503,
       json: async () => ({
         ok: false,
-        error: "JAPAN_POST_SECRET_KEY is required",
+        error: "JAPANPOST_SECRET_KEY is required",
       }),
     });
 
@@ -420,7 +618,7 @@ describe("demo API integration helpers", () => {
     await expect(readDemoApiHealth("http://localhost:8787")).resolves.toEqual(
       {
         ok: false,
-        error: "JAPAN_POST_SECRET_KEY is required",
+        error: "JAPANPOST_SECRET_KEY is required",
       },
     );
   });

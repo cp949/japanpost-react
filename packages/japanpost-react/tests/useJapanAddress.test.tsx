@@ -2,6 +2,10 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import type {
+  JapanAddressSearchInput,
+  JapanPostalCodeSearchInput,
+} from "../src";
 import { useJapanAddress } from "../src/react/useJapanAddress";
 import { createJapanAddressError } from "../src/core/errors";
 
@@ -24,30 +28,50 @@ describe("useJapanAddress", () => {
 
     const { result } = renderHook(() => useJapanAddress({ dataSource }));
 
+    const postalCodeInput = {
+      postalCode: "100-0001",
+      pageNumber: 2,
+      rowsPerPage: 25,
+      includeParenthesesTown: true,
+    } satisfies JapanPostalCodeSearchInput;
+
     await act(async () => {
-      await result.current.searchByPostalCode("100-0001");
+      await result.current.searchByPostalCode(postalCodeInput);
     });
 
     expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
       {
-        value: "1000001",
-        pageNumber: 0,
-        rowsPerPage: 100,
+        postalCode: "1000001",
+        pageNumber: 2,
+        rowsPerPage: 25,
+        includeParenthesesTown: true,
       },
       expect.objectContaining({
         signal: expect.any(AbortSignal),
       }),
     );
 
+    const addressSearchInput = {
+      prefName: " Tokyo ",
+      cityName: " Chiyoda-ku ",
+      pageNumber: 1,
+      rowsPerPage: 10,
+      includeCityDetails: true,
+      includePrefectureDetails: false,
+    } satisfies JapanAddressSearchInput;
+
     await act(async () => {
-      await result.current.searchByKeyword(" Tokyo ");
+      await result.current.searchByAddressQuery(addressSearchInput);
     });
 
     expect(dataSource.searchAddress).toHaveBeenCalledWith(
       {
-        freeword: "Tokyo",
-        pageNumber: 0,
-        rowsPerPage: 100,
+        prefName: "Tokyo",
+        cityName: "Chiyoda-ku",
+        pageNumber: 1,
+        rowsPerPage: 10,
+        includeCityDetails: true,
+        includePrefectureDetails: false,
       },
       expect.objectContaining({
         signal: expect.any(AbortSignal),
@@ -165,7 +189,7 @@ describe("useJapanAddress", () => {
     );
 
     const initialSearchByPostalCode = result.current.searchByPostalCode;
-    const initialSearchByKeyword = result.current.searchByKeyword;
+    const initialSearchByAddressQuery = result.current.searchByAddressQuery;
     const initialReset = result.current.reset;
 
     rerender({
@@ -174,7 +198,7 @@ describe("useJapanAddress", () => {
     });
 
     expect(result.current.searchByPostalCode).toBe(initialSearchByPostalCode);
-    expect(result.current.searchByKeyword).toBe(initialSearchByKeyword);
+    expect(result.current.searchByAddressQuery).toBe(initialSearchByAddressQuery);
     expect(result.current.reset).toBe(initialReset);
   });
 });

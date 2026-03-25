@@ -34,14 +34,14 @@ export type Page<T> = {
 };
 
 export type JapanPostSearchcodeRequest = {
-  value: string;
+  postalCode: string;
   pageNumber: number;
   rowsPerPage: number;
   includeParenthesesTown?: boolean | null;
 };
 
 export type JapanPostAddresszipRequest = {
-  freeword?: string | null;
+  addressQuery?: string | null;
   prefCode?: string | null;
   prefName?: string | null;
   prefKana?: string | null;

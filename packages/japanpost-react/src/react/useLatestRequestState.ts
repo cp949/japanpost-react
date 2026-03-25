@@ -84,6 +84,12 @@ export function useLatestRequestState<TResult>() {
     [isCurrentRequest],
   );
 
+  const cancel = useCallback(() => {
+    // cancel은 진행 중인 요청만 무효화하고, 마지막으로 settled 된 결과는 그대로 남긴다.
+    invalidateCurrentRequest();
+    setLoading(false);
+  }, [invalidateCurrentRequest]);
+
   const finishRequest = useCallback((requestId: number) => {
     if (isCurrentRequest(requestId)) {
       // 최신 요청만 loading을 해제해야 오래된 요청의 finally가 현재 로딩을 끄지 않는다.
@@ -93,12 +99,11 @@ export function useLatestRequestState<TResult>() {
   }, [isCurrentRequest]);
 
   const reset = useCallback(() => {
-    // reset은 단순 UI 초기화가 아니라 진행 중인 요청 자체를 무효화하는 동작이다.
-    invalidateCurrentRequest();
-    setLoading(false);
+    // reset은 cancel과 달리 데이터와 에러까지 비워 완전 초기 상태로 되돌린다.
+    cancel();
     setData(null);
     setError(null);
-  }, [invalidateCurrentRequest]);
+  }, [cancel]);
 
   return {
     loading,
@@ -108,6 +113,7 @@ export function useLatestRequestState<TResult>() {
     setSuccess,
     setFailure,
     finishRequest,
+    cancel,
     reset,
   };
 }

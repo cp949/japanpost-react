@@ -95,7 +95,7 @@ function hasMeaningfulSearchField(
 ): boolean {
   // 공백뿐인 필드는 실제 검색 조건으로 간주하지 않는다.
   return [
-    request.freeword,
+    request.addressQuery,
     request.prefCode,
     request.prefName,
     request.prefKana,
@@ -166,7 +166,7 @@ export function createJapanPostAdapter(
       ensurePageRequest(request.pageNumber, request.rowsPerPage);
 
       // 사용자가 하이픈을 포함해도 업스트림에는 숫자만 전달한다.
-      const normalizedCode = normalizePostalCode(request.value);
+      const normalizedCode = normalizePostalCode(request.postalCode);
 
       if (!/^\d{3,7}$/.test(normalizedCode)) {
         throw createHttpError(
@@ -201,7 +201,7 @@ export function createJapanPostAdapter(
 
       const payload = await client.addressZipRaw({
         // 빈 문자열은 upstream에 넘기지 않고 undefined로 정리해 의도치 않은 필터링을 막는다.
-        freeword: normalizeOptionalString(request.freeword),
+        freeword: normalizeOptionalString(request.addressQuery),
         pref_code: normalizeOptionalString(request.prefCode),
         pref_name: normalizeOptionalString(request.prefName),
         pref_kana: normalizeOptionalString(request.prefKana),

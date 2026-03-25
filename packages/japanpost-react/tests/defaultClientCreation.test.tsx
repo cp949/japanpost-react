@@ -41,7 +41,7 @@ describe("data-source hook usage", () => {
     expect(dataSource.lookupPostalCode).toHaveBeenCalledTimes(1);
     expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
       {
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 100,
       },
@@ -73,7 +73,7 @@ describe("data-source hook usage", () => {
     expect(dataSource.searchAddress).toHaveBeenCalledTimes(1);
     expect(dataSource.searchAddress).toHaveBeenCalledWith(
       {
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 100,
       },
@@ -101,7 +101,7 @@ describe("data-source hook usage", () => {
 
     expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
       {
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 100,
       },
@@ -131,7 +131,7 @@ describe("data-source hook usage", () => {
 
     expect(dataSource.searchAddress).toHaveBeenCalledWith(
       {
-        freeword: "Tokyo",
+        addressQuery: "Tokyo",
         pageNumber: 0,
         rowsPerPage: 100,
       },

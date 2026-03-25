@@ -3,7 +3,11 @@ import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useJapanPostalCode } from "../src/react/useJapanPostalCode";
-import type { JapanAddress, Page } from "../src/core/types";
+import type {
+  JapanAddress,
+  JapanPostalCodeSearchInput,
+  Page,
+} from "../src";
 
 describe("useJapanPostalCode", () => {
   it("loads postal-code results and exposes loading state", async () => {
@@ -54,7 +58,7 @@ describe("useJapanPostalCode", () => {
 
     expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
       {
-        value: "1000001",
+        postalCode: "1000001",
         pageNumber: 0,
         rowsPerPage: 100,
       },
@@ -73,6 +77,114 @@ describe("useJapanPostalCode", () => {
       },
     ]);
     expect(result.current.data?.totalElements).toBe(1);
+  });
+
+  it("forwards structured search options to the postal-code data source", async () => {
+    const page: Page<JapanAddress> = {
+      elements: [],
+      totalElements: 0,
+      pageNumber: 2,
+      rowsPerPage: 25,
+    };
+    const dataSource = {
+      lookupPostalCode: vi.fn().mockResolvedValue(page),
+      searchAddress: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useJapanPostalCode({ dataSource }));
+
+    const input: JapanPostalCodeSearchInput = {
+      postalCode: "100-0001",
+      pageNumber: 2,
+      rowsPerPage: 25,
+      includeParenthesesTown: true,
+    };
+
+    await act(async () => {
+      await result.current.search(input);
+    });
+
+    expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
+      {
+        postalCode: "1000001",
+        pageNumber: 2,
+        rowsPerPage: 25,
+        includeParenthesesTown: true,
+      },
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(result.current.error).toBeNull();
+  });
+
+  it("cancels the in-flight lookup without clearing settled data", async () => {
+    let resolveLookup:
+      | ((value: Page<JapanAddress>) => void)
+      | null = null;
+    let capturedSignal: AbortSignal | undefined;
+    const dataSource = {
+      lookupPostalCode: vi
+        .fn()
+        .mockResolvedValueOnce({
+          elements: [
+            {
+              postalCode: "1000001",
+              prefecture: "Tokyo",
+              city: "Chiyoda-ku",
+              town: "Chiyoda",
+              address: "Tokyo Chiyoda-ku Chiyoda",
+              provider: "japan-post",
+            },
+          ],
+          totalElements: 1,
+          pageNumber: 0,
+          rowsPerPage: 20,
+        })
+        .mockImplementationOnce((_request, options?: { signal?: AbortSignal }) => {
+          capturedSignal = options?.signal;
+          return new Promise<Page<JapanAddress>>((resolve) => {
+            resolveLookup = resolve;
+          });
+        }),
+      searchAddress: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useJapanPostalCode({ dataSource }));
+
+    expect(result.current.cancel).toEqual(expect.any(Function));
+
+    await act(async () => {
+      await result.current.search("1000001");
+    });
+
+    expect(result.current.data?.elements[0]?.postalCode).toBe("1000001");
+    expect(result.current.error).toBeNull();
+
+    let canceledPromise: Promise<unknown> | null = null;
+    act(() => {
+      canceledPromise = result.current.search("1500001");
+      result.current.cancel();
+    });
+
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data?.elements[0]?.postalCode).toBe("1000001");
+    expect(result.current.error).toBeNull();
+
+    await act(async () => {
+      resolveLookup?.({
+        elements: [],
+        totalElements: 0,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
+    });
+
+    await expect(canceledPromise).resolves.toBeNull();
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data?.elements[0]?.postalCode).toBe("1000001");
+    expect(result.current.error).toBeNull();
   });
 
   it("keeps only the latest postal-code result when requests resolve out of order", async () => {
@@ -150,6 +262,88 @@ describe("useJapanPostalCode", () => {
     expect(result.current.data?.elements[0]?.postalCode).toBe("1500001");
   });
 
+  it("resolves superseded postal-code searches with null", async () => {
+    let resolveFirst:
+      | ((value: Page<JapanAddress>) => void)
+      | null = null;
+    let resolveSecond:
+      | ((value: Page<JapanAddress>) => void)
+      | null = null;
+    const dataSource = {
+      lookupPostalCode: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<Page<JapanAddress>>((resolve) => {
+              resolveFirst = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<Page<JapanAddress>>((resolve) => {
+              resolveSecond = resolve;
+            }),
+        ),
+      searchAddress: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useJapanPostalCode({ dataSource }));
+
+    let firstPromise: Promise<unknown> | null = null;
+    let secondPromise: Promise<unknown> | null = null;
+
+    act(() => {
+      firstPromise = result.current.search("1000001");
+      secondPromise = result.current.search("1500001");
+    });
+
+    await act(async () => {
+      resolveSecond?.({
+        elements: [
+          {
+            postalCode: "1500001",
+            prefecture: "Tokyo",
+            city: "Shibuya-ku",
+            town: "Jingumae",
+            address: "Tokyo Shibuya-ku Jingumae",
+            provider: "japan-post",
+          },
+        ],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
+      resolveFirst?.({
+        elements: [
+          {
+            postalCode: "1000001",
+            prefecture: "Tokyo",
+            city: "Chiyoda-ku",
+            town: "Chiyoda",
+            address: "Tokyo Chiyoda-ku Chiyoda",
+            provider: "japan-post",
+          },
+        ],
+        totalElements: 1,
+        pageNumber: 0,
+        rowsPerPage: 20,
+      });
+    });
+
+    await expect(firstPromise).resolves.toBeNull();
+    await expect(secondPromise).resolves.toEqual(
+      expect.objectContaining({
+        elements: [
+          expect.objectContaining({
+            postalCode: "1500001",
+          }),
+        ],
+      }),
+    );
+
+    expect(result.current.error).toBeNull();
+  });
+
   it("passes through postal-code prefix searches with at least three digits", async () => {
     const dataSource = {
       lookupPostalCode: vi.fn().mockResolvedValue({
@@ -178,7 +372,7 @@ describe("useJapanPostalCode", () => {
 
     expect(dataSource.lookupPostalCode).toHaveBeenCalledWith(
       {
-        value: "1234",
+        postalCode: "1234",
         pageNumber: 0,
         rowsPerPage: 100,
       },
@@ -309,11 +503,13 @@ describe("useJapanPostalCode", () => {
     );
 
     const initialSearch = result.current.search;
+    const initialCancel = result.current.cancel;
     const initialReset = result.current.reset;
 
     rerender({ currentDataSource: dataSource });
 
     expect(result.current.search).toBe(initialSearch);
+    expect(result.current.cancel).toBe(initialCancel);
     expect(result.current.reset).toBe(initialReset);
   });
 });

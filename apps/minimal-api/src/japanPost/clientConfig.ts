@@ -93,22 +93,22 @@ export function createJapanPostClientConfig(
   env: NodeJS.ProcessEnv,
 ): JapanPostClientConfig {
   return {
-    addressZipPath: env.JAPAN_POST_ADDRESS_ZIP_PATH ?? DEFAULT_ADDRESS_ZIP_PATH,
-    baseUrl: normalizeBaseUrl(env.JAPAN_POST_BASE_URL ?? DEFAULT_BASE_URL),
-    ecUid: env.JAPAN_POST_EC_UID,
-    forwardedFor: env.JAPAN_POST_X_FORWARDED_FOR,
+    addressZipPath: env.JAPANPOST_ADDRESS_ZIP_PATH ?? DEFAULT_ADDRESS_ZIP_PATH,
+    baseUrl: normalizeBaseUrl(env.JAPANPOST_BASE_URL ?? DEFAULT_BASE_URL),
+    ecUid: env.JAPANPOST_EC_UID,
+    forwardedFor: env.JAPANPOST_X_FORWARDED_FOR,
     searchCodePath:
-      env.JAPAN_POST_SEARCH_CODE_PATH ?? DEFAULT_SEARCH_CODE_PATH,
+      env.JAPANPOST_SEARCH_CODE_PATH ?? DEFAULT_SEARCH_CODE_PATH,
     searchCodeQuery: {
-      ec_uid: env.JAPAN_POST_EC_UID,
+      ec_uid: env.JAPANPOST_EC_UID,
       choikitype: parseSearchCodeChoikiType(
-        env.JAPAN_POST_SEARCH_CODE_CHOIKITYPE,
+        env.JAPANPOST_SEARCH_CODE_CHOIKITYPE,
       ),
       searchtype: parseSearchCodeSearchType(
-        env.JAPAN_POST_SEARCH_CODE_SEARCHTYPE,
+        env.JAPANPOST_SEARCH_CODE_SEARCHTYPE,
       ),
     },
-    tokenPath: env.JAPAN_POST_TOKEN_PATH ?? DEFAULT_TOKEN_PATH,
+    tokenPath: env.JAPANPOST_TOKEN_PATH ?? DEFAULT_TOKEN_PATH,
   };
 }
 

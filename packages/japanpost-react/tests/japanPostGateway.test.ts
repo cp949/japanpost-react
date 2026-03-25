@@ -18,8 +18,8 @@ function requireTokenResolve(
 function createClientOptions(
   fetchMock: typeof fetch,
   env: NodeJS.ProcessEnv = {
-    JAPAN_POST_CLIENT_ID: "demo-client",
-    JAPAN_POST_SECRET_KEY: "demo-secret",
+    JAPANPOST_CLIENT_ID: "demo-client",
+    JAPANPOST_SECRET_KEY: "demo-secret",
   },
 ): JapanPostClientOptions {
   return {
@@ -195,7 +195,7 @@ describe("createJapanPostClient low-level provider behavior", () => {
 
     await expect(client.searchCodeRaw("1000001")).rejects.toMatchObject({
       statusCode: 500,
-      message: "JAPAN_POST_CLIENT_ID is required",
+      message: "JAPANPOST_CLIENT_ID is required",
     });
   });
 
@@ -268,9 +268,9 @@ describe("createJapanPostClient low-level provider behavior", () => {
 
     const client = createJapanPostClient(
       createClientOptions(fetchMock, {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-        JAPAN_POST_EC_UID: "provider-user-1",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
+        JAPANPOST_EC_UID: "provider-user-1",
       }),
     );
 
@@ -319,11 +319,11 @@ describe("createJapanPostClient low-level provider behavior", () => {
 
     const client = createJapanPostClient(
       createClientOptions(fetchMock, {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-        JAPAN_POST_EC_UID: "provider-user-1",
-        JAPAN_POST_SEARCH_CODE_CHOIKITYPE: "2",
-        JAPAN_POST_SEARCH_CODE_SEARCHTYPE: "2",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
+        JAPANPOST_EC_UID: "provider-user-1",
+        JAPANPOST_SEARCH_CODE_CHOIKITYPE: "2",
+        JAPANPOST_SEARCH_CODE_SEARCHTYPE: "2",
       }),
     );
 
@@ -463,9 +463,9 @@ describe("createJapanPostClient low-level provider behavior", () => {
 
     const client = createJapanPostClient({
       env: {
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
-        JAPAN_POST_EC_UID: "provider-user-1",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
+        JAPANPOST_EC_UID: "provider-user-1",
       },
       fetch: fetchMock,
     });
@@ -515,9 +515,9 @@ describe("createJapanPostClient low-level provider behavior", () => {
 
     const client = createJapanPostClient(
       createClientOptions(fetchMock, {
-        JAPAN_POST_BASE_URL: "stub-qz73x.da.pf.japanpost.jp",
-        JAPAN_POST_CLIENT_ID: "demo-client",
-        JAPAN_POST_SECRET_KEY: "demo-secret",
+        JAPANPOST_BASE_URL: "stub-qz73x.da.pf.japanpost.jp",
+        JAPANPOST_CLIENT_ID: "demo-client",
+        JAPANPOST_SECRET_KEY: "demo-secret",
       }),
     );
 

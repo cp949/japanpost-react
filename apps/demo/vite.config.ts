@@ -8,6 +8,8 @@ type DemoProxyEnv = {
 };
 
 export function resolveDemoApiProxyTarget(env: DemoProxyEnv): string {
+  // 환경 변수로 명시한 프록시 대상이 있으면 그 값을 우선 사용하고,
+  // 없으면 이 저장소의 기본 데모 서버 포트를 기준으로 로컬 주소를 만든다.
   const explicitTarget = env.DEMO_API_PROXY_URL?.trim();
 
   if (explicitTarget) {
@@ -33,6 +35,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // 배포 패키지 대신 워크스페이스 소스를 직접 바라보게 해서
+      // 데모에서 라이브러리 최신 변경분을 즉시 확인할 수 있게 한다.
       "@cp949/japanpost-react": path.resolve(
         __dirname,
         "../../packages/japanpost-react/src/index.ts",

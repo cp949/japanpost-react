@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import type { AddressAdapter } from "./japanPostAdapter.js";
 import { createJapanPostAdapter } from "./japanPostAdapter.js";
@@ -12,6 +14,71 @@ type MinimalApiServerOptions = {
   env?: NodeJS.ProcessEnv;
   fetch?: typeof fetch;
 };
+
+type MinimalApiStartupEnvOptions = {
+  env?: NodeJS.ProcessEnv;
+  envFilePath?: string;
+};
+
+function parseExportLine(line: string): [string, string] | null {
+  const trimmedLine = line.trim();
+
+  if (!trimmedLine || trimmedLine.startsWith("#")) {
+    return null;
+  }
+
+  const match = /^export\s+([A-Z0-9_]+)=(.*)$/.exec(trimmedLine);
+
+  if (!match) {
+    return null;
+  }
+
+  const key = match[1];
+  const rawValue = match[2];
+
+  if (key === undefined || rawValue === undefined) {
+    return null;
+  }
+
+  const unquotedValue =
+    (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+    (rawValue.startsWith("'") && rawValue.endsWith("'"))
+      ? rawValue.slice(1, -1)
+      : rawValue;
+
+  return [key, unquotedValue];
+}
+
+export function loadMinimalApiEnvForStartup({
+  env = process.env,
+  envFilePath = resolve(import.meta.dirname, "../../..", ".secrets", "env"),
+}: MinimalApiStartupEnvOptions = {}): NodeJS.ProcessEnv {
+  const mergedEnv = {
+    ...env,
+  };
+
+  if (!existsSync(envFilePath)) {
+    return mergedEnv;
+  }
+
+  const fileContents = readFileSync(envFilePath, "utf8");
+
+  for (const line of fileContents.split(/\r?\n/u)) {
+    const parsedEntry = parseExportLine(line);
+
+    if (!parsedEntry) {
+      continue;
+    }
+
+    const [key, value] = parsedEntry;
+
+    if (!mergedEnv[key]?.trim()) {
+      mergedEnv[key] = value;
+    }
+  }
+
+  return mergedEnv;
+}
 
 export function createMinimalApiServer(options: MinimalApiServerOptions = {}) {
   const adapter = createJapanPostAdapter({
@@ -33,9 +100,12 @@ export function createMinimalApiServerWithAdapter(
 }
 
 if (import.meta.main) {
-  const port = Number(process.env.PORT ?? "8788");
-  const adapter = createJapanPostAdapter();
-  const server = createMinimalApiServerWithAdapter(adapter, process.env);
+  const startupEnv = loadMinimalApiEnvForStartup();
+  const port = Number(startupEnv.PORT ?? "8788");
+  const adapter = createJapanPostAdapter({
+    env: startupEnv,
+  });
+  const server = createMinimalApiServerWithAdapter(adapter, startupEnv);
 
   server.listen(port, async () => {
     // 부팅 로그에 readiness 상태를 함께 남겨 자격 증명 문제를 빠르게 파악한다.

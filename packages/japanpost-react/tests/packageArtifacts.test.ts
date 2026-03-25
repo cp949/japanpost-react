@@ -56,3 +56,38 @@ describe("package artifacts", () => {
     expect(koreanReadme).not.toContain("## English");
   });
 });
+
+describe("demo workspace app", () => {
+  it("declares a buildable demo app with the expected scripts and dependencies", () => {
+    const demoAppDir = path.resolve(packageDir, "../../apps/demo");
+    const demoPackageJsonPath = path.join(demoAppDir, "package.json");
+
+    expect(fs.existsSync(demoPackageJsonPath)).toBe(true);
+
+    const demoPackageJson = JSON.parse(
+      fs.readFileSync(demoPackageJsonPath, "utf8"),
+    ) as {
+      name?: string;
+      scripts?: Record<string, string>;
+      dependencies?: Record<string, string>;
+    };
+
+    expect(demoPackageJson.name).toBe("demo");
+    expect(demoPackageJson.scripts).toEqual(
+      expect.objectContaining({
+        dev: "vite",
+        build: "tsc -b && vite build",
+        "check-types": "tsc --noEmit",
+        lint: "biome lint .",
+      }),
+    );
+    expect(demoPackageJson.dependencies).toEqual(
+      expect.objectContaining({
+        "@cp949/japanpost-react": "workspace:*",
+        "@mui/material": expect.any(String),
+        react: expect.any(String),
+        "react-dom": expect.any(String),
+      }),
+    );
+  });
+});

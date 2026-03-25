@@ -121,7 +121,7 @@ export type JapanPostSearchcodeRequest = {
   /*
    * 검색할 우편번호 값
    */
-  value: string;
+  postalCode: string;
 
   /*
    * 현재 페이지 번호 (0-based)
@@ -140,12 +140,36 @@ export type JapanPostSearchcodeRequest = {
 };
 
 /**
+ * useJapanPostalCode의 공개 검색 입력 타입.
+ * 문자열 입력은 기존 호환성을 유지하고, 객체 입력은 pager 옵션을 함께 전달할 수 있게 한다.
+ */
+export type JapanPostalCodeSearchInput =
+  | string
+  | {
+      postalCode: string;
+      pageNumber?: number;
+      rowsPerPage?: number;
+      includeParenthesesTown?: boolean | null;
+    };
+
+/**
+ * useJapanAddressSearch의 공개 검색 입력 타입.
+ * 문자열 입력은 키워드 검색 호환성을 유지하고, 객체 입력은 자유 검색과 구조화 검색 필드를 함께 전달할 수 있게 한다.
+ */
+export type JapanAddressSearchInput =
+  | string
+  | (Omit<JapanPostAddresszipRequest, "pageNumber" | "rowsPerPage"> & {
+      pageNumber?: number;
+      rowsPerPage?: number;
+    });
+
+/**
  * minimal-api가 그대로 받는 공개 addresszip 요청 타입이다.
- * 자유 검색(freeword)뿐 아니라 구조화 검색 필드도 함께 열어 두어
+ * 자유 검색(addressQuery)뿐 아니라 구조화 검색 필드도 함께 열어 두어
  * 상위 UI가 필요한 만큼만 업스트림 검색 축을 선택적으로 노출할 수 있게 한다.
  */
 export type JapanPostAddresszipRequest = {
-  freeword?: string | null;
+  addressQuery?: string | null;
   prefCode?: string | null;
   prefName?: string | null;
   prefKana?: string | null;
@@ -435,6 +459,11 @@ export type UseAsyncState<T> = {
 export type UseJapanPostalCodeResult =
   UseAsyncState<JapanPostalCodeLookupResult> & {
     /*
+     * 진행 중인 검색을 취소한다
+     */
+    cancel: () => void;
+
+    /*
      * 상태 초기화
      */
     reset: () => void;
@@ -442,7 +471,9 @@ export type UseJapanPostalCodeResult =
     /*
      * 우편번호로 주소를 조회한다
      */
-    search: (value: string) => Promise<JapanPostalCodeLookupResult | null>;
+    search: (
+      input: JapanPostalCodeSearchInput,
+    ) => Promise<JapanPostalCodeLookupResult | null>;
   };
 
 /**
@@ -452,14 +483,21 @@ export type UseJapanPostalCodeResult =
 export type UseJapanAddressSearchResult =
   UseAsyncState<JapanAddressSearchResult> & {
     /*
+     * 진행 중인 검색을 취소한다
+     */
+    cancel: () => void;
+
+    /*
      * 상태 초기화
      */
     reset: () => void;
 
     /*
-     * 키워드로 주소를 검색한다
+     * 문자열 또는 구조화된 입력으로 주소를 검색한다
      */
-    search: (query: string) => Promise<JapanAddressSearchResult | null>;
+    search: (
+      input: JapanAddressSearchInput,
+    ) => Promise<JapanAddressSearchResult | null>;
   };
 
 /**
@@ -476,13 +514,15 @@ export type UseJapanAddressResult = UseAsyncState<Page<JapanAddress>> & {
    * 우편번호로 주소를 조회한다
    */
   searchByPostalCode: (
-    value: string,
+    input: JapanPostalCodeSearchInput,
   ) => Promise<JapanPostalCodeLookupResult | null>;
 
   /*
-   * 키워드로 주소를 검색한다
+   * 주소 질의 또는 구조화된 주소 필드로 검색한다
    */
-  searchByKeyword: (query: string) => Promise<JapanAddressSearchResult | null>;
+  searchByAddressQuery: (
+    input: JapanAddressSearchInput,
+  ) => Promise<JapanAddressSearchResult | null>;
 };
 
 /**

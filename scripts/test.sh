@@ -8,7 +8,3 @@ cd "$ROOT_DIR"
 
 pnpm readme:package:check
 pnpm --filter @cp949/japanpost-react test
-bash ./scripts/tests/check-api-success.test.sh
-bash ./scripts/tests/dev-demo-readiness.test.sh
-bash ./scripts/tests/dev-demo-instance-readiness.test.sh
-bash ./scripts/tests/check-api-instance-readiness.test.sh

@@ -27,7 +27,7 @@ type JapanPostTokenClientOptions = {
  */
 function requireEnv(
   env: NodeJS.ProcessEnv,
-  name: "JAPAN_POST_CLIENT_ID" | "JAPAN_POST_SECRET_KEY",
+  name: "JAPANPOST_CLIENT_ID" | "JAPANPOST_SECRET_KEY",
 ) {
   const value = env[name]?.trim();
 
@@ -111,8 +111,8 @@ export function createJapanPostTokenClient({
       }
 
       pendingTokenRequest = (async () => {
-        const clientId = requireEnv(env, "JAPAN_POST_CLIENT_ID");
-        const secretKey = requireEnv(env, "JAPAN_POST_SECRET_KEY");
+        const clientId = requireEnv(env, "JAPANPOST_CLIENT_ID");
+        const secretKey = requireEnv(env, "JAPANPOST_SECRET_KEY");
         const timeout = createTimeoutSignal(timeoutMs);
 
         try {

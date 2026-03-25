@@ -3,7 +3,9 @@ import { createJapanAddressError } from "../core/errors";
 import type {
   JapanAddressDataSource,
   JapanAddressRequestOptions,
+  JapanAddressSearchInput,
   JapanAddressSearchResult,
+  JapanPostAddresszipRequest,
   UseJapanAddressSearchOptions,
   UseJapanAddressSearchResult,
 } from "../core/types";
@@ -20,6 +22,89 @@ function resolveAddressSearchDataSource(dataSource?: JapanAddressDataSource) {
   }
 
   throw new Error("useJapanAddressSearch requires options.dataSource");
+}
+
+function normalizeSearchText(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
+
+function normalizeAddressSearchInput(
+  input: JapanAddressSearchInput,
+): JapanPostAddresszipRequest | null {
+  const request: Exclude<JapanAddressSearchInput, string> =
+    typeof input === "string" ? { addressQuery: input } : input;
+  const addressQuery = normalizeSearchText(request.addressQuery);
+  const prefCode = normalizeSearchText(request.prefCode);
+  const prefName = normalizeSearchText(request.prefName);
+  const prefKana = normalizeSearchText(request.prefKana);
+  const prefRoma = normalizeSearchText(request.prefRoma);
+  const cityCode = normalizeSearchText(request.cityCode);
+  const cityName = normalizeSearchText(request.cityName);
+  const cityKana = normalizeSearchText(request.cityKana);
+  const cityRoma = normalizeSearchText(request.cityRoma);
+  const townName = normalizeSearchText(request.townName);
+  const townKana = normalizeSearchText(request.townKana);
+  const townRoma = normalizeSearchText(request.townRoma);
+
+  if (
+    addressQuery === undefined &&
+    prefCode === undefined &&
+    prefName === undefined &&
+    prefKana === undefined &&
+    prefRoma === undefined &&
+    cityCode === undefined &&
+    cityName === undefined &&
+    cityKana === undefined &&
+    cityRoma === undefined &&
+    townName === undefined &&
+    townKana === undefined &&
+    townRoma === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    ...(addressQuery === undefined ? {} : { addressQuery }),
+    ...(prefCode === undefined ? {} : { prefCode }),
+    ...(prefName === undefined ? {} : { prefName }),
+    ...(prefKana === undefined ? {} : { prefKana }),
+    ...(prefRoma === undefined ? {} : { prefRoma }),
+    ...(cityCode === undefined ? {} : { cityCode }),
+    ...(cityName === undefined ? {} : { cityName }),
+    ...(cityKana === undefined ? {} : { cityKana }),
+    ...(cityRoma === undefined ? {} : { cityRoma }),
+    ...(townName === undefined ? {} : { townName }),
+    ...(townKana === undefined ? {} : { townKana }),
+    ...(townRoma === undefined ? {} : { townRoma }),
+    pageNumber: request.pageNumber ?? 0,
+    rowsPerPage: request.rowsPerPage ?? 100,
+    ...(request.includeCityDetails === undefined
+      ? {}
+      : {
+          includeCityDetails: request.includeCityDetails,
+        }),
+    ...(request.includePrefectureDetails === undefined
+      ? {}
+      : {
+          includePrefectureDetails: request.includePrefectureDetails,
+        }),
+  };
+}
+
+function waitForAbort(signal: AbortSignal) {
+  if (signal.aborted) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise<null>((resolve) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(null);
+    };
+
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 /**
@@ -55,6 +140,7 @@ export function useJapanAddressSearch(
     setSuccess,
     setFailure,
     finishRequest,
+    cancel: cancelRequestState,
     reset: resetRequestState,
   } = useLatestRequestState<JapanAddressSearchResult>();
 
@@ -92,40 +178,44 @@ export function useJapanAddressSearch(
   }, [clearPendingDebounce, resetRequestState]);
 
   /**
+   * 현재 활성 요청과 대기 중인 디바운스를 취소한다.
+   * settled 된 data/error는 유지해 UI가 마지막 성공/실패 결과를 계속 보여줄 수 있게 한다.
+   */
+  const cancel = useCallback(() => {
+    clearPendingDebounce(null);
+    cancelRequestState();
+  }, [clearPendingDebounce, cancelRequestState]);
+
+  /**
    * 실제 API 호출을 수행하는 내부 함수.
-   * 빈 문자열은 서버 호출 전에 차단하고, 실제 상태 반영은 useLatestRequestState가 최신 요청에만 허용한다.
+   * 정규화된 요청만 받아 실제 상태 반영은 useLatestRequestState가 최신 요청에만 허용한다.
    */
   const runSearch = useCallback(async (
     requestId: number,
     signal: AbortSignal,
-    query: string,
+    request: JapanPostAddresszipRequest,
   ): Promise<JapanAddressSearchResult | null> => {
     try {
-      const normalizedQuery = query.trim();
-
-      if (!normalizedQuery) {
-        throw createJapanAddressError(
-          "invalid_query",
-          "Address query is required",
-        );
-      }
-
       const requestOptions: JapanAddressRequestOptions = {
         signal,
       };
-      // searchAddress 역시 통일된 pager 계약을 유지하기 위해 첫 페이지/rowsPerPage를 명시한다.
-      const request = {
-        freeword: normalizedQuery,
-        pageNumber: 0,
-        rowsPerPage: 100,
-      };
-      const result = await dataSource.searchAddress(
+      const searchPromise = dataSource.searchAddress(
         request,
         requestOptions,
       );
+      const result = await Promise.race([
+        searchPromise,
+        waitForAbort(signal),
+      ]);
+      if (signal.aborted || result === null) {
+        return null;
+      }
       setSuccess(requestId, result);
       return result;
     } catch (caughtError) {
+      if (signal.aborted) {
+        return null;
+      }
       return setFailure(requestId, toJapanAddressError(caughtError));
     } finally {
       finishRequest(requestId);
@@ -137,14 +227,35 @@ export function useJapanAddressSearch(
    * debounceMs > 0 이면 지정된 시간만큼 지연 후 API를 호출한다.
    * 지연 중에 새 검색이 들어오면 이전 타이머는 취소되고, 이전 Promise는 null로 종료된다.
    */
-  const search = useCallback((query: string): Promise<JapanAddressSearchResult | null> => {
+  const search = useCallback((input: JapanAddressSearchInput): Promise<JapanAddressSearchResult | null> => {
+    const request = normalizeAddressSearchInput(input);
     const { requestId, signal } = beginRequest();
     // 새 요청이 들어오면 아직 실행 전인 이전 검색은 superseded 처리한다.
     clearPendingDebounce(null);
 
+    if (request === null) {
+      const result = setFailure(
+        requestId,
+        createJapanAddressError(
+          "invalid_query",
+          "Address query is required",
+        ),
+      );
+      finishRequest(requestId);
+      return Promise.resolve(result);
+    }
+
     // 디바운스를 쓰지 않는 소비자도 동일한 반환 타입을 사용한다.
     if (debounceMs <= 0) {
-      return runSearch(requestId, signal, query);
+      return new Promise((resolve) => {
+        pendingResolveRef.current = resolve;
+        void runSearch(requestId, signal, request).then((result) => {
+          resolve(result);
+          if (pendingResolveRef.current === resolve) {
+            pendingResolveRef.current = null;
+          }
+        });
+      });
     }
 
     // 디바운스: 지정된 시간 후 실제 네트워크 요청으로 승격한다.
@@ -155,7 +266,7 @@ export function useJapanAddressSearch(
         const pendingResolve = pendingResolveRef.current;
         pendingResolveRef.current = null;
         // 타이머가 끝난 시점에도 requestId/signal은 유지되어 최신 요청 판정이 계속 유효하다.
-        void runSearch(requestId, signal, query).then((result) => {
+        void runSearch(requestId, signal, request).then((result) => {
           pendingResolve?.(result);
         });
       }, debounceMs);
@@ -166,6 +277,7 @@ export function useJapanAddressSearch(
     loading,
     data,
     error,
+    cancel,
     reset,
     search,
   };

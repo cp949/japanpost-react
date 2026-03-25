@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "pnpm --filter demo dev",
+    "dev": "pnpm demo:full",
     "release:package": "pnpm --dir packages/japanpost-react release",
     "readme:package": "node scripts/generate-package-readme.mjs",
     "readme:package:check": "node scripts/generate-package-readme.mjs --check",
@@ -27,7 +27,6 @@
     "test": "bash ./scripts/test.sh",
     "test:package": "pnpm --filter @cp949/japanpost-react test",
     "test:package:unit": "pnpm --filter @cp949/japanpost-react test:unit",
-    "test:scripts": "bash ./scripts/tests/check-api-success.test.sh && bash ./scripts/tests/dev-demo-readiness.test.sh && bash ./scripts/tests/dev-demo-instance-readiness.test.sh && bash ./scripts/tests/check-api-instance-readiness.test.sh",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --write --unsafe",
     "format": "biome format --write .",

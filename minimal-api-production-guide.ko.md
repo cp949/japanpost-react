@@ -50,15 +50,15 @@ React 앱
 - 우편번호 조회: `JapanPostSearchcodeRequest`
 - 주소 검색: `JapanPostAddresszipRequest`
 
-반면 훅 public API는 여전히 문자열 기반이다.
+반면 훅 public API는 문자열 shorthand와 구조화 입력을 모두 지원한다.
 
-- `useJapanPostalCode().search(value: string)`
-- `useJapanAddressSearch().search(query: string)`
-- `useJapanAddress().searchByPostalCode(value: string)`
-- `useJapanAddress().searchByKeyword(query: string)`
+- `useJapanPostalCode().search(input: JapanPostalCodeSearchInput)`
+- `useJapanAddressSearch().search(input: JapanAddressSearchInput)`
+- `useJapanAddress().searchByPostalCode(input: JapanPostalCodeSearchInput)`
+- `useJapanAddress().searchByAddressQuery(input: JapanAddressSearchInput)`
 
-즉 앱 코드는 문자열을 넘기고, 훅 내부에서 request object를 조립해 `dataSource`로
-전달한다.
+즉 앱 코드는 문자열 shorthand를 넘길 수도 있고 request object를 직접 넘길 수도
+있으며, 훅 내부에서 `dataSource` 계약에 맞는 request object를 조립해 전달한다.
 
 라이브러리 자체는 `/health`를 요구하지 않는다.
 
@@ -80,7 +80,7 @@ POST /q/japanpost/searchcode
 
 ```json
 {
-  "value": "1020072",
+  "postalCode": "1020072",
   "pageNumber": 0,
   "rowsPerPage": 100
 }
@@ -121,7 +121,7 @@ POST /q/japanpost/addresszip
 
 ```json
 {
-  "freeword": "千代田",
+  "addressQuery": "千代田",
   "pageNumber": 0,
   "rowsPerPage": 100
 }
@@ -216,17 +216,17 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 
 필수 설정:
 
-- `JAPAN_POST_CLIENT_ID`
-- `JAPAN_POST_SECRET_KEY`
+- `JAPANPOST_CLIENT_ID`
+- `JAPANPOST_SECRET_KEY`
 
 선택 설정:
 
-- `JAPAN_POST_BASE_URL`
-- `JAPAN_POST_TOKEN_PATH`
-- `JAPAN_POST_SEARCH_CODE_PATH`
-- `JAPAN_POST_ADDRESS_ZIP_PATH`
-- `JAPAN_POST_EC_UID`
-- `JAPAN_POST_X_FORWARDED_FOR`
+- `JAPANPOST_BASE_URL`
+- `JAPANPOST_TOKEN_PATH`
+- `JAPANPOST_SEARCH_CODE_PATH`
+- `JAPANPOST_ADDRESS_ZIP_PATH`
+- `JAPANPOST_EC_UID`
+- `JAPANPOST_X_FORWARDED_FOR`
 
 권장 구현 원칙:
 
@@ -236,7 +236,7 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 - 업스트림 `401`이 오면 캐시를 비우고 1회만 재시도한다.
 - 토큰 요청과 주소 조회 요청 모두 타임아웃을 둔다.
 - upstream `addresszip`는 `ec_uid` query parameter와 다양한 주소 필드 request body를 지원한다.
-- 현재 훅 기본 동작은 `{ freeword, pageNumber: 0, rowsPerPage: 100 }`만 조립해서 넘긴다.
+- 현재 훅 기본 동작은 `{ addressQuery, pageNumber: 0, rowsPerPage: 100 }`만 조립해서 넘긴다.
 - `includeCityDetails`, `includePrefectureDetails` 같은 optional flag는 기본적으로 생략한다.
 - 서버 구현은 필요할 때만 이 optional field를 upstream body로 매핑하면 된다.
 - upstream `searchcode`는 원문 기준으로 `page`, `limit`, `ec_uid`, `choikitype`, `searchtype` query parameter를 지원한다.
@@ -277,20 +277,82 @@ upstream `addresszip` 자체는 `pref_code`, `pref_name`, `pref_kana`,
 
 `japanpost-react`는 서버 전체를 알지 못하고, 오직 `JapanAddressDataSource`만 본다.
 따라서 서버 구현에서 중요한 것은 "라이브러리 전용 SDK"를 만드는 것이 아니라, 앱이
-아래 형태의 `dataSource`를 만들기 쉽게 하는 것이다.
+현재 공개 계약에 맞는 `dataSource`를 만들기 쉽게 하는 것이다.
 
 ```ts
+type Page<T> = {
+  elements: T[];
+  totalElements: number;
+  pageNumber: number;
+  rowsPerPage: number;
+};
+
+type JapanAddressRequestOptions = {
+  signal?: AbortSignal;
+};
+
 type JapanAddressDataSource = {
-  lookupPostalCode: (postalCode: string) => Promise<JapanAddress[]>;
-  searchAddress: (query: string) => Promise<JapanAddress[]>;
+  lookupPostalCode: (
+    request: JapanPostSearchcodeRequest,
+    options?: JapanAddressRequestOptions,
+  ) => Promise<Page<JapanAddress>>;
+  searchAddress: (
+    request: JapanPostAddresszipRequest,
+    options?: JapanAddressRequestOptions,
+  ) => Promise<Page<JapanAddress>>;
 };
 ```
 
-즉 서버는 다음 조건만 만족하면 된다.
+여기서 중요한 점은 다음과 같다.
 
-- 각 조회 엔드포인트가 `addresses` 배열을 안정적으로 반환한다.
+- `lookupPostalCode()`는 문자열 하나가 아니라 `postalCode`, `pageNumber`,
+  `rowsPerPage`, `includeParenthesesTown`를 담은 request object를 받는다.
+- `searchAddress()`는 문자열 하나가 아니라 `addressQuery` 또는 구조화된 주소 필드,
+  `pageNumber`, `rowsPerPage`, optional flag를 담은 request object를 받는다.
+- 두 메서드는 모두 `Page<JapanAddress>`를 반환해야 하며, 훅은 이 page payload를
+  그대로 `data`로 노출한다.
+- 두 메서드는 선택적인 두 번째 인자로 `{ signal?: AbortSignal }`를 받을 수 있어야
+  한다.
+- 훅은 superseded 요청, `cancel()`, `reset()`, 컴포넌트 unmount 정리 시 이
+  `signal`을 넘긴다.
+
+즉 서버와 클라이언트 어댑터는 다음 조건을 만족하면 된다.
+
+- 각 조회 엔드포인트가 `Page<JapanAddress>` 구조를 안정적으로 반환한다.
 - 실패 시 HTTP 상태 코드와 읽을 수 있는 `error` 메시지를 제공한다.
-- abort, timeout, network error를 클라이언트가 구분할 수 있게 한다.
+- fetch 계층이 `AbortSignal`을 받아 취소를 전파할 수 있게 한다.
+- abort, timeout, network error를 클라이언트 `dataSource`가 구분해
+  `createJapanAddressError(...)`로 변환할 수 있게 한다.
+
+클라이언트 예시는 아래처럼 구현하면 된다.
+
+```ts
+async function readPage(
+  path: string,
+  request: unknown,
+  options?: { signal?: AbortSignal },
+): Promise<Page<JapanAddress>> {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(request),
+    signal: options?.signal,
+  });
+
+  return (await response.json()) as Page<JapanAddress>;
+}
+
+const dataSource: JapanAddressDataSource = {
+  lookupPostalCode(request, options) {
+    return readPage("/q/japanpost/searchcode", request, options);
+  },
+  searchAddress(request, options) {
+    return readPage("/q/japanpost/addresszip", request, options);
+  },
+};
+```
 
 ## 9. 운영 환경에서 반드시 챙길 것
 
@@ -314,15 +376,10 @@ type JapanAddressDataSource = {
 - `apps/minimal-api/src/server.ts`
 - `apps/minimal-api/src/japanPostAdapter.ts`
 - `apps/minimal-api/src/http/routes.ts`
-- `apps/minimal-api/src/adapter/config.ts`
-- `apps/minimal-api/src/adapter/tokenClient.ts`
-- `apps/minimal-api/src/adapter/japanPostGateway.ts`
-- `apps/minimal-api/src/adapter/normalizers.ts`
-- `apps/minimal-api/src/http/routes.ts`
-- `apps/minimal-api/src/adapter/config.ts`
-- `apps/minimal-api/src/adapter/tokenClient.ts`
-- `apps/minimal-api/src/adapter/japanPostGateway.ts`
-- `apps/minimal-api/src/adapter/normalizers.ts`
+- `apps/minimal-api/src/japanPost/clientConfig.ts`
+- `apps/minimal-api/src/japanPost/tokenClient.ts`
+- `apps/minimal-api/src/japanPost/gateway.ts`
+- `apps/minimal-api/src/japanPost/normalizers.ts`
 
 그리고 라이브러리 사용 계약은 아래 문서에서 확인하면 된다.
 

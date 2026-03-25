@@ -37,28 +37,30 @@ export function useJapanAddress(
 
   // 마지막으로 실행된 검색 종류를 추적해 "통합 훅의 현재 결과"를 결정한다.
   const [activeSearch, setActiveSearch] = useState<
-    "postalCode" | "keyword" | null
+    "postalCode" | "addressQuery" | null
   >(null);
 
   /**
    * 우편번호로 검색한다.
    * 이전 키워드 결과를 먼저 지워야 검색 전환 직후에도 화면이 새 모드 기준으로 일관되게 보인다.
    */
-  const searchByPostalCode = useCallback(async (value: string) => {
-    resetAddressSearch();
-    setActiveSearch("postalCode");
-    return searchPostalCode(value);
-  }, [resetAddressSearch, searchPostalCode]);
+  const searchByPostalCode: UseJapanAddressResult["searchByPostalCode"] =
+    useCallback(async (input) => {
+      resetAddressSearch();
+      setActiveSearch("postalCode");
+      return searchPostalCode(input);
+    }, [resetAddressSearch, searchPostalCode]);
 
   /**
-   * 키워드로 검색한다.
+   * 주소 질의 문자열 또는 구조화된 주소 필드로 검색한다.
    * 반대쪽 검색 상태를 비워 이전 모드의 error/data가 현재 모드에 남지 않게 한다.
    */
-  const searchByKeyword = useCallback(async (query: string) => {
-    resetPostalCode();
-    setActiveSearch("keyword");
-    return searchAddressKeyword(query);
-  }, [resetPostalCode, searchAddressKeyword]);
+  const searchByAddressQuery: UseJapanAddressResult["searchByAddressQuery"] =
+    useCallback(async (input) => {
+      resetPostalCode();
+      setActiveSearch("addressQuery");
+      return searchAddressKeyword(input);
+    }, [resetPostalCode, searchAddressKeyword]);
 
   /**
    * 두 검색 상태를 모두 초기화한다.
@@ -73,13 +75,13 @@ export function useJapanAddress(
   const data =
     activeSearch === "postalCode"
       ? postalCode.data
-      : activeSearch === "keyword"
+      : activeSearch === "addressQuery"
         ? addressSearch.data
         : null;
   const error =
     activeSearch === "postalCode"
       ? postalCode.error
-      : activeSearch === "keyword"
+      : activeSearch === "addressQuery"
         ? addressSearch.error
         : null;
 
@@ -90,6 +92,6 @@ export function useJapanAddress(
     error,
     reset,
     searchByPostalCode,
-    searchByKeyword,
+    searchByAddressQuery,
   };
 }

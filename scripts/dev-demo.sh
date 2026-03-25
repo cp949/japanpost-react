@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# demo(Vite)와 minimal-api를 함께 띄워 로컬 데모 환경을 구성한다.
+# 최종 MUI demo(Vite)와 minimal-api를 함께 띄워 로컬 데모 환경을 구성한다.
 # 단순 백그라운드 실행이 아니라 readiness 확인과 세션 단위 cleanup까지 책임진다.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

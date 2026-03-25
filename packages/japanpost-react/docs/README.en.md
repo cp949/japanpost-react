@@ -1,11 +1,10 @@
 # @cp949/japanpost-react
 
-React + TypeScript hooks and headless inputs for Japan postal-code and address
-lookup.
+React hooks, headless input components, and utilities for Japan postal-code
+and address lookup.
 
-This package guide covers the published library. Repository-level demo scripts
-such as `pnpm demo:full` currently target Linux/WSL-style shell environments
-and are documented in the root README.
+This package does not call Japan Post directly. You provide a
+`JapanAddressDataSource` that talks to your own backend API.
 
 ## Install
 
@@ -13,45 +12,56 @@ and are documented in the root README.
 pnpm add @cp949/japanpost-react
 ```
 
-- Supported React versions: React 18 and React 19
+- Peer dependencies: React 18 or React 19
+- Package source in this repository:
+  `packages/japanpost-react`
+- Demo app in this repository: `apps/demo`
+
+## What The Package Provides
+
+- Hooks for postal-code lookup and address search:
+  `useJapanPostalCode`, `useJapanAddressSearch`, `useJapanAddress`
+- Headless form components:
+  `PostalCodeInput`, `AddressSearchInput`
+- Utilities:
+  `normalizeJapanPostalCode`, `formatJapanPostalCode`,
+  `isValidJapanPostalCode`, `normalizeJapanPostAddressRecord`,
+  `createJapanAddressError`
+- Public types for the request, response, error, and data-source contracts
 
 ## Quick Start
 
-```tsx
-import { useJapanPostalCode } from "@cp949/japanpost-react";
-import type {
-  JapanAddressDataSource,
-  JapanAddressRequestOptions,
-  JapanAddress,
-  Page,
-} from "@cp949/japanpost-react";
-import { createJapanAddressError } from "@cp949/japanpost-react";
+The package expects a `JapanAddressDataSource` with two methods:
 
-// The only supported integration model is a real server-backed flow.
-// Point the data source at your own backend API.
-// On beta-compatible backends, blank addresszip searches and postal-code misses
-// may return HTTP 200 with an empty page. Keep those as successful Page results.
-// The status mapping below applies only to non-OK responses.
+- `lookupPostalCode(request, options?)`
+- `searchAddress(request, options?)`
+
+Both methods return `Promise<Page<JapanAddress>>`.
+
+```tsx
+import {
+  PostalCodeInput,
+  createJapanAddressError,
+  useJapanPostalCode,
+  type JapanAddress,
+  type JapanAddressDataSource,
+  type JapanAddressRequestOptions,
+  type Page,
+} from "@cp949/japanpost-react";
+
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-function resolveErrorCode(path: string, status: number) {
-  if (status === 404) {
-    return "not_found";
-  }
-
-  if (status === 504) {
-    return "timeout";
-  }
-
-  if (status === 400) {
-    return path === "/q/japanpost/searchcode"
-      ? "invalid_postal_code"
-      : "invalid_query";
-  }
-
-  return "data_source_error";
+function isPagePayload(payload: unknown): payload is Page<JapanAddress> {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    Array.isArray((payload as { elements?: unknown }).elements) &&
+    typeof (payload as { totalElements?: unknown }).totalElements === "number" &&
+    typeof (payload as { pageNumber?: unknown }).pageNumber === "number" &&
+    typeof (payload as { rowsPerPage?: unknown }).rowsPerPage === "number"
+  );
 }
 
 async function readPage(
@@ -59,10 +69,10 @@ async function readPage(
   request: unknown,
   options?: JapanAddressRequestOptions,
 ): Promise<Page<JapanAddress>> {
-  let res: Response;
+  let response: Response;
 
   try {
-    res = await fetch(path, {
+    response = await fetch(path, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -74,173 +84,213 @@ async function readPage(
     throw createJapanAddressError(
       isAbortError(error) ? "timeout" : "network_error",
       isAbortError(error) ? "Request timed out" : "Network request failed",
-      {
-        cause: error,
-      },
+      { cause: error },
     );
   }
 
-  if (!res.ok) {
-    const message = `Request failed with status ${res.status}`;
-
-    throw createJapanAddressError(resolveErrorCode(path, res.status), message, {
-      status: res.status,
-    });
+  if (!response.ok) {
+    throw createJapanAddressError(
+      "data_source_error",
+      `Request failed with status ${response.status}`,
+      { status: response.status },
+    );
   }
 
   let payload: unknown;
 
   try {
-    payload = await res.json();
+    payload = await response.json();
   } catch (error) {
     throw createJapanAddressError(
       "bad_response",
       "Response payload was not valid JSON",
-      {
-        cause: error,
-      },
+      { cause: error },
     );
   }
 
-  if (
-    typeof payload !== "object" ||
-    payload === null ||
-    !Array.isArray((payload as { elements?: unknown }).elements) ||
-    typeof (payload as { totalElements?: unknown }).totalElements !== "number" ||
-    typeof (payload as { pageNumber?: unknown }).pageNumber !== "number" ||
-    typeof (payload as { rowsPerPage?: unknown }).rowsPerPage !== "number"
-  ) {
+  if (!isPagePayload(payload)) {
     throw createJapanAddressError(
       "bad_response",
       "Response payload must include a valid page payload",
     );
   }
 
-  return payload as Page<JapanAddress>;
+  return payload;
 }
 
 const dataSource: JapanAddressDataSource = {
-  async lookupPostalCode(request, options) {
-    return readPage(`/q/japanpost/searchcode`, request, options);
+  lookupPostalCode(request, options) {
+    return readPage("/q/japanpost/searchcode", request, options);
   },
-  async searchAddress(request, options) {
-    return readPage(`/q/japanpost/addresszip`, request, options);
+  searchAddress(request, options) {
+    return readPage("/q/japanpost/addresszip", request, options);
   },
 };
 
-export function PostalForm() {
+export function PostalCodeLookupExample() {
   const { loading, data, error, search } = useJapanPostalCode({ dataSource });
 
   return (
     <div>
-      <button onClick={() => void search("100-0001")}>Search</button>
-      {loading && <p>Loading...</p>}
-      {error && (
-        <p>
-          {error.code}: {error.message}
-        </p>
-      )}
-      <p>Total results: {data?.totalElements ?? 0}</p>
-      {data?.elements.map((addr) => (
-        <p key={addr.postalCode + addr.address}>{addr.address}</p>
-      ))}
+      <PostalCodeInput
+        buttonLabel="Search"
+        label="Postal code"
+        onSearch={(postalCode) => {
+          void search({ postalCode });
+        }}
+      />
+
+      {loading ? <p>Loading...</p> : null}
+      {error ? <p>{error.message}</p> : null}
+
+      <ul>
+        {(data?.elements ?? []).map((address) => (
+          <li key={`${address.postalCode}-${address.address}`}>
+            {address.address}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 ```
 
-The sample `resolveErrorCode()` helper only classifies non-OK responses. In the
-current beta-compatible contract, blank address-search requests and postal-code
-misses may still succeed with `200` plus an empty page, while `404 -> not_found`
-remains a backend-specific choice for servers that intentionally surface misses
-as errors.
+The example paths above match this repository's reference backend. In your own
+app, the backend routes can be different as long as your `dataSource`
+implementation returns the same public types.
 
-## Exports
+## Core Contract
 
-- `normalizeJapanPostalCode`
-- `formatJapanPostalCode`
-- `normalizeJapanPostAddressRecord`
-- `isValidJapanPostalCode`
-- `createJapanAddressError`
-- `useJapanPostalCode`
-- `useJapanAddressSearch`
-- `useJapanAddress`
-- `PostalCodeInput`
-- `AddressSearchInput`
-- Public types including `JapanAddress`, `JapanAddressDataSource`,
-  `JapanPostSearchcodeRequest`, `JapanPostAddresszipRequest`, and `Page`
-- Request options type: `JapanAddressRequestOptions`
+`Page<T>` is the result shape shared by the hooks and the reference backend:
 
-## Utility Notes
+```ts
+type Page<T> = {
+  elements: T[];
+  totalElements: number;
+  pageNumber: number;
+  rowsPerPage: number;
+};
+```
 
-`formatJapanPostalCode()` inserts a hyphen only when the normalized value is
-exactly 7 digits. For any other length, it returns the normalized digits
-without inserting a hyphen.
+`JapanAddress` is the normalized address shape returned by the package:
+
+```ts
+type JapanAddress = {
+  postalCode: string;
+  prefecture: string;
+  prefectureKana?: string;
+  city: string;
+  cityKana?: string;
+  town: string;
+  townKana?: string;
+  address: string;
+  provider: "japan-post";
+};
+```
+
+The hooks keep this page payload as-is, so consumers read
+`data?.elements`, `data?.totalElements`, `data?.pageNumber`, and
+`data?.rowsPerPage` directly.
 
 ## Hooks
 
-### useJapanPostalCode
+### `useJapanPostalCode`
 
-Looks up addresses by postal code. The hook accepts `3-7` digits and uses
-prefix search when the input has `3-6` digits.
+- Accepts `string` or `JapanPostalCodeSearchInput`
+- Normalizes the input to digits before calling the data source
+- Allows `3-7` digits, so prefix lookup is possible
+- Builds `{ postalCode, pageNumber: 0, rowsPerPage: 100 }` by default
+- Exposes `loading`, `data`, `error`, `search`, `cancel`, and `reset`
 
 ```tsx
-const { loading, data, error, search, reset } = useJapanPostalCode({
-  dataSource,
+const postalCode = useJapanPostalCode({ dataSource });
+
+void postalCode.search("100-0001");
+void postalCode.search({
+  postalCode: "1000001",
+  pageNumber: 1,
+  rowsPerPage: 10,
+  includeParenthesesTown: true,
 });
 ```
 
-### useJapanAddressSearch
+### `useJapanAddressSearch`
 
-Searches addresses by free-form keyword and supports debouncing.
+- Accepts `string` or `JapanAddressSearchInput`
+- Supports free-form search and structured fields in the same request type
+- Rejects a fully blank query before calling the data source
+- Omits `includeCityDetails` and `includePrefectureDetails` unless you set them
+- Supports `debounceMs`
+- Exposes `loading`, `data`, `error`, `search`, `cancel`, and `reset`
 
 ```tsx
-const { loading, data, error, search, reset } = useJapanAddressSearch({
+const addressSearch = useJapanAddressSearch({
   dataSource,
   debounceMs: 300,
 });
+
+void addressSearch.search("千代田");
+void addressSearch.search({
+  prefName: "東京都",
+  cityName: "千代田区",
+  pageNumber: 0,
+  rowsPerPage: 10,
+});
 ```
 
-The hook still performs client-side pre-validation for blank queries and
-returns `invalid_query` before sending a request. That validation is a UX
-helper only and does not replace server-side validation or server-side
-contract handling.
+### `useJapanAddress`
 
-### useJapanAddress
-
-Combines postal-code lookup and keyword search into one hook.
+- Combines postal-code lookup and address search in one hook
+- Reuses the same `dataSource`
+- Exposes `searchByPostalCode`, `searchByAddressQuery`, and `reset`
+- Returns `data` and `error` for the currently active search mode only
 
 ```tsx
-const { loading, data, error, searchByPostalCode, searchByKeyword, reset } =
-  useJapanAddress({ dataSource, debounceMs: 300 });
+const address = useJapanAddress({
+  dataSource,
+  debounceMs: 300,
+});
+
+void address.searchByPostalCode("1000001");
+void address.searchByAddressQuery({
+  addressQuery: "千代田",
+  pageNumber: 0,
+  rowsPerPage: 10,
+});
 ```
 
-All hooks require `dataSource` at runtime.
+## Headless Components
 
-The hook public APIs stay string-based:
+### `PostalCodeInput`
 
-- `useJapanPostalCode().search(value: string)`
-- `useJapanAddressSearch().search(query: string)`
-- `useJapanAddress().searchByPostalCode(value: string)`
-- `useJapanAddress().searchByKeyword(query: string)`
+- Renders a `<form>` with `<label>`, `<input>`, and `<button>`
+- Supports controlled and uncontrolled usage
+- Calls `onSearch` with a normalized digits-only postal code
+- Defaults `inputMode="numeric"` unless overridden with `inputProps`
 
-Internally, the hooks build request objects before calling the data source:
+### `AddressSearchInput`
 
-- postal-code lookup: `{ value, pageNumber: 0, rowsPerPage: 100 }`
-- address search: `{ freeword, pageNumber: 0, rowsPerPage: 100 }`
+- Renders the same minimal form structure
+- Supports controlled and uncontrolled usage
+- Calls `onSearch` with a trimmed query string
 
-Optional request flags such as `includeCityDetails` and
-`includePrefectureDetails` are omitted unless your own data source
-implementation sets them explicitly.
+Both components accept:
 
-## Error Handling Notes
+- `inputProps` for the rendered `<input>`
+- `buttonProps` for the rendered `<button>`
 
-`JapanAddressDataSource` should return `Page<JapanAddress>` directly from both
-methods. Hooks preserve that page payload as-is, so consumers can read
-`data.elements`, `data.totalElements`, `data.pageNumber`, and
-`data.rowsPerPage` directly.
+## Data Source Integration
 
-Both methods may also receive an optional second argument:
+The package exports types for both sides of the integration:
+
+- `JapanAddressDataSource`
+- `JapanPostSearchcodeRequest`
+- `JapanPostAddresszipRequest`
+- `JapanPostalCodeSearchInput`
+- `JapanAddressSearchInput`
+- `JapanAddressRequestOptions`
+
+The optional second argument to each data-source method is:
 
 ```ts
 type JapanAddressRequestOptions = {
@@ -248,63 +298,29 @@ type JapanAddressRequestOptions = {
 };
 ```
 
-Hooks pass `signal` so your data source can cancel superseded requests,
-`reset()` calls, and unmount cleanup when your backend layer supports aborts.
+The hooks pass `signal` so your data source can cancel superseded requests,
+`cancel()` calls, `reset()` calls, and unmount cleanup.
 
-Recommended error-code mapping:
+This repository's reference backend uses these routes:
 
-| Situation | Recommended code |
-| --- | --- |
-| Invalid postal code input | `invalid_postal_code` |
-| Blank keyword input in hook-side pre-validation | `invalid_query` |
-| Network failure | `network_error` |
-| Request aborted / timeout | `timeout` |
-| No matching addresses on backends that surface misses as errors | `not_found` |
-| Malformed success payload | `bad_response` |
-| Other backend failures | `data_source_error` |
+- `POST /q/japanpost/searchcode`
+- `POST /q/japanpost/addresszip`
 
-In this repository's reference demo flow, the sample `dataSource` classifies
-failed requests by HTTP status code only. Current beta-compatible flows may
-return `200` with an empty page for both blank `addresszip` requests and
-postal-code misses, and those should stay successful page results. Other
-`400` responses can still map to `invalid_query`, `404` remains useful for
-backends that intentionally surface misses as errors, and `504` maps to
-`timeout`.
+But those route names are not part of the package API. They are just the
+example used by `apps/demo` and `apps/minimal-api`.
 
-## Headless Components
+## Constraints And Notes
 
-`PostalCodeInput` and `AddressSearchInput` provide behavior and DOM structure
-without bundled styles, so you can plug them into your own design system.
-
-Both components also support native prop passthrough:
-
-- `inputProps`: forwarded to the rendered `<input />`
-- `buttonProps`: forwarded to the rendered `<button />`
-
-Use these for `id`, `name`, `placeholder`, `aria-*`, `autoComplete`,
-`className`, and form integration. `PostalCodeInput` defaults to
-`inputMode="numeric"` unless you override it through `inputProps`.
-
-## Data Source and Server Integration
-
-Use this package with your own backend server. The official Japan Post flow
-uses token-based authentication, so browser apps should not hold upstream
-credentials directly. The supported integration model is a real server-backed
-flow.
-
-This repository includes `apps/minimal-api` as the reference local server. It
-wraps Japan Post API ver 2.0 and is intended for local development and
-integration testing. The demo's `/minimal-api` path is only a development-time
-route to that local server. When the upstream payload includes both structured
-address parts and a free-form `address` string, the reference server keeps the
-display address non-duplicated instead of concatenating both blindly.
-
-Timeout messages can differ depending on whether the token exchange timed out or
-the upstream lookup request timed out. Both cases still map cleanly to the
-`timeout` error code.
-
-## SSR
-
-Use your server-side API from the `dataSource` implementation, and keep token
-exchange plus upstream signing on the server. React hooks and UI components
-should stay in client components.
+- `dataSource` is required at runtime for all hooks.
+- `isValidJapanPostalCode()` checks for an exact 7-digit postal code after
+  normalization. `useJapanPostalCode()` is less strict and accepts `3-7`
+  digits for prefix lookup.
+- `formatJapanPostalCode()` inserts a hyphen only when the normalized value is
+  exactly 7 digits.
+- `cancel()` on `useJapanPostalCode()` and `useJapanAddressSearch()` aborts the
+  in-flight request but keeps the latest settled `data` and `error`.
+- `reset()` clears both `data` and `error`.
+- The package does not require a backend to return `404` for misses. Returning
+  `200` with an empty page is also compatible with the hook contract.
+- Use your own server-side API in the `dataSource` implementation. Keep Japan
+  Post credentials and token exchange on the server side.
