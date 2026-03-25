@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
-
 import {
+  createJapanAddressError,
   createJapanPostApiDataSource,
   type JapanPostApiClient,
   type Page,
 } from "@cp949/japanpost-react";
+import { describe, expect, it, vi } from "vitest";
 
 describe("createJapanPostApiDataSource", () => {
   type PageWithoutProvider = Page<{
@@ -58,12 +58,12 @@ describe("createJapanPostApiDataSource", () => {
     const controller = new AbortController();
     await expect(
       dataSource.lookupPostalCode(
-      {
-        postalCode: "1000001",
-        pageNumber: 0,
-        rowsPerPage: 10,
-      },
-      { signal: controller.signal },
+        {
+          postalCode: "1000001",
+          pageNumber: 0,
+          rowsPerPage: 10,
+        },
+        { signal: controller.signal },
       ),
     ).resolves.toEqual({
       elements: [
@@ -255,5 +255,35 @@ describe("createJapanPostApiDataSource", () => {
     });
 
     expect(dataSource).toBeDefined();
+  });
+
+  it("preserves the upstream client error so existing error policy stays in control", async () => {
+    const upstreamError = createJapanAddressError(
+      "network_error",
+      "Upstream client decides the error shape",
+      {
+        cause: new Error("fetch failed"),
+      },
+    );
+    const searchcode = vi.fn(async () => {
+      throw upstreamError;
+    });
+    const addresszip = vi.fn(async () => ({
+      elements: [],
+      totalElements: 0,
+      pageNumber: 0,
+      rowsPerPage: 10,
+      provider: "japan-post" as const,
+    }));
+
+    const dataSource = createJapanPostApiDataSource({ searchcode, addresszip });
+
+    await expect(
+      dataSource.lookupPostalCode({
+        postalCode: "1000001",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    ).rejects.toBe(upstreamError);
   });
 });

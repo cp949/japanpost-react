@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import { createJapanAddressError } from "../src/core/errors";
 
 describe("createJapanAddressError", () => {

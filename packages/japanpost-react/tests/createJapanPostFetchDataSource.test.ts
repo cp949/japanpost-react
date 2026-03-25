@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from "vitest";
-
 import {
   createJapanPostFetchDataSource,
   type JapanAddress,
@@ -7,6 +5,7 @@ import {
   type JapanPostSearchcodeRequest,
   type Page,
 } from "@cp949/japanpost-react";
+import { describe, expect, it, vi } from "vitest";
 
 const page: Page<JapanAddress> = {
   elements: [
@@ -107,13 +106,9 @@ describe("createJapanPostFetchDataSource", () => {
         }
 
         return new Promise<never>((_, reject) => {
-          signal?.addEventListener(
-            "abort",
-            () => reject(createAbortError()),
-            {
-              once: true,
-            },
-          );
+          signal?.addEventListener("abort", () => reject(createAbortError()), {
+            once: true,
+          });
         });
       },
     );
@@ -242,12 +237,12 @@ describe("createJapanPostFetchDataSource", () => {
           rowsPerPage: 10,
         };
 
-        await expect(dataSource.lookupPostalCode(request)).rejects.toMatchObject(
-          {
-            code,
-            status: 400,
-          },
-        );
+        await expect(
+          dataSource.lookupPostalCode(request),
+        ).rejects.toMatchObject({
+          code,
+          status: 400,
+        });
 
         expect(fetchMock).toHaveBeenCalledWith(
           `/minimal-api${path}`,
@@ -322,12 +317,12 @@ describe("createJapanPostFetchDataSource", () => {
           rowsPerPage: 10,
         };
 
-        await expect(dataSource.lookupPostalCode(request)).rejects.toMatchObject(
-          {
-            code,
-            status: 400,
-          },
-        );
+        await expect(
+          dataSource.lookupPostalCode(request),
+        ).rejects.toMatchObject({
+          code,
+          status: 400,
+        });
 
         expect(fetchMock).toHaveBeenCalledWith(
           `/minimal-api${path}`,
@@ -388,6 +383,35 @@ describe("createJapanPostFetchDataSource", () => {
     ).rejects.toMatchObject({
       code,
       status,
+    });
+  });
+
+  it("uses the backend error field when the response body does not include message", async () => {
+    const fetchMock = vi.fn(async () =>
+      createResponse(
+        {
+          error: "Postal code must contain between 3 and 7 digits",
+        },
+        false,
+        400,
+      ),
+    );
+
+    const dataSource = createJapanPostFetchDataSource({
+      baseUrl: "/minimal-api",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(
+      dataSource.lookupPostalCode({
+        postalCode: "12",
+        pageNumber: 0,
+        rowsPerPage: 10,
+      }),
+    ).rejects.toMatchObject({
+      code: "invalid_postal_code",
+      status: 400,
+      message: "Postal code must contain between 3 and 7 digits",
     });
   });
 });

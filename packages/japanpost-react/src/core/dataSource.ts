@@ -23,6 +23,16 @@ type JsonResponse = {
   json: () => Promise<unknown>;
 };
 
+type InvalidJsonResponseCause = {
+  kind: "invalid_json_response";
+  cause: unknown;
+};
+
+type InvalidPagePayloadCause = {
+  kind: "invalid_page_payload";
+  payload: unknown;
+};
+
 function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, "");
 }
@@ -100,6 +110,15 @@ function getErrorMessage(payload: unknown, status: number, path: string) {
     return (payload as { message: string }).message;
   }
 
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof (payload as { error?: unknown }).error === "string"
+  ) {
+    return (payload as { error: string }).error;
+  }
+
   return `Request failed with status ${status} for ${path}`;
 }
 
@@ -133,7 +152,10 @@ async function readJsonResponse(
       "bad_response",
       `Failed to parse JSON response from ${path}`,
       {
-        cause,
+        cause: {
+          kind: "invalid_json_response",
+          cause,
+        } satisfies InvalidJsonResponseCause,
         status: response.status,
       },
     );
@@ -160,7 +182,10 @@ async function readJsonResponse(
       "bad_response",
       `Response from ${path} was not a valid pager payload`,
       {
-        cause: payload,
+        cause: {
+          kind: "invalid_page_payload",
+          payload,
+        } satisfies InvalidPagePayloadCause,
         status: response.status,
       },
     );

@@ -9,8 +9,6 @@ const packagePackageJsonPath = path.join(
   repoRoot,
   "packages/japanpost-react/package.json",
 );
-const rootReadmePath = path.join(repoRoot, "README.md");
-const rootReadmeKoPath = path.join(repoRoot, "README.ko.md");
 const contributingPath = path.join(repoRoot, "CONTRIBUTING.md");
 
 function readPackageJson(packageJsonPath: string): {
@@ -26,51 +24,35 @@ function readText(filePath: string) {
 }
 
 describe("repository verification scripts", () => {
-  it("exposes a standard release-grade verification path at the repository root", () => {
+  it("exposes the standard repository verification path at the repository root", () => {
     const rootPackageJson = readPackageJson(rootPackageJsonPath);
 
     expect(rootPackageJson.scripts).toEqual(
       expect.objectContaining({
         test: "node ./scripts/test.mjs",
         "test:package": "pnpm --filter @cp949/japanpost-react test",
-        "verify:release":
-          "pnpm test && pnpm --filter @cp949/japanpost-react test:artifacts",
       }),
     );
+    expect(rootPackageJson.scripts).not.toHaveProperty("verify:release");
   });
 
-  it("makes the package release script reuse the root release-grade verification path", () => {
+  it("makes the package release script reuse the root repository verification path", () => {
     const packagePackageJson = readPackageJson(packagePackageJsonPath);
 
     expect(packagePackageJson.scripts).toEqual(
       expect.objectContaining({
-        release:
-          "pnpm --dir ../.. readme:package && pnpm lint && pnpm check-types && pnpm --dir ../.. verify:release && pnpm build && pnpm publish --access public",
+        release: expect.stringContaining(
+          "pnpm lint && pnpm check-types && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
+        ),
       }),
     );
   });
 
-  it("documents which verification entrypoints are cross-platform and which direct script paths remain Bash-only", () => {
-    const readme = readText(rootReadmePath);
-    const readmeKo = readText(rootReadmeKoPath);
+  it("documents which verification entrypoints are cross-platform and which direct script paths remain Bash-only in contributing docs", () => {
     const contributing = readText(contributingPath);
 
-    expect(readme).toContain(
-      "`pnpm test`: run the cross-platform repository verification path.",
-    );
-    expect(readme).toContain(
-      "Direct `scripts/*.sh` entrypoints remain Bash-only convenience wrappers",
-    );
-
-    expect(readmeKo).toContain(
-      "`pnpm test`와 `pnpm verify:release`는 Node 기반 진입점이라 Windows native",
-    );
-    expect(readmeKo).toContain(
-      "직접 `scripts/*.sh`를 실행하는 경로만 Bash/Linux/WSL 전제를 유지합니다.",
-    );
-
     expect(contributing).toContain(
-      "`pnpm test`, `pnpm verify:release`, `pnpm demo:full`, and `pnpm api:check`",
+      "`pnpm test`, `pnpm demo:full`, and `pnpm api:check`",
     );
     expect(contributing).toContain(
       "run through Node-based entrypoints and do not require Bash.",

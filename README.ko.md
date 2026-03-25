@@ -83,16 +83,7 @@ pnpm test
 이 루트 진입점은 생성된 패키지 README 동기화 검사, 패키지 unit test,
 workspace integration test를 함께 실행하는 빠른 기본 검증 경로입니다.
 
-artifact까지 포함한 표준 release-grade 검증은 다음으로 실행합니다.
-
-```bash
-pnpm verify:release
-```
-
-이 경로는 `pnpm test`에 더해 패키지 build, pack, consumer smoke를 포함한
-artifact 검증까지 함께 실행합니다.
-
-`pnpm test`와 `pnpm verify:release`는 Node 기반 진입점이라 Windows native
+`pnpm test`는 Node 기반 진입점이라 Windows native
 셸에서도 바로 실행할 수 있습니다. `pnpm demo:full`과 `pnpm api:check`도 같은
 방식이라 Bash가 꼭 필요하지 않습니다.
 직접 `scripts/*.sh`를 실행하는 경로만 Bash/Linux/WSL 전제를 유지합니다.

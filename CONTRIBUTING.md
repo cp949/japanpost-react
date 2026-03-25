@@ -8,7 +8,7 @@ This repository uses a `pnpm workspace + turbo` layout.
 - pnpm 10+
 - `.secrets/env` for `pnpm demo:full` and `pnpm api:check`
 
-`pnpm test`, `pnpm verify:release`, `pnpm demo:full`, and `pnpm api:check`
+`pnpm test`, `pnpm demo:full`, and `pnpm api:check`
 run through Node-based entrypoints and do not require Bash.
 Direct `scripts/*.sh` execution remains a Bash-only convenience path.
 
@@ -31,16 +31,6 @@ tests, and workspace integration tests around `apps/minimal-api` and the local
 development helper scripts. It also keeps the demo workspace wiring for
 `@cp949/japanpost-react` and `@cp949/japanpost-react/client` under test. It
 does not rebuild package artifacts.
-
-For release-sensitive changes, run the standard release-grade verification path:
-
-```bash
-pnpm verify:release
-```
-
-This cross-platform path extends `pnpm test` with package artifact verification
-so build, pack, and consumer smoke regressions are caught before the package
-release command.
 
 For package-only changes, this focused path runs the package unit tests without rebuilding artifacts:
 

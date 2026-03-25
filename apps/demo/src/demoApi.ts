@@ -2,6 +2,7 @@ import {
   createJapanAddressError,
   createJapanPostFetchDataSource,
   type JapanAddressDataSource,
+  type JapanAddressErrorCode,
 } from "@cp949/japanpost-react";
 
 // 데모 앱은 기본적으로 Vite 개발 서버 프록시 아래의 `/minimal-api` 를 바라본다.
@@ -21,6 +22,16 @@ export function normalizeBaseUrl(value: string): string {
   return value.replace(/\/+$/, "");
 }
 
+const JAPAN_ADDRESS_ERROR_CODES = new Set<JapanAddressErrorCode>([
+  "invalid_postal_code",
+  "invalid_query",
+  "network_error",
+  "timeout",
+  "not_found",
+  "bad_response",
+  "data_source_error",
+]);
+
 function createDemoApiHealthError(message: string, cause?: unknown): Error {
   // health 체크는 라이브러리 에러 타입과 별개로 다루므로 일반 Error를 생성한다.
   const error = new Error(message);
@@ -38,6 +49,34 @@ function isAbortError(error: unknown): error is DOMException {
 
 function isNetworkError(error: unknown): error is TypeError {
   return error instanceof TypeError;
+}
+
+function isJapanAddressErrorCode(
+  value: unknown,
+): value is JapanAddressErrorCode {
+  return (
+    typeof value === "string" &&
+    JAPAN_ADDRESS_ERROR_CODES.has(value as JapanAddressErrorCode)
+  );
+}
+
+function isBadResponseCause(
+  cause: unknown,
+): cause is
+  | {
+      kind: "invalid_json_response";
+      cause: unknown;
+    }
+  | {
+      kind: "invalid_page_payload";
+      payload: unknown;
+    } {
+  if (typeof cause !== "object" || cause === null) {
+    return false;
+  }
+
+  const kind = (cause as { kind?: unknown }).kind;
+  return kind === "invalid_json_response" || kind === "invalid_page_payload";
 }
 
 function normalizeRequestHeaders(headers: HeadersInit | undefined): HeadersInit | undefined {
@@ -116,7 +155,9 @@ function normalizeDemoApiError(error: unknown): never {
     status?: number;
     cause?: unknown;
   };
-  const code = japanAddressError.code;
+  const code = isJapanAddressErrorCode(japanAddressError.code)
+    ? japanAddressError.code
+    : undefined;
   const status = japanAddressError.status;
   const cause = japanAddressError.cause;
 
@@ -135,6 +176,30 @@ function normalizeDemoApiError(error: unknown): never {
   }
 
   if (code === "bad_response") {
+    if (isBadResponseCause(cause)) {
+      if (cause.kind === "invalid_page_payload") {
+        throw createJapanAddressError(
+          "bad_response",
+          "Response payload must include a valid page payload",
+          {
+            cause,
+            status,
+          },
+        );
+      }
+
+      if (cause.kind === "invalid_json_response") {
+        throw createJapanAddressError(
+          "bad_response",
+          "Response payload was not valid JSON",
+          {
+            cause,
+            status,
+          },
+        );
+      }
+    }
+
     if (japanAddressError.message.includes("not a valid pager payload")) {
       throw createJapanAddressError(
         "bad_response",

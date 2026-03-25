@@ -3,7 +3,7 @@ import type {
   JapanPostAddresszipRequest,
   JapanPostSearchcodeRequest,
   Page,
-} from "@cp949/japanpost-react";
+} from "../../packages/japanpost-react/src/core/types";
 
 import type { AddressAdapter } from "../../apps/minimal-api/src/japanPostAdapter";
 import { describe, expectTypeOf, it } from "vitest";

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
-import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { loadExportEnvFile } from "../../../scripts/local-dev-utils.mjs";
 import type { AddressAdapter } from "./japanPostAdapter.js";
 import { createJapanPostAdapter } from "./japanPostAdapter.js";
 import { handleMinimalApiRequest } from "./http/routes.js";
@@ -20,64 +20,14 @@ type MinimalApiStartupEnvOptions = {
   envFilePath?: string;
 };
 
-function parseExportLine(line: string): [string, string] | null {
-  const trimmedLine = line.trim();
-
-  if (!trimmedLine || trimmedLine.startsWith("#")) {
-    return null;
-  }
-
-  const match = /^export\s+([A-Z0-9_]+)=(.*)$/.exec(trimmedLine);
-
-  if (!match) {
-    return null;
-  }
-
-  const key = match[1];
-  const rawValue = match[2];
-
-  if (key === undefined || rawValue === undefined) {
-    return null;
-  }
-
-  const unquotedValue =
-    (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
-    (rawValue.startsWith("'") && rawValue.endsWith("'"))
-      ? rawValue.slice(1, -1)
-      : rawValue;
-
-  return [key, unquotedValue];
-}
-
 export function loadMinimalApiEnvForStartup({
   env = process.env,
   envFilePath = resolve(import.meta.dirname, "../../..", ".secrets", "env"),
 }: MinimalApiStartupEnvOptions = {}): NodeJS.ProcessEnv {
-  const mergedEnv = {
-    ...env,
-  };
-
-  if (!existsSync(envFilePath)) {
-    return mergedEnv;
-  }
-
-  const fileContents = readFileSync(envFilePath, "utf8");
-
-  for (const line of fileContents.split(/\r?\n/u)) {
-    const parsedEntry = parseExportLine(line);
-
-    if (!parsedEntry) {
-      continue;
-    }
-
-    const [key, value] = parsedEntry;
-
-    if (!mergedEnv[key]?.trim()) {
-      mergedEnv[key] = value;
-    }
-  }
-
-  return mergedEnv;
+  return loadExportEnvFile({
+    env,
+    envFilePath,
+  });
 }
 
 export function createMinimalApiServer(options: MinimalApiServerOptions = {}) {

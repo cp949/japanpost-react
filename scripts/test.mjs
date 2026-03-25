@@ -5,6 +5,14 @@ import { spawnCommand } from "./local-dev-utils.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+function withForwardedArgs(args, forwardedArgs) {
+  if (forwardedArgs.length === 0) {
+    return args;
+  }
+
+  return [...args, "--", ...forwardedArgs];
+}
+
 function runCommand(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawnCommand(command, args, {
@@ -31,9 +39,17 @@ function runCommand(command, args) {
 }
 
 async function main() {
+  const forwardedArgs = process.argv.slice(2);
+
   await runCommand("pnpm", ["readme:package:check"]);
-  await runCommand("pnpm", ["--filter", "@cp949/japanpost-react", "test"]);
-  await runCommand("pnpm", ["test:workspace"]);
+  await runCommand(
+    "pnpm",
+    withForwardedArgs(
+      ["--filter", "@cp949/japanpost-react", "test"],
+      forwardedArgs,
+    ),
+  );
+  await runCommand("pnpm", withForwardedArgs(["test:workspace"], forwardedArgs));
 }
 
 main().catch((error) => {

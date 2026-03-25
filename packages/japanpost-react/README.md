@@ -211,7 +211,10 @@ you build your own consumer UI:
 - `createJapanPostFetchDataSource({ baseUrl, ... })` wraps fetch-based
   backends that follow the package request/response contract.
 - `createJapanPostApiDataSource(api, options?)` adapts an existing
-  `searchcode` / `addresszip` client to `JapanAddressDataSource`.
+  `searchcode` / `addresszip` client to `JapanAddressDataSource`. It keeps
+  whatever error handling and error shape your existing client already uses,
+  so this adapter only focuses on request/context wiring and optional page
+  mapping.
 
 ### Formatter Usage
 
@@ -263,6 +266,10 @@ export function AddressSearchExample() {
   return <button onClick={() => void addressSearch.search("Tokyo")}>Search</button>;
 }
 ```
+
+Use this adapter when your API client already owns transport and error
+normalization. If you want the package's built-in fetch error mapping,
+prefer `createJapanPostFetchDataSource(...)`.
 
 ## Core Contract
 

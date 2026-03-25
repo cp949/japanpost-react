@@ -28,7 +28,6 @@
     "test": "node ./scripts/test.mjs",
     "test:package": "pnpm --filter @cp949/japanpost-react test",
     "test:package:unit": "pnpm --filter @cp949/japanpost-react test:unit",
-    "verify:release": "pnpm test && pnpm --filter @cp949/japanpost-react test:artifacts",
     "lint": "turbo run lint && biome lint tests",
     "lint:fix": "turbo run lint -- --write --unsafe",
     "format": "biome format --write .",

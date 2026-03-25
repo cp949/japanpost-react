@@ -150,9 +150,6 @@ starts `apps/demo`. The default ports are:
   Node-based root entrypoint works in Windows native shells and checks
   generated package README sync, package unit tests, and workspace integration
   tests.
-- `pnpm verify:release`: run the standard release-grade verification path. This
-  cross-platform root entrypoint includes `pnpm test` plus package artifact
-  verification for build, pack, and consumer smoke coverage.
 - `pnpm check-types`: run workspace type checks through Turbo.
 
 Direct `scripts/*.sh` entrypoints remain Bash-only convenience wrappers for
