@@ -1,6 +1,6 @@
 {
   "name": "@cp949/japanpost-react",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Headless React hooks and optional components for Japan Post postcode and address search",
   "type": "module",
   "author": "cp949",
