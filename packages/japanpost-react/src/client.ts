@@ -1,5 +1,3 @@
-"use client";
-
 export { AddressSearchInput } from "./components/AddressSearchInput";
 export { PostalCodeInput } from "./components/PostalCodeInput";
 export { useJapanAddress } from "./react/useJapanAddress";

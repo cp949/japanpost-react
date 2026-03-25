@@ -2,18 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const packageDir = path.resolve(import.meta.dirname, "..");
-const distDir = path.join(packageDir, "dist");
+const clientEntryPath = path.join(packageDir, "dist", "client.es.js");
+const useClientDirective = '"use client";\n';
 
-await fs.mkdir(distDir, { recursive: true });
-await fs.writeFile(
-  path.join(distDir, "client.es.js"),
-  `"use client";
+const clientEntrySource = await fs.readFile(clientEntryPath, "utf8");
 
-export * from "./index.es.js";
-`,
-);
-await fs.writeFile(
-  path.join(distDir, "client.d.ts"),
-  `export * from "./index";
-`,
-);
+if (!clientEntrySource.startsWith(useClientDirective)) {
+  await fs.writeFile(
+    clientEntryPath,
+    `${useClientDirective}${clientEntrySource}`,
+    "utf8",
+  );
+}

@@ -74,6 +74,10 @@ function createPackedConsumerProject(): {
       tarballPath,
       "react",
       "react-dom",
+      "-D",
+      "typescript",
+      "@types/react",
+      "@types/react-dom",
     ],
     {
       cwd: consumerDir,
@@ -86,6 +90,42 @@ function createPackedConsumerProject(): {
     consumerDir,
     tarballPath,
   };
+}
+
+function runPackedConsumerTypecheck(
+  consumerDir: string,
+  source: string,
+  fileName = "index.ts",
+): string {
+  fs.writeFileSync(
+    path.join(consumerDir, "tsconfig.json"),
+    JSON.stringify(
+      {
+        compilerOptions: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          target: "ES2022",
+          strict: true,
+          noEmit: true,
+          skipLibCheck: false,
+          jsx: "react-jsx",
+        },
+        include: [fileName],
+      },
+      null,
+      2,
+    ),
+  );
+  fs.writeFileSync(path.join(consumerDir, fileName), source);
+
+  return execFileSync(
+    "pnpm",
+    ["exec", "tsc", "--project", "tsconfig.json"],
+    {
+      cwd: consumerDir,
+      encoding: "utf8",
+    },
+  );
 }
 
 describe("package artifacts", () => {
@@ -139,6 +179,43 @@ describe("package artifacts", () => {
     expect(clientEntrySource.startsWith('"use client";')).toBe(true);
   });
 
+  it("publishes non-empty root and client type entrypoints that match the public contract", () => {
+    const rootTypesPath = packageJson.types;
+    const exportTypesPath = packageJson.exports?.["."]?.types;
+    const clientTypesPath = packageJson.exports?.["./client"]?.types;
+
+    expect(rootTypesPath).toBeTruthy();
+    expect(exportTypesPath).toBeTruthy();
+    expect(clientTypesPath).toBeTruthy();
+
+    const rootTypesSource = fs.readFileSync(
+      path.join(packageDir, rootTypesPath!),
+      "utf8",
+    );
+    const exportedRootTypesSource = fs.readFileSync(
+      path.join(packageDir, exportTypesPath!),
+      "utf8",
+    );
+    const clientTypesSource = fs.readFileSync(
+      path.join(packageDir, clientTypesPath!),
+      "utf8",
+    );
+
+    expect(rootTypesSource.trim()).not.toBe("export {}");
+    expect(rootTypesSource).toContain("type JapanAddressSearchInput =");
+    expect(rootTypesSource).toContain("export { AddressSearchInput");
+    expect(rootTypesSource).toContain("type UseJapanAddressResult");
+    expect(exportedRootTypesSource).toBe(rootTypesSource);
+    expect(clientTypesPath).toBe("./dist/client.d.ts");
+    expect(clientTypesSource.trim()).not.toBe("export {}");
+    expect(clientTypesSource.trim()).not.toHaveLength(0);
+    expect(clientTypesSource).toContain("export { AddressSearchInput");
+    expect(clientTypesSource).toContain("type JapanAddressSearchInput =");
+    expect(clientTypesSource).toContain("type JapanAddress =");
+    expect(clientTypesSource).toContain("type UseJapanAddressResult");
+    expect(clientTypesSource).toContain("type UseJapanPostalCodeResult");
+  });
+
   it("keeps the published ESM entry importable in Node ESM environments", () => {
     const exportEntry = packageJson.exports?.["."] ?? {};
     const importPath = exportEntry.import;
@@ -173,6 +250,8 @@ describe("package artifacts", () => {
 
       expect(tarballEntries).toContain("package/dist/index.es.js");
       expect(tarballEntries).toContain("package/dist/client.es.js");
+      expect(tarballEntries).toContain("package/dist/index.d.ts");
+      expect(tarballEntries).toContain("package/dist/client.d.ts");
       expect(tarballEntries).not.toContain("package/dist/index.umd.cjs");
 
       const importStdout = execFileSync(
@@ -189,6 +268,21 @@ describe("package artifacts", () => {
       );
 
       expect(importStdout.trim()).toBe("import-ok");
+
+      const clientImportStdout = execFileSync(
+        "node",
+        [
+          "--input-type=module",
+          "-e",
+          'import("@cp949/japanpost-react/client").then(() => console.log("import-client-ok"))',
+        ],
+        {
+          cwd: consumerDir,
+          encoding: "utf8",
+        },
+      );
+
+      expect(clientImportStdout.trim()).toBe("import-client-ok");
       expect(() =>
         execFileSync(
           "node",
@@ -215,6 +309,48 @@ describe("package artifacts", () => {
           },
         ),
       ).toThrowError(/ERR_PACKAGE_PATH_NOT_EXPORTED/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("keeps the packed client subpath types importable for consumers", () => {
+    const { cleanup, consumerDir } = createPackedConsumerProject();
+
+    try {
+      const typecheckStdout = runPackedConsumerTypecheck(
+        consumerDir,
+        [
+          'import type {',
+          "  JapanAddress,",
+          "  JapanAddressSearchInput,",
+          "  UseJapanAddressResult,",
+          '} from "@cp949/japanpost-react/client";',
+          "",
+          "const input: JapanAddressSearchInput = {",
+          '  addressQuery: "Chiyoda",',
+          "  pageNumber: 0,",
+          "  rowsPerPage: 20,",
+          "};",
+          "",
+          "const address: JapanAddress = {",
+          '  postalCode: "1000001",',
+          '  prefecture: "Tokyo",',
+          '  city: "Chiyoda-ku",',
+          '  town: "Chiyoda",',
+          '  address: "Tokyo Chiyoda-ku Chiyoda",',
+          '  provider: "japan-post",',
+          "};",
+          "",
+          "declare const result: UseJapanAddressResult;",
+          "void input;",
+          "void address;",
+          "void result;",
+          "",
+        ].join("\n"),
+      );
+
+      expect(typecheckStdout).toBe("");
     } finally {
       cleanup();
     }
