@@ -38,6 +38,47 @@ describe("scanForbiddenApis", () => {
     ).toEqual(["addEventListener({ signal })"]);
   });
 
+  it("addEventListener의 signal 축약 표기를 검출한다", () => {
+    const source = 'el.addEventListener("abort", onAbort, { signal });\n';
+
+    expect(
+      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+    ).toEqual(["addEventListener({ signal })"]);
+  });
+
+  it("addEventListener 세 번째 인자에 화살표 함수가 오는 형태에서도 signal 옵션을 검출한다", () => {
+    const source =
+      'el.addEventListener("abort", () => cleanup(), { signal: ctrl.signal });\n';
+
+    expect(
+      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+    ).toEqual(["addEventListener({ signal })"]);
+  });
+
+  it("AbortSignal.reason 프로퍼티 접근을 검출한다", () => {
+    const source = "if (signal.reason) throw signal.reason;\n";
+
+    expect(
+      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+    ).toEqual(["AbortSignal.reason"]);
+  });
+
+  it("URL.canParse 정적 메서드를 검출한다", () => {
+    const source = "const ok = URL.canParse(input);\n";
+
+    expect(
+      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+    ).toEqual(["URL.canParse"]);
+  });
+
+  it("Response.json 정적 메서드를 검출한다", () => {
+    const source = "return Response.json(payload);\n";
+
+    expect(
+      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+    ).toEqual(["Response.json()"]);
+  });
+
   it("Chrome 80이 지원하는 API는 검출하지 않는다", () => {
     const source = [
       "const value = globalThis.fetch;",
@@ -46,6 +87,7 @@ describe("scanForbiddenApis", () => {
       "const merged = rows.flatMap((row) => row);",
       "const trimmed = label.trimStart();",
       'signal.addEventListener("abort", onAbort, { once: true });',
+      "if (signal.aborted) return;",
     ].join("\n");
 
     expect(scanForbiddenApis(source, "index.es.js")).toEqual([]);
@@ -66,6 +108,19 @@ describe("scanForbiddenApis", () => {
     ).toEqual([
       [2, ".replaceAll()"],
       [4, "structuredClone"],
+    ]);
+  });
+
+  it("같은 줄에 위반이 두 개면 이름 사전순으로 정렬한다", () => {
+    const source = "const x = a.at(0), y = structuredClone(b);\n";
+
+    const violations = scanForbiddenApis(source, "index.es.js");
+
+    expect(
+      violations.map((violation) => [violation.line, violation.name]),
+    ).toEqual([
+      [1, ".at()"],
+      [1, "structuredClone"],
     ]);
   });
 

@@ -35,9 +35,10 @@ root entry is now the single source for shared public types.
 
 - Minimum verified browser: Chrome 80.
 - `dist/*.es.js` ships ES2019 syntax. Every build verifies this.
-- Required host globals: `fetch`, `AbortController`, `AbortSignal`, `Promise`,
+- Required host globals: `fetch`, `AbortController`, `globalThis`, `Promise`,
   `setTimeout`, `clearTimeout`. All exist natively in Chrome 80, so this
-  package needs no polyfill.
+  package needs no polyfill. `AbortSignal` is used as a type only and never
+  appears as a runtime identifier in the bundle.
 - This package emits no CSS.
 - Contemporary browsers such as Safari 13.1 and Firefox 74 can parse the
   ES2019 output, but Chrome 80 is the only verified baseline.

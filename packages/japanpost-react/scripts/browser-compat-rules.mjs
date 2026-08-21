@@ -27,6 +27,9 @@ export const FORBIDDEN_APIS = [
     chrome: 103,
   },
   { pattern: /\bAbortSignal\.any\s*\(/, name: "AbortSignal.any", chrome: 116 },
+  { pattern: /\bsignal\s*\.\s*reason\b/, name: "AbortSignal.reason", chrome: 98 },
+  { pattern: /\bURL\.canParse\s*\(/, name: "URL.canParse", chrome: 120 },
+  { pattern: /\bResponse\.json\s*\(/, name: "Response.json()", chrome: 93 },
   { pattern: /\bcrypto\.randomUUID\s*\(/, name: "crypto.randomUUID", chrome: 92 },
   { pattern: /\bIntl\.DisplayNames\b/, name: "Intl.DisplayNames", chrome: 81 },
   { pattern: /\bIntl\.Segmenter\b/, name: "Intl.Segmenter", chrome: 87 },
@@ -42,7 +45,7 @@ export const FORBIDDEN_APIS = [
   { pattern: /\.throwIfAborted\s*\(/, name: ".throwIfAborted()", chrome: 100 },
   { pattern: /\.showPicker\s*\(/, name: ".showPicker()", chrome: 99 },
   {
-    pattern: /addEventListener\s*\([^)]*\bsignal\s*:/,
+    pattern: /addEventListener\s*\(.*\bsignal\s*[:,}]/,
     name: "addEventListener({ signal })",
     chrome: 90,
   },

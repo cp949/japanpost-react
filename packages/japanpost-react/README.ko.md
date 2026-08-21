@@ -36,9 +36,10 @@ breaking change: 전용 `./contracts` 서브패스는 제거되었고, 이제 �
 
 - 검증 기준선: Chrome 80입니다.
 - `dist/*.es.js`는 ES2019 문법으로 배포되며 빌드마다 검사합니다.
-- 필요한 호스트 전역: `fetch`, `AbortController`, `AbortSignal`, `Promise`,
+- 필요한 호스트 전역: `fetch`, `AbortController`, `globalThis`, `Promise`,
   `setTimeout`, `clearTimeout`. 모두 Chrome 80에 네이티브로 존재하므로 이
-  패키지를 위한 폴리필은 필요하지 않습니다.
+  패키지를 위한 폴리필은 필요하지 않습니다. `AbortSignal`은 타입으로만
+  쓰이며 산출물에 런타임 식별자로 나타나지 않습니다.
 - 이 패키지는 CSS를 방출하지 않습니다.
 - Safari 13.1, Firefox 74 같은 동시대 브라우저도 ES2019 산출물을 파싱할 수
   있으나 검증 대상은 Chrome 80뿐입니다.

@@ -46,6 +46,7 @@
     "build": "tsup --config tsup.config.ts && node scripts/postbuild-client.mjs && node scripts/check-browser-compat.mjs",
     "compat:check": "node scripts/check-browser-compat.mjs",
     "release": "pnpm --dir ../.. readme:package && pnpm lint && pnpm check-types && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
+    "prepublishOnly": "pnpm build",
     "lint": "biome lint .",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.src.json",
     "test": "pnpm test:unit",
