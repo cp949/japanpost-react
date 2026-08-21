@@ -86,6 +86,59 @@ describe("resolveDistEntries", () => {
     ]);
   });
 
+  it(".mjs와 .cjs 산출물도 검사 대상에 넣는다", () => {
+    const dir = createPackageDirWith({
+      ".": { require: "./dist/index.cjs", import: "./dist/index.mjs" },
+    });
+
+    expect(resolveDistEntries(dir)).toEqual([
+      "dist/index.cjs",
+      "dist/index.mjs",
+    ]);
+  });
+
+  it("exports가 문자열 단축 표기여도 검사 대상을 파생한다", () => {
+    const dir = createPackageDirWith("./dist/index.es.js");
+
+    expect(resolveDistEntries(dir)).toEqual(["dist/index.es.js"]);
+  });
+
+  it("배열 폴백 exports의 모든 후보를 검사 대상에 넣는다", () => {
+    const dir = createPackageDirWith({
+      ".": [{ import: "./dist/a.js" }, "./dist/b.js"],
+    });
+
+    expect(resolveDistEntries(dir)).toEqual(["dist/a.js", "dist/b.js"]);
+  });
+
+  it("JavaScript가 아닌 exports 값은 검사 대상에서 뺀다", () => {
+    const dir = createPackageDirWith({
+      ".": { import: "./dist/index.es.js" },
+      "./package.json": "./package.json",
+      "./styles.css": "./dist/styles.css",
+    });
+
+    expect(resolveDistEntries(dir)).toEqual(["dist/index.es.js"]);
+  });
+
+  it("패키지 밖을 가리키는 exports 값은 조용히 고치지 않고 던진다", () => {
+    const dir = createPackageDirWith({ ".": "../outside/index.js" });
+
+    expect(() => resolveDistEntries(dir)).toThrow(/"\.\/"로 시작하지 않는다/);
+  });
+
+  it("절대 경로 exports 값은 던진다", () => {
+    const dir = createPackageDirWith({ ".": "/opt/index.js" });
+
+    expect(() => resolveDistEntries(dir)).toThrow(/"\.\/"로 시작하지 않는다/);
+  });
+
+  it("숨김 디렉터리의 앞 점을 지우지 않는다", () => {
+    const dir = createPackageDirWith({ ".": "./.output/index.js" });
+
+    expect(resolveDistEntries(dir)).toEqual([".output/index.js"]);
+  });
+
   it("exports 필드가 없으면 던진다", () => {
     expect(() => resolveDistEntries(createPackageDirWith(undefined))).toThrow(
       /exports 필드가 없다/,
