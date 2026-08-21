@@ -36,6 +36,28 @@ function readText(filePath: string) {
 /** 기준선을 손으로 적은 리터럴 패턴이다. 예: "es2019", "chrome80" */
 const BASELINE_LITERAL = /["'`](es20\d\d|chrome\d+)["'`]/;
 
+/** 워크스페이스를 훑을 때 건너뛸 디렉터리다. */
+const SKIPPED_DIRS = new Set(["node_modules", "dist", ".git", ".turbo"]);
+
+/** repoRoot 아래의 package.json 경로를 모은다. */
+function collectPackageJsonPaths(dir: string, into: string[] = []): string[] {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!SKIPPED_DIRS.has(entry.name)) {
+        collectPackageJsonPaths(path.join(dir, entry.name), into);
+      }
+
+      continue;
+    }
+
+    if (entry.name === "package.json") {
+      into.push(path.join(dir, entry.name));
+    }
+  }
+
+  return into;
+}
+
 /**
  * 정규식 리터럴이 시작될 수 있는 직전 유의 문자다.
  * 이 위치가 아니면 "/"는 나눗셈 연산자로 본다.
@@ -202,6 +224,27 @@ describe("repository verification scripts", () => {
     expect(codeRegionOf(tsupConfig)).not.toMatch(/target\s*=\s*["'`](es|chrome)/);
     expect(codeRegionOf(syntaxGate)).not.toContain("SYNTAX_TARGET");
     expect(codeRegionOf(syntaxGate)).not.toMatch(BASELINE_LITERAL);
+  });
+
+  it("워크스페이스에서 browserslist를 선언하는 package.json은 정본 하나뿐이다", () => {
+    const declaring = collectPackageJsonPaths(repoRoot)
+      .filter((filePath) => readPackageJson(filePath).browserslist !== undefined)
+      .map((filePath) => path.relative(repoRoot, filePath));
+
+    // 정본이 둘이면 파생 경로가 잘못된 디렉터리를 잡아도 조용히 다른 기준선으로 빌드된다.
+    expect(declaring).toEqual(["packages/japanpost-react/package.json"]);
+  });
+
+  it("tsup 설정은 번들 출력 위치에 기대지 않고 자기 경로를 구한다", () => {
+    const tsupConfig = readText(tsupConfigPath);
+
+    // bundle-require는 원본 소스마다 import.meta.url을 원본 경로로 주입한다.
+    // import.meta.dirname은 주입 대상이 아니라서 번들 파일이 원본 옆에 쓰인다는
+    // 현재 기본 출력 규칙에만 기댄다. 근거를 적은 주석 자체는 검사에서 빠져야 한다.
+    const code = codeRegionOf(tsupConfig);
+
+    expect(code).toContain("fileURLToPath(import.meta.url)");
+    expect(code).not.toContain("import.meta.dirname");
   });
 
   it("documents which verification entrypoints are cross-platform and which direct script paths remain Bash-only in contributing docs", () => {
