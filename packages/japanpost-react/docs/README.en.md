@@ -27,6 +27,22 @@ CommonJS, use ESM interop such as `const pkg = await import("@cp949/japanpost-re
 Breaking change: the dedicated `./contracts` subpath has been removed, so the
 root entry is now the single source for shared public types.
 
+## Browser Support
+
+- Minimum verified browser: Chrome 80.
+- `dist/*.es.js` ships ES2019 syntax. Every build verifies this.
+- Required host globals: `fetch`, `AbortController`, `AbortSignal`, `Promise`,
+  `setTimeout`, `clearTimeout`. All exist natively in Chrome 80, so this
+  package needs no polyfill.
+- This package emits no CSS.
+- Contemporary browsers such as Safari 13.1 and Firefox 74 can parse the
+  ES2019 output, but Chrome 80 is the only verified baseline.
+- React and React DOM browser support is the consumer's responsibility. For
+  reference, the `react-dom@19.2.8` production bundle contains no syntax or
+  runtime API above Chrome 80.
+- The repository demo app (`apps/demo`) is out of scope. It depends on
+  `@mui/material@9`, whose documented minimum is Chrome 117.
+
 ## Entry Points
 
 - `@cp949/japanpost-react`: default app entry for utilities, hooks, headless

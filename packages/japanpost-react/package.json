@@ -28,6 +28,9 @@
   "engines": {
     "node": ">=20"
   },
+  "browserslist": [
+    "chrome >= 80"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

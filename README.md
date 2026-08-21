@@ -68,6 +68,11 @@ other values from the client entry.
 - Node.js 20+
 - pnpm 10+
 
+The published library targets Chrome 80 as its verified browser baseline.
+`dist/*.es.js` ships ES2019 syntax and needs no polyfill. The demo app
+(`apps/demo`) is not covered by that baseline because `@mui/material@9`
+documents Chrome 117 as its minimum.
+
 ## Install The Published Package
 
 ```bash
