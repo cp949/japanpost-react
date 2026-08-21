@@ -35,17 +35,21 @@ breaking change: 전용 `./contracts` 서브패스는 제거되었고, 이제 �
 ## 브라우저 지원
 
 - 검증 기준선: Chrome 80입니다.
-- `dist/*.es.js`는 ES2019 문법으로 배포되며 빌드마다 검사합니다.
+- 계약의 정본은 한 곳입니다. 이 패키지 `package.json`의 `browserslist` 필드이며
+  현재 값은 `chrome >= 80`입니다. 빌드 타깃, 두 호환성 게이트, 이 절이
+  모두 여기서 파생됩니다.
+- `dist/*.es.js`는 Chrome 80이 파싱하는 문법으로 배포되며 빌드마다
+  검사합니다.
 - 필요한 호스트 전역: `fetch`, `AbortController`, `globalThis`, `Promise`,
-  `setTimeout`, `clearTimeout`. 모두 Chrome 80에 네이티브로 존재하므로 이
-  패키지를 위한 폴리필은 필요하지 않습니다. `AbortSignal`은 타입으로만
-  쓰이며 산출물에 런타임 식별자로 나타나지 않습니다.
+  `setTimeout`, `clearTimeout`. 모두 Chrome 80에 네이티브로
+  존재하므로 이 패키지를 위한 폴리필은 필요하지 않습니다. `AbortSignal`은
+  타입으로만 쓰이며 산출물에 런타임 식별자로 나타나지 않습니다.
 - 이 패키지는 CSS를 방출하지 않습니다.
-- Safari 13.1, Firefox 74 같은 동시대 브라우저도 ES2019 산출물을 파싱할 수
-  있으나 검증 대상은 Chrome 80뿐입니다.
+- Safari 13.1, Firefox 74 같은 동시대 브라우저도 산출물을 파싱할 수 있으나
+  검증 대상은 Chrome 80뿐입니다.
 - React/React DOM 자체의 브라우저 호환성은 소비자 책임입니다. 참고로
-  `react-dom@19.2.8` 프로덕션 번들에는 Chrome 80을 초과하는 문법과 런타임
-  API가 없습니다.
+  `react-dom@19.2.8` 프로덕션 번들에는 Chrome 80을 초과하는 문법과
+  런타임 API가 없습니다.
 - 저장소의 데모 앱(`apps/demo`)은 범위 밖입니다. `@mui/material@9`의 문서상
   최소 지원 버전이 Chrome 117입니다.
 

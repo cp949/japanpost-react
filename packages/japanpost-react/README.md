@@ -34,14 +34,18 @@ root entry is now the single source for shared public types.
 ## Browser Support
 
 - Minimum verified browser: Chrome 80.
-- `dist/*.es.js` ships ES2019 syntax. Every build verifies this.
+- The contract lives in one place: the `browserslist` field of this package's
+  `package.json`, currently `chrome >= 80`. The build target, both
+  compatibility gates, and this section are all derived from it.
+- `dist/*.es.js` ships syntax that Chrome 80 parses. Every build
+  verifies this.
 - Required host globals: `fetch`, `AbortController`, `globalThis`, `Promise`,
-  `setTimeout`, `clearTimeout`. All exist natively in Chrome 80, so this
-  package needs no polyfill. `AbortSignal` is used as a type only and never
-  appears as a runtime identifier in the bundle.
+  `setTimeout`, `clearTimeout`. All exist natively in Chrome 80,
+  so this package needs no polyfill. `AbortSignal` is used as a type only and
+  never appears as a runtime identifier in the bundle.
 - This package emits no CSS.
 - Contemporary browsers such as Safari 13.1 and Firefox 74 can parse the
-  ES2019 output, but Chrome 80 is the only verified baseline.
+  output, but Chrome 80 is the only verified baseline.
 - React and React DOM browser support is the consumer's responsibility. For
   reference, the `react-dom@19.2.8` production bundle contains no syntax or
   runtime API above Chrome 80.

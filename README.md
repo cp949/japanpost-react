@@ -68,10 +68,12 @@ other values from the client entry.
 - Node.js 20+
 - pnpm 10+
 
-The published library targets Chrome 80 as its verified browser baseline.
-`dist/*.es.js` ships ES2019 syntax and needs no polyfill. The demo app
-(`apps/demo`) is not covered by that baseline because `@mui/material@9`
-documents Chrome 117 as its minimum.
+The published library's browser baseline is declared once, in the
+`browserslist` field of `packages/japanpost-react/package.json`. The build
+target, both compatibility gates, and the package README are derived from it —
+see [Browser Support](./packages/japanpost-react/README.md#browser-support) for
+the current value. The demo app (`apps/demo`) is not covered by that baseline
+because `@mui/material@9` documents Chrome 117 as its minimum.
 
 ## Install The Published Package
 
