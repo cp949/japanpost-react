@@ -1,7 +1,7 @@
 /**
  * Chrome 80 미지원 런타임 API 목록과 dist 스캐너다.
  *
- * 문법(ES2019) 검사는 check-browser-compat.mjs의 esbuild 게이트가 담당한다.
+ * 문법(ES2019) 검사는 syntax-gate.mjs가 담당한다.
  * 이 모듈은 esbuild가 다운레벨할 수 없는 런타임 API만 다룬다.
  * 각 항목의 chrome 값은 그 API가 처음 지원된 Chrome 버전이다.
  */

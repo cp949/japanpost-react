@@ -13,10 +13,13 @@ export const SYNTAX_TARGET = "es2019";
 const HOIST_LINE = /^\s*var _[\w$]+(?:,\s*_[\w$]+)*;\s*$/;
 
 /**
- * 첫 불일치 지점만 보고한다.
- * es2019 하향은 줄 수를 바꾸므로(예: optional chaining을 내릴 때 `var _a;`를 끼워 넣는다)
- * 첫 불일치 이후로는 두 출력의 줄 번호가 어긋나 짝을 맞출 수 없다.
- * 첫 불일치까지는 줄 번호가 정확히 일치하므로 그 지점만 근거로 쓴다.
+ * 두 출력이 다른지 판정하고, 진단용으로 불일치 지점 하나를 돌려준다.
+ *
+ * 판정은 문자열 전체 비교라 정확하다. 진단은 근사치다.
+ * es2019 하향이 `var _a;` 같은 줄을 끼워 넣으면 그 뒤로 두 출력의 줄 번호가
+ * 어긋나므로, 돌려주는 actual과 lowered가 같은 문장의 before/after라는 보장은 없다.
+ * lowered 쪽이 실제로 하향된 구문을 보여주도록 호이스트 줄은 건너뛴다.
+ * 전체 범위는 호출부가 안내하는 esbuild + diff 명령으로 확인한다.
  */
 export async function findFirstSyntaxDivergence(source) {
   const [modern, legacy] = await Promise.all([
@@ -59,7 +62,8 @@ export async function findFirstSyntaxDivergence(source) {
   }
 
   // 호이스트 줄만 다른 경우 raw 첫 불일치를 그대로 쓴다.
-  // 마지막 fallback은 도달하지 않지만, 두 출력이 다른데 null을 돌려주어
-  // 검사가 조용히 통과하는 일이 없도록 방어한다.
+  // 두 출력이 후행 줄바꿈에서만 다르면 `?? ""` 패딩 때문에 모든 줄 짝이 같아져
+  // rawFirst가 null로 남는다. 그때도 불일치 자체는 실재하므로, 위치를 특정하지
+  // 못한다는 뜻의 line 0을 돌려 null 반환으로 검사가 통과하는 일을 막는다.
   return rawFirst ?? { line: 0, actual: "", lowered: "" };
 }
