@@ -33,6 +33,136 @@ function readText(filePath: string) {
   return fs.readFileSync(filePath, "utf8");
 }
 
+/** 기준선을 손으로 적은 리터럴 패턴이다. 예: "es2019", "chrome80" */
+const BASELINE_LITERAL = /["'`](es20\d\d|chrome\d+)["'`]/;
+
+/**
+ * 정규식 리터럴이 시작될 수 있는 직전 유의 문자다.
+ * 이 위치가 아니면 "/"는 나눗셈 연산자로 본다.
+ */
+const REGEX_ALLOWED_BEFORE = new Set([
+  "(", ",", "=", ":", "[", "!", "&", "|", "?", "{", "}", ";",
+  "+", "-", "*", "%", "~", "^", "<", ">",
+]);
+
+/** 문자열 리터럴 하나의 길이를 잰다. 이스케이프를 건너뛴다. */
+function scanString(source: string, start: number): number {
+  const quote = source[start];
+  let index = start + 1;
+
+  while (index < source.length) {
+    const char = source[index];
+
+    if (char === "\\") {
+      index += 2;
+      continue;
+    }
+
+    if (char === quote) {
+      return index - start + 1;
+    }
+
+    index += 1;
+  }
+
+  return index - start;
+}
+
+/** 정규식 리터럴 하나의 길이를 잰다. 이스케이프와 문자 클래스를 건너뛴다. */
+function scanRegex(source: string, start: number): number {
+  let index = start + 1;
+  let inClass = false;
+
+  while (index < source.length) {
+    const char = source[index];
+
+    if (char === "\\") {
+      index += 2;
+      continue;
+    }
+
+    if (char === "[") {
+      inClass = true;
+    } else if (char === "]") {
+      inClass = false;
+    } else if (char === "/" && !inClass) {
+      return index - start + 1;
+    } else if (char === "\n") {
+      break;
+    }
+
+    index += 1;
+  }
+
+  return index - start;
+}
+
+/**
+ * 주석을 지운 코드 영역만 돌려준다.
+ *
+ * 리터럴 금지 검사가 설명용 주석까지 잡으면 오탐이다.
+ * 반대로 문자열이나 정규식 안의 "//"를 주석으로 오인하면 그 줄의 코드가 통째로
+ * 사라져 진짜 리터럴을 놓치므로, 두 문맥은 건너뛰지 않고 그대로 남긴다.
+ *
+ * 판정이 모호하지 않은 이유: "//"와 "/*"는 유효한 정규식 시작이 될 수 없다.
+ * 빈 정규식과 선행 수량자는 문법 오류이기 때문이다.
+ * 따라서 이 둘은 문맥과 무관하게 항상 주석이고, 나머지 "/"만 정규식/나눗셈으로 가른다.
+ */
+function codeRegionOf(source: string): string {
+  let out = "";
+  let index = 0;
+  let previous = "";
+
+  /** length만큼 코드로 옮기고 직전 유의 문자를 갱신한다. */
+  function emit(length: number) {
+    const chunk = source.slice(index, index + length);
+    const significant = chunk.trimEnd();
+
+    out += chunk;
+    index += length;
+
+    if (significant.length > 0) {
+      previous = significant[significant.length - 1];
+    }
+  }
+
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (char === "/" && next === "/") {
+      while (index < source.length && source[index] !== "\n") {
+        index += 1;
+      }
+
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      const end = source.indexOf("*/", index + 2);
+      index = end === -1 ? source.length : end + 2;
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === "`") {
+      emit(scanString(source, index));
+      continue;
+    }
+
+    if (
+      char === "/" &&
+      (previous === "" || REGEX_ALLOWED_BEFORE.has(previous))
+    ) {
+      emit(scanRegex(source, index));
+      continue;
+    }
+
+    emit(1);
+  }
+
+  return out;
+}
+
 describe("repository verification scripts", () => {
   it("exposes the standard repository verification path at the repository root", () => {
     const rootPackageJson = readPackageJson(rootPackageJsonPath);
@@ -67,10 +197,11 @@ describe("repository verification scripts", () => {
     expect(packagePackageJson.browserslist).toEqual(["chrome >= 80"]);
 
     // 소비자는 파생만 한다. 리터럴이 다시 들어오면 정본이 둘이 된다.
-    expect(tsupConfig).toContain("loadBaseline(");
-    expect(tsupConfig).not.toMatch(/target\s*=\s*["'`](es|chrome)/);
-    expect(syntaxGate).not.toContain("SYNTAX_TARGET");
-    expect(syntaxGate).not.toMatch(/["'`](es20\d\d|chrome\d+)["'`]/);
+    // 설명용 주석까지 잡지 않도록 코드 영역만 본다.
+    expect(codeRegionOf(tsupConfig)).toContain("loadBaseline(");
+    expect(codeRegionOf(tsupConfig)).not.toMatch(/target\s*=\s*["'`](es|chrome)/);
+    expect(codeRegionOf(syntaxGate)).not.toContain("SYNTAX_TARGET");
+    expect(codeRegionOf(syntaxGate)).not.toMatch(BASELINE_LITERAL);
   });
 
   it("documents which verification entrypoints are cross-platform and which direct script paths remain Bash-only in contributing docs", () => {
@@ -85,5 +216,43 @@ describe("repository verification scripts", () => {
     expect(contributing).toContain(
       "Direct `scripts/*.sh` execution remains a Bash-only convenience path.",
     );
+  });
+});
+
+describe("codeRegionOf", () => {
+  it("주석 안의 기준선 리터럴은 코드 영역에 남기지 않는다", () => {
+    const source = [
+      '// 예: "chrome80" -> 80',
+      "/* 이전 구현은 \"es2019\"를 상수로 썼다 */",
+      "const target = readTarget();",
+    ].join("\n");
+
+    expect(codeRegionOf(source)).not.toMatch(BASELINE_LITERAL);
+  });
+
+  it("코드 안의 기준선 리터럴은 그대로 남긴다", () => {
+    const source = '// 주석\nconst target = "chrome80";';
+
+    expect(codeRegionOf(source)).toMatch(BASELINE_LITERAL);
+  });
+
+  it("문자열 안의 슬래시 두 개를 주석으로 보지 않는다", () => {
+    const source = 'const url = "https://example.com"; const target = "chrome80";';
+
+    expect(codeRegionOf(source)).toMatch(BASELINE_LITERAL);
+  });
+
+  it("정규식 리터럴 안의 슬래시 두 개를 주석으로 보지 않는다", () => {
+    const source = 'const doubleSlash = /\\/\\//; const target = "chrome80";';
+
+    expect(codeRegionOf(source)).toMatch(BASELINE_LITERAL);
+  });
+it("실제 게이트 파일에서 코드는 남기고 주석만 지운다", () => {
+    const code = codeRegionOf(readText(syntaxGatePath));
+
+    expect(code).toContain("export async function findFirstSyntaxDivergence");
+    expect(code).toContain("HOIST_LINE");
+    expect(code).toContain("syntaxTarget.length === 0");
+    expect(code).not.toContain("문법 검사 게이트다");
   });
 });
