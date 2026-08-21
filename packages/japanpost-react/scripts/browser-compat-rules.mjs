@@ -55,6 +55,7 @@ export const FORBIDDEN_APIS = [
 /**
  * 오탐 예외 목록이다.
  * dist는 생성물이라 인라인 주석을 넣을 수 없으므로 여기서 관리한다.
+ * file은 검사 대상의 상대 경로다(예: "dist/index.es.js"). "*"는 전체를 뜻한다.
  * 항목을 추가할 때는 reason에 왜 안전한지를 남긴다.
  */
 export const ALLOWED = [];

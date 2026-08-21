@@ -14,6 +14,7 @@ import path from "node:path";
 
 import { loadBaseline } from "./baseline.mjs";
 import { createScanner } from "./browser-compat-rules.mjs";
+import { resolveDistEntries } from "./dist-entries.mjs";
 import { findFirstSyntaxDivergence } from "./syntax-gate.mjs";
 
 const packageDir = path.resolve(import.meta.dirname, "..");
@@ -25,12 +26,14 @@ const runtimeBaseline = `Chrome ${baseline.minChrome}`;
 
 const scanner = createScanner({ minChrome: baseline.minChrome });
 
-const distFileNames = ["index.es.js", "client.es.js"];
+// 검사 대상은 package.json#exports에서 파생한다.
+// 엔트리를 추가하면 게이트가 자동으로 따라온다.
+const distFileNames = resolveDistEntries(packageDir);
 
 let failed = false;
 
 for (const fileName of distFileNames) {
-  const filePath = path.join(packageDir, "dist", fileName);
+  const filePath = path.join(packageDir, fileName);
 
   try {
     const source = await readFile(filePath, "utf8");
@@ -51,10 +54,10 @@ for (const fileName of distFileNames) {
 
       console.error("  전체 범위는 다음으로 확인한다:");
       console.error(
-        `    npx esbuild dist/${fileName} --target=esnext --format=esm > /tmp/modern.js`,
+        `    npx esbuild ${fileName} --target=esnext --format=esm > /tmp/modern.js`,
       );
       console.error(
-        `    npx esbuild dist/${fileName} --target=${syntaxTarget.join(",")} --format=esm > /tmp/legacy.js && diff /tmp/modern.js /tmp/legacy.js`,
+        `    npx esbuild ${fileName} --target=${syntaxTarget.join(",")} --format=esm > /tmp/legacy.js && diff /tmp/modern.js /tmp/legacy.js`,
       );
     }
 
