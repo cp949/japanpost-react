@@ -247,6 +247,14 @@ describe("repository verification scripts", () => {
     expect(code).not.toContain("import.meta.dirname");
   });
 
+  it("CONTRIBUTING이 caniuse-lite 수동 갱신 경로를 안내한다", () => {
+    const contributing = readText(contributingPath);
+
+    // 이 저장소에는 Renovate/Dependabot이 없다. 갱신 경로가 문서에만 남는다.
+    expect(contributing).toContain("npx update-browserslist-db@latest");
+    expect(contributing).toContain("packages/japanpost-react/package.json");
+  });
+
   it("documents which verification entrypoints are cross-platform and which direct script paths remain Bash-only in contributing docs", () => {
     const contributing = readText(contributingPath);
 

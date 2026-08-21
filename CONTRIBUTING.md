@@ -58,6 +58,34 @@ pnpm --filter demo check-types
   This updates `packages/japanpost-react/README.md` and
   `packages/japanpost-react/README.ko.md`.
 
+## Browser Support Baseline
+
+The browser support contract has one source: the `browserslist` field of
+`packages/japanpost-react/package.json`. The esbuild build target, both
+compatibility gates, and the README "Browser Support" section are derived from
+it, so editing that field is the only way to change the contract.
+
+After editing it, regenerate the package README and run the verification path:
+
+```bash
+pnpm readme:package
+pnpm test
+```
+
+The query is resolved against `caniuse-lite`. This repository has no Renovate
+or Dependabot, so that data is refreshed manually:
+
+```bash
+npx update-browserslist-db@latest
+```
+
+Whether a refresh changes anything depends on the query form. An absolute lower
+bound (`chrome >= <version>`) is unaffected: newer data only appends higher
+versions, so the derived minimum does not move. A relative query (`defaults`,
+`last 2 versions`, `>0.5%`) does move with the data, so refresh before trusting
+a gate result under one. Refresh as well when `browserslist` reports that its
+data is outdated.
+
 ## Scope Notes
 
 - Keep changes small and focused.
