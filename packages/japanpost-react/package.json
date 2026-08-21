@@ -41,6 +41,7 @@
   "scripts": {
     "dev": "tsup --config tsup.config.ts --watch",
     "build": "tsup --config tsup.config.ts && node scripts/postbuild-client.mjs",
+    "compat:check": "node scripts/check-browser-compat.mjs",
     "release": "pnpm --dir ../.. readme:package && pnpm lint && pnpm check-types && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
     "lint": "biome lint .",
     "check-types": "tsc --noEmit",
@@ -66,6 +67,7 @@
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "esbuild": "^0.28.2",
     "jsdom": "^29.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
