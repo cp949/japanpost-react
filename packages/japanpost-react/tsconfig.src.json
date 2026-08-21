@@ -1,7 +1,8 @@
 {
   // 배포 산출물의 타입 경계다.
-  // types를 비워 node 전역(structuredClone 등)이 타입체크를 통과하지 못하게 막는다.
-  // fetch와 AbortController는 DOM lib에 선언되어 있으므로 그대로 해석된다.
+  // types를 비워 node 전용 전역(process, Buffer, NodeJS 네임스페이스 등)이 타입체크를 통과하지 못하게 막는다.
+  // fetch, AbortController, structuredClone은 DOM lib 선언이라 이 경계로는 걸러지지 않는다.
+  // Chrome 80 미지원 DOM API는 scripts/check-browser-compat.mjs의 데니리스트가 담당한다.
   // lib은 ES2020을 유지한다. ES2020 라이브러리 API는 모두 Chrome 80 이하에 존재한다.
   "extends": "./tsconfig.json",
   "compilerOptions": {
