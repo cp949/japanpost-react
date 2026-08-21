@@ -34,10 +34,10 @@
     "check-types": "turbo run check-types && tsc --noEmit -p tests/tsconfig.json"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.8",
-    "turbo": "^2.8.20",
+    "@biomejs/biome": "2.5.9",
+    "turbo": "^2.10.11",
     "typescript": "6.0.2",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@10.32.1",
   "engines": {

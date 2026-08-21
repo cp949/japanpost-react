@@ -4,3 +4,17 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+# 전이 의존성 취약점 대응 override.
+# 각 항목은 상위 패키지가 패치 버전을 직접 채택하면 제거할 수 있다.
+overrides:
+  # tsup의 optional peer로 설치되는 api-extractor 7.57.x가 취약한 lodash 4.17.x를 의존한다.
+  # 7.59.0부터 lodash 의존성 자체가 사라져 GHSA-r5fr-rjxr-66jc, GHSA-f23m-r3pf-42rh를 회피한다.
+  "@microsoft/api-extractor": "^7.59.0"
+  # vite와 tsup이 끌어오는 esbuild 0.27.x의 dev server 임의 파일 읽기(GHSA-g7r4-m6w7-qqqr) 패치 버전.
+  esbuild: "^0.28.2"
+  # jsdom 30은 undici 8을 요구하는데 undici 8이 Node 20에서 동작하지 않는다.
+  # 이 저장소는 engines가 node>=20이고 CI도 Node 20이므로 jsdom은 29 계열로 고정한다.
+  jsdom: "^29.1.1"
+  # jsdom이 의존하는 undici 7.x를 취약점이 모두 패치된 7.29.0 이상으로 올린다.
+  undici: "^7.29.0"

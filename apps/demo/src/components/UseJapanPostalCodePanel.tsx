@@ -268,7 +268,7 @@ export function UseJapanPostalCodePanel({
                 onClick={() => setSelectedAddress(result)}
               >
                 {/* 여러 결과가 반환될 수 있으므로, 항목 선택 시 하단 상세 패널을 갱신한다. */}
-                <Stack alignItems="flex-start" spacing={0.25}>
+                <Stack spacing={0.25} sx={{ alignItems: "flex-start" }}>
                   <Typography color="text.secondary" variant="body2">
                     {formatJapanPostalCode(result.postalCode)}
                   </Typography>

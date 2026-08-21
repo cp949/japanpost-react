@@ -1,6 +1,11 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+
+// ESM 설정 파일에는 __dirname이 없다.
+// Vite 8의 native config loader에서도 동작하도록 import.meta.url로 현재 디렉터리를 구한다.
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 type DemoProxyEnv = {
   DEMO_API_PROXY_URL?: string;
@@ -24,14 +29,14 @@ export const demoWorkspaceAliases = [
   {
     find: "@cp949/japanpost-react/client",
     replacement: path.resolve(
-      __dirname,
+      currentDir,
       "../../packages/japanpost-react/src/client.ts",
     ),
   },
   {
     find: "@cp949/japanpost-react",
     replacement: path.resolve(
-      __dirname,
+      currentDir,
       "../../packages/japanpost-react/src/index.ts",
     ),
   },

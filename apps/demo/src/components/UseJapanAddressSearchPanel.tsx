@@ -355,7 +355,7 @@ export function UseJapanAddressSearchPanel({
               >
                 {/* 선택 결과는 별도 상세 패널로 내려 보내고,
                     목록에서는 핵심 정보만 빠르게 스캔할 수 있게 유지한다. */}
-                <Stack alignItems="flex-start" spacing={0.25}>
+                <Stack spacing={0.25} sx={{ alignItems: "flex-start" }}>
                   <Typography color="text.secondary" variant="body2">
                     {formatJapanPostalCode(result.postalCode)}
                   </Typography>

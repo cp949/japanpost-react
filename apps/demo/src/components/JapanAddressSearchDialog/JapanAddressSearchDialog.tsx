@@ -256,7 +256,7 @@ export function JapanAddressSearchDialog({
                 >
                   {/* 주소를 누르는 즉시 선택이 완료되므로,
                       목록 아이템 자체를 버튼처럼 동작하게 구성했다. */}
-                  <Stack alignItems="flex-start" spacing={0.25}>
+                  <Stack spacing={0.25} sx={{ alignItems: "flex-start" }}>
                     <Typography variant="body2" color="text.secondary">
                       {formatJapanPostalCode(address.postalCode)}
                     </Typography>

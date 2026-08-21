@@ -217,7 +217,7 @@ export function EmbeddedExamplePanel({
               >
                 {/* 결과 목록은 우편번호와 정제된 주소를 함께 보여
                     사용자가 동일한 지역명을 빠르게 구분할 수 있게 한다. */}
-                <Stack alignItems="flex-start" spacing={0.25}>
+                <Stack spacing={0.25} sx={{ alignItems: "flex-start" }}>
                   <Typography color="text.secondary" variant="body2">
                     {formatJapanPostalCode(result.postalCode)}
                   </Typography>

@@ -590,7 +590,7 @@ export function UseJapanAddressPanel({
                 onClick={() => setSelectedAddress(result)}
               >
                 {/* 검색 방식과 무관하게 결과 행은 동일한 주소 카드 모양으로 통일한다. */}
-                <Stack alignItems="flex-start" spacing={0.25}>
+                <Stack spacing={0.25} sx={{ alignItems: "flex-start" }}>
                   <Typography color="text.secondary" variant="body2">
                     {formatJapanPostalCode(result.postalCode)}
                   </Typography>
