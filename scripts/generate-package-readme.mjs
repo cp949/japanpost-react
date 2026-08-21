@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { loadBaseline } from "../packages/japanpost-react/scripts/baseline.mjs";
+import { reflowChangedBlocks } from "./markdown-reflow.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const packageDir = resolve(repoRoot, "packages/japanpost-react");
@@ -41,8 +42,12 @@ function applyTokens(source, sourcePath) {
 }
 
 async function loadTrimmed(path) {
-  const content = await readFile(path, "utf8");
-  return applyTokens(content.trim(), path);
+  const content = (await readFile(path, "utf8")).trim();
+
+  // 치환값은 토큰보다 짧다(`{{MIN_CHROME}}` 14칸 -> `80` 2칸).
+  // 원본의 감싸기를 그대로 두면 생성물의 줄 폭이 어긋나므로 바뀐 블록만 다시 감싼다.
+  // 감싸기를 파생으로 두면 기준선이 바뀌어도 원본을 손볼 필요가 없다.
+  return reflowChangedBlocks(content, applyTokens(content, path));
 }
 
 async function loadExisting(path) {
