@@ -30,19 +30,19 @@ breaking change: 전용 `./contracts` 서브패스는 제거되었고, 이제 �
 
 ## 브라우저 지원
 
-- 검증 기준선: Chrome 80
-- `dist/*.es.js`는 ES2019 문법으로 배포되며 빌드마다 검사한다.
+- 검증 기준선: Chrome 80입니다.
+- `dist/*.es.js`는 ES2019 문법으로 배포되며 빌드마다 검사합니다.
 - 필요한 호스트 전역: `fetch`, `AbortController`, `AbortSignal`, `Promise`,
   `setTimeout`, `clearTimeout`. 모두 Chrome 80에 네이티브로 존재하므로 이
-  패키지를 위한 폴리필은 필요하지 않다.
-- 이 패키지는 CSS를 방출하지 않는다.
+  패키지를 위한 폴리필은 필요하지 않습니다.
+- 이 패키지는 CSS를 방출하지 않습니다.
 - Safari 13.1, Firefox 74 같은 동시대 브라우저도 ES2019 산출물을 파싱할 수
-  있으나 검증 대상은 Chrome 80뿐이다.
-- React/React DOM 자체의 브라우저 호환성은 소비자 책임이다. 참고로
+  있으나 검증 대상은 Chrome 80뿐입니다.
+- React/React DOM 자체의 브라우저 호환성은 소비자 책임입니다. 참고로
   `react-dom@19.2.8` 프로덕션 번들에는 Chrome 80을 초과하는 문법과 런타임
-  API가 없다.
-- 저장소의 데모 앱(`apps/demo`)은 범위 밖이다. `@mui/material@9`의 문서상
-  최소 지원 버전이 Chrome 117이다.
+  API가 없습니다.
+- 저장소의 데모 앱(`apps/demo`)은 범위 밖입니다. `@mui/material@9`의 문서상
+  최소 지원 버전이 Chrome 117입니다.
 
 ## 엔트리 포인트
 
