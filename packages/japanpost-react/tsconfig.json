@@ -1,6 +1,10 @@
 {
   "extends": "@repo/typescript-config/react-library.json",
   "compilerOptions": {
+    // 에디터 진단용 근사치다. 배포 산출물의 문법 하한은 package.json#browserslist가
+    // 정본이며 scripts/baseline.mjs가 esbuild 타깃을 파생한다.
+    // tsc는 browserslist를 읽지 못하므로 이 값은 손으로 맞춘다.
+    // 계약(Chrome 80)보다 낮게 두면 오차가 보수적 방향이라 거짓 통과를 만들지 않는다.
     "target": "ES2019",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],

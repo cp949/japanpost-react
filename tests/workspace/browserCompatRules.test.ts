@@ -1,12 +1,45 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  scanForbiddenApis,
+  createScanner,
+  FORBIDDEN_APIS,
 } from "../../packages/japanpost-react/scripts/browser-compat-rules.mjs";
 
-describe("scanForbiddenApis", () => {
+/** 계약의 현재 하한이다. 정본에서 파생되는지는 browserBaseline.test.ts가 검증한다. */
+const scanner = createScanner({ minChrome: 80 });
+
+describe("createScanner", () => {
+  it("minChrome이 정수가 아니면 던진다", () => {
+    // 타입 경계가 이미 막지만, 파생 실패를 폴백 없이 던지는지 런타임에서도 확인한다.
+    // @ts-expect-error minChrome은 number다. 런타임 가드를 검증하려고 일부러 위반한다.
+    expect(() => createScanner({ minChrome: "80" })).toThrow(/정수여야 한다/);
+  });
+
+  it("하한 이하에서 지원되는 항목은 검사 대상에서 뺀다", () => {
+    // Intl.DisplayNames는 Chrome 81이므로 하한 80에서는 검사하고 90에서는 빼야 한다.
+    const source = "const names = new Intl.DisplayNames([], {});\n";
+
+    expect(
+      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+    ).toEqual(["Intl.DisplayNames"]);
+    expect(
+      createScanner({ minChrome: 90 }).scan(source, "index.es.js"),
+    ).toEqual([]);
+  });
+
+  it("하한을 올리면 검사 규칙 수가 줄어든다", () => {
+    expect(createScanner({ minChrome: 80 }).rules.length).toBe(
+      FORBIDDEN_APIS.length,
+    );
+    expect(createScanner({ minChrome: 120 }).rules.length).toBeLessThan(
+      FORBIDDEN_APIS.length,
+    );
+  });
+});
+
+describe("scanner.scan", () => {
   it("Chrome 80 미지원 전역을 검출한다", () => {
-    const violations = scanForbiddenApis(
+    const violations = scanner.scan(
       "const copy = structuredClone(value);\n",
       "index.es.js",
     );
@@ -21,7 +54,7 @@ describe("scanForbiddenApis", () => {
   });
 
   it("Chrome 80 미지원 프로토타입 메서드를 검출한다", () => {
-    const violations = scanForbiddenApis(
+    const violations = scanner.scan(
       "const last = items.at(-1);\n",
       "client.es.js",
     );
@@ -34,7 +67,7 @@ describe("scanForbiddenApis", () => {
       'target.addEventListener("abort", onAbort, { signal: controller.signal });\n';
 
     expect(
-      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "index.es.js").map((violation) => violation.name),
     ).toEqual(["addEventListener({ signal })"]);
   });
 
@@ -42,7 +75,7 @@ describe("scanForbiddenApis", () => {
     const source = 'el.addEventListener("abort", onAbort, { signal });\n';
 
     expect(
-      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "index.es.js").map((violation) => violation.name),
     ).toEqual(["addEventListener({ signal })"]);
   });
 
@@ -51,7 +84,7 @@ describe("scanForbiddenApis", () => {
       'el.addEventListener("abort", () => cleanup(), { signal: ctrl.signal });\n';
 
     expect(
-      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "index.es.js").map((violation) => violation.name),
     ).toEqual(["addEventListener({ signal })"]);
   });
 
@@ -59,7 +92,7 @@ describe("scanForbiddenApis", () => {
     const source = "if (signal.reason) throw signal.reason;\n";
 
     expect(
-      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "index.es.js").map((violation) => violation.name),
     ).toEqual(["AbortSignal.reason"]);
   });
 
@@ -67,7 +100,7 @@ describe("scanForbiddenApis", () => {
     const source = "const ok = URL.canParse(input);\n";
 
     expect(
-      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "index.es.js").map((violation) => violation.name),
     ).toEqual(["URL.canParse"]);
   });
 
@@ -75,7 +108,7 @@ describe("scanForbiddenApis", () => {
     const source = "return Response.json(payload);\n";
 
     expect(
-      scanForbiddenApis(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "index.es.js").map((violation) => violation.name),
     ).toEqual(["Response.json()"]);
   });
 
@@ -90,7 +123,7 @@ describe("scanForbiddenApis", () => {
       "if (signal.aborted) return;",
     ].join("\n");
 
-    expect(scanForbiddenApis(source, "index.es.js")).toEqual([]);
+    expect(scanner.scan(source, "index.es.js")).toEqual([]);
   });
 
   it("여러 위반을 줄 번호 오름차순으로 반환한다", () => {
@@ -101,7 +134,7 @@ describe("scanForbiddenApis", () => {
       "const d = structuredClone(a);",
     ].join("\n");
 
-    const violations = scanForbiddenApis(source, "index.es.js");
+    const violations = scanner.scan(source, "index.es.js");
 
     expect(
       violations.map((violation) => [violation.line, violation.name]),
@@ -114,7 +147,7 @@ describe("scanForbiddenApis", () => {
   it("같은 줄에 위반이 두 개면 이름 사전순으로 정렬한다", () => {
     const source = "const x = a.at(0), y = structuredClone(b);\n";
 
-    const violations = scanForbiddenApis(source, "index.es.js");
+    const violations = scanner.scan(source, "index.es.js");
 
     expect(
       violations.map((violation) => [violation.line, violation.name]),
@@ -124,17 +157,20 @@ describe("scanForbiddenApis", () => {
     ]);
   });
 
-  it("ALLOWED 예외에 등록된 항목은 해당 파일에서만 건너뛴다", () => {
+  it("allowed 예외에 등록된 항목은 해당 파일에서만 건너뛴다", () => {
     const source = "const last = items.at(-1);\n";
-    const allowed = [
-      { file: "index.es.js", name: ".at()", reason: "테스트용 예외" },
-    ];
+    const allowingScanner = createScanner({
+      minChrome: 80,
+      allowed: [
+        { file: "index.es.js", name: ".at()", reason: "테스트용 예외" },
+      ],
+    });
 
-    expect(scanForbiddenApis(source, "index.es.js", allowed)).toEqual([]);
+    expect(allowingScanner.scan(source, "index.es.js")).toEqual([]);
     expect(
-      scanForbiddenApis(source, "client.es.js", allowed).map(
-        (violation) => violation.name,
-      ),
+      allowingScanner
+        .scan(source, "client.es.js")
+        .map((violation) => violation.name),
     ).toEqual([".at()"]);
   });
 });

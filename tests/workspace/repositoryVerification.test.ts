@@ -58,14 +58,19 @@ describe("repository verification scripts", () => {
     );
   });
 
-  it("브라우저 지원 기준선 리터럴이 세 파일에서 일치한다", () => {
+  it("브라우저 지원 기준선의 정본은 package.json#browserslist 하나다", () => {
     const tsupConfig = readText(tsupConfigPath);
     const syntaxGate = readText(syntaxGatePath);
     const packagePackageJson = readPackageJson(packagePackageJsonPath);
 
-    expect(tsupConfig).toContain('const target = "es2019";');
-    expect(syntaxGate).toContain('SYNTAX_TARGET = "es2019"');
+    // 정본. 이 값을 바꾸는 것이 계약을 바꾸는 유일한 방법이어야 한다.
     expect(packagePackageJson.browserslist).toEqual(["chrome >= 80"]);
+
+    // 소비자는 파생만 한다. 리터럴이 다시 들어오면 정본이 둘이 된다.
+    expect(tsupConfig).toContain("loadBaseline(");
+    expect(tsupConfig).not.toMatch(/target\s*=\s*["'`](es|chrome)/);
+    expect(syntaxGate).not.toContain("SYNTAX_TARGET");
+    expect(syntaxGate).not.toMatch(/["'`](es20\d\d|chrome\d+)["'`]/);
   });
 
   it("documents which verification entrypoints are cross-platform and which direct script paths remain Bash-only in contributing docs", () => {

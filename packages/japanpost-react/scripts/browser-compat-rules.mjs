@@ -1,9 +1,10 @@
 /**
- * Chrome 80 미지원 런타임 API 목록과 dist 스캐너다.
+ * 런타임 API 목록과 dist 스캐너다.
  *
- * 문법(ES2019) 검사는 syntax-gate.mjs가 담당한다.
+ * 문법 검사는 syntax-gate.mjs가 담당한다.
  * 이 모듈은 esbuild가 다운레벨할 수 없는 런타임 API만 다룬다.
- * 각 항목의 chrome 값은 그 API가 처음 지원된 Chrome 버전이다.
+ * 각 항목의 chrome 값은 그 API가 처음 지원된 Chrome 버전이며,
+ * createScanner가 계약의 Chrome 하한과 비교해 검사 대상을 정한다.
  */
 export const FORBIDDEN_APIS = [
   { pattern: /\bstructuredClone\s*\(/, name: "structuredClone", chrome: 98 },
@@ -59,43 +60,66 @@ export const FORBIDDEN_APIS = [
 export const ALLOWED = [];
 
 /**
- * source를 줄 단위로 훑어 데니리스트 위반을 모은다.
- * 정규식은 전역 플래그를 쓰지 않으므로 lastIndex 상태가 남지 않는다.
+ * 계약의 Chrome 하한에 맞춰 스캐너를 만든다.
+ *
+ * 하한 이하에서 이미 지원되는 항목은 이 시점에 목록에서 빠진다.
+ * 기준선을 올리면 목록을 손으로 편집하지 않아도 검사 대상이 줄어든다.
+ *
+ * @param {{ minChrome: number, allowed?: Array<{ file: string, name: string, reason?: string }> }} options
  */
-export function scanForbiddenApis(source, fileName = "", allowed = ALLOWED) {
-  const lines = source.split("\n");
-  const violations = [];
-
-  for (const rule of FORBIDDEN_APIS) {
-    const isAllowed = allowed.some(
-      (entry) =>
-        entry.name === rule.name &&
-        (entry.file === fileName || entry.file === "*"),
+export function createScanner({ minChrome, allowed = ALLOWED }) {
+  if (!Number.isInteger(minChrome)) {
+    throw new Error(
+      `minChrome은 정수여야 한다. 받은 값: ${JSON.stringify(minChrome)}`,
     );
-
-    if (isAllowed) {
-      continue;
-    }
-
-    lines.forEach((text, index) => {
-      if (!rule.pattern.test(text)) {
-        return;
-      }
-
-      violations.push({
-        file: fileName,
-        line: index + 1,
-        name: rule.name,
-        chrome: rule.chrome,
-        text: text.trim(),
-      });
-    });
   }
 
-  violations.sort(
-    (left, right) =>
-      left.line - right.line || left.name.localeCompare(right.name),
-  );
+  const rules = FORBIDDEN_APIS.filter((rule) => rule.chrome > minChrome);
 
-  return violations;
+  return {
+    minChrome,
+    rules,
+
+    /**
+     * source를 줄 단위로 훑어 데니리스트 위반을 모은다.
+     * 정규식은 전역 플래그를 쓰지 않으므로 lastIndex 상태가 남지 않는다.
+     */
+    scan(source, fileName = "") {
+      const lines = source.split("\n");
+      const violations = [];
+
+      for (const rule of rules) {
+        const isAllowed = allowed.some(
+          (entry) =>
+            entry.name === rule.name &&
+            (entry.file === fileName || entry.file === "*"),
+        );
+
+        if (isAllowed) {
+          continue;
+        }
+
+        lines.forEach((text, index) => {
+          if (!rule.pattern.test(text)) {
+            return;
+          }
+
+          violations.push({
+            file: fileName,
+            line: index + 1,
+            name: rule.name,
+            chrome: rule.chrome,
+            text: text.trim(),
+          });
+        });
+      }
+
+      violations.sort(
+        (left, right) =>
+          left.line - right.line || left.name.localeCompare(right.name),
+      );
+
+      return violations;
+    },
+  };
 }
