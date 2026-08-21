@@ -44,7 +44,7 @@
     "compat:check": "node scripts/check-browser-compat.mjs",
     "release": "pnpm --dir ../.. readme:package && pnpm lint && pnpm check-types && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
     "lint": "biome lint .",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.src.json",
     "test": "pnpm test:unit",
     "test:unit": "vitest run",
     "test:watch": "vitest"

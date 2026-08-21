@@ -1,0 +1,12 @@
+{
+  // 배포 산출물의 타입 경계다.
+  // types를 비워 node 전역(structuredClone 등)이 타입체크를 통과하지 못하게 막는다.
+  // fetch와 AbortController는 DOM lib에 선언되어 있으므로 그대로 해석된다.
+  // lib은 ES2020을 유지한다. ES2020 라이브러리 API는 모두 Chrome 80 이하에 존재한다.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"]
+}
