@@ -20,10 +20,10 @@ describe("createScanner", () => {
     const source = "const names = new Intl.DisplayNames([], {});\n";
 
     expect(
-      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "dist/index.es.js").map((violation) => violation.name),
     ).toEqual(["Intl.DisplayNames"]);
     expect(
-      createScanner({ minChrome: 90 }).scan(source, "index.es.js"),
+      createScanner({ minChrome: 90 }).scan(source, "dist/index.es.js"),
     ).toEqual([]);
   });
 
@@ -41,12 +41,12 @@ describe("scanner.scan", () => {
   it("Chrome 80 미지원 전역을 검출한다", () => {
     const violations = scanner.scan(
       "const copy = structuredClone(value);\n",
-      "index.es.js",
+      "dist/index.es.js",
     );
 
     expect(violations).toHaveLength(1);
     expect(violations[0]).toMatchObject({
-      file: "index.es.js",
+      file: "dist/index.es.js",
       line: 1,
       name: "structuredClone",
       chrome: 98,
@@ -56,7 +56,7 @@ describe("scanner.scan", () => {
   it("Chrome 80 미지원 프로토타입 메서드를 검출한다", () => {
     const violations = scanner.scan(
       "const last = items.at(-1);\n",
-      "client.es.js",
+      "dist/client.es.js",
     );
 
     expect(violations.map((violation) => violation.name)).toEqual([".at()"]);
@@ -67,7 +67,7 @@ describe("scanner.scan", () => {
       'target.addEventListener("abort", onAbort, { signal: controller.signal });\n';
 
     expect(
-      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "dist/index.es.js").map((violation) => violation.name),
     ).toEqual(["addEventListener({ signal })"]);
   });
 
@@ -75,7 +75,7 @@ describe("scanner.scan", () => {
     const source = 'el.addEventListener("abort", onAbort, { signal });\n';
 
     expect(
-      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "dist/index.es.js").map((violation) => violation.name),
     ).toEqual(["addEventListener({ signal })"]);
   });
 
@@ -84,7 +84,7 @@ describe("scanner.scan", () => {
       'el.addEventListener("abort", () => cleanup(), { signal: ctrl.signal });\n';
 
     expect(
-      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "dist/index.es.js").map((violation) => violation.name),
     ).toEqual(["addEventListener({ signal })"]);
   });
 
@@ -92,7 +92,7 @@ describe("scanner.scan", () => {
     const source = "if (signal.reason) throw signal.reason;\n";
 
     expect(
-      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "dist/index.es.js").map((violation) => violation.name),
     ).toEqual(["AbortSignal.reason"]);
   });
 
@@ -100,7 +100,7 @@ describe("scanner.scan", () => {
     const source = "const ok = URL.canParse(input);\n";
 
     expect(
-      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "dist/index.es.js").map((violation) => violation.name),
     ).toEqual(["URL.canParse"]);
   });
 
@@ -108,7 +108,7 @@ describe("scanner.scan", () => {
     const source = "return Response.json(payload);\n";
 
     expect(
-      scanner.scan(source, "index.es.js").map((violation) => violation.name),
+      scanner.scan(source, "dist/index.es.js").map((violation) => violation.name),
     ).toEqual(["Response.json()"]);
   });
 
@@ -123,7 +123,7 @@ describe("scanner.scan", () => {
       "if (signal.aborted) return;",
     ].join("\n");
 
-    expect(scanner.scan(source, "index.es.js")).toEqual([]);
+    expect(scanner.scan(source, "dist/index.es.js")).toEqual([]);
   });
 
   it("여러 위반을 줄 번호 오름차순으로 반환한다", () => {
@@ -134,7 +134,7 @@ describe("scanner.scan", () => {
       "const d = structuredClone(a);",
     ].join("\n");
 
-    const violations = scanner.scan(source, "index.es.js");
+    const violations = scanner.scan(source, "dist/index.es.js");
 
     expect(
       violations.map((violation) => [violation.line, violation.name]),
@@ -147,7 +147,7 @@ describe("scanner.scan", () => {
   it("같은 줄에 위반이 두 개면 이름 사전순으로 정렬한다", () => {
     const source = "const x = a.at(0), y = structuredClone(b);\n";
 
-    const violations = scanner.scan(source, "index.es.js");
+    const violations = scanner.scan(source, "dist/index.es.js");
 
     expect(
       violations.map((violation) => [violation.line, violation.name]),
@@ -162,14 +162,14 @@ describe("scanner.scan", () => {
     const allowingScanner = createScanner({
       minChrome: 80,
       allowed: [
-        { file: "index.es.js", name: ".at()", reason: "테스트용 예외" },
+        { file: "dist/index.es.js", name: ".at()", reason: "테스트용 예외" },
       ],
     });
 
-    expect(allowingScanner.scan(source, "index.es.js")).toEqual([]);
+    expect(allowingScanner.scan(source, "dist/index.es.js")).toEqual([]);
     expect(
       allowingScanner
-        .scan(source, "client.es.js")
+        .scan(source, "dist/client.es.js")
         .map((violation) => violation.name),
     ).toEqual([".at()"]);
   });
