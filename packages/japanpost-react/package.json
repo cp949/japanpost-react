@@ -19,6 +19,7 @@
   "sideEffects": false,
   "files": [
     "dist",
+    "!dist/**/*.map",
     "README.md",
     "LICENSE"
   ],
@@ -43,7 +44,7 @@
   },
   "scripts": {
     "dev": "tsup --config tsup.config.ts --watch",
-    "build": "tsup --config tsup.config.ts && node scripts/postbuild-client.mjs && browser-baseline check",
+    "build": "tsup --config tsup.config.ts && node scripts/postbuild.mjs && browser-baseline check",
     "compat:check": "browser-baseline check",
     "release": "pnpm --dir ../.. readme:package && pnpm lint && pnpm check-types && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
     "prepublishOnly": "pnpm build",
