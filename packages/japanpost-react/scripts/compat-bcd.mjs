@@ -99,6 +99,18 @@ export function normalizeChromeSupport(support) {
     return Number.POSITIVE_INFINITY;
   }
 
+  const current = entries[0];
+
+  // 최신 유효 표준 기록이 제거된 뒤 재도입되지 않았으면 현재는 미지원이다.
+  // false는 제거되지 않았음을 명시하는 값이므로 제거 기록으로 보지 않는다.
+  if (
+    current.version_removed !== undefined &&
+    current.version_removed !== null &&
+    current.version_removed !== false
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
   // 최신(index 0)에서 과거로 내려가며 구간이 이어지는 동안 시작점을 낮춘다.
   let earliest = null;
 

@@ -116,6 +116,33 @@ describe("Chrome 지원 버전을 판정 값으로 정규화한다", () => {
     expect(normalizeChromeSupport(support)).toBe(73);
   });
 
+  it("plain support의 현재 기록이 제거됐으면 Infinity다", () => {
+    expect(
+      normalizeChromeSupport({
+        version_added: "22",
+        version_removed: "69",
+      }),
+    ).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("배열의 최신 유효 표준 기록이 제거됐으면 Infinity다", () => {
+    const support = [
+      { version_added: "22", version_removed: "69" },
+      { version_added: "4", version_removed: "22" },
+    ];
+
+    expect(normalizeChromeSupport(support)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("version_removed가 false면 현재 지원 기록으로 본다", () => {
+    expect(
+      normalizeChromeSupport({ version_added: "22", version_removed: false }),
+    ).toBe(22);
+    expect(
+      normalizeChromeSupport([{ version_added: "22", version_removed: false }]),
+    ).toBe(22);
+  });
+
   it("세 구간이 모두 이어지면 가장 오래된 시작점까지 내려간다", () => {
     const support = [
       { version_added: "110" },
@@ -347,6 +374,13 @@ describe("타입이 고정된 전역을 인터페이스에 연결한다", () => 
     });
     expect(index.statics.get("Navigator.userAgentData")).toMatchObject({
       chrome: 90,
+    });
+  });
+
+  it("현재 Chrome에서 제거된 고정 전역 멤버를 미지원으로 넣는다", () => {
+    expect(index.statics.get("Document.createTouchList")).toMatchObject({
+      chrome: Number.POSITIVE_INFINITY,
+      path: "api.Document.createTouchList",
     });
   });
 });

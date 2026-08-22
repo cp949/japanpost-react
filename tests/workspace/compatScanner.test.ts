@@ -32,8 +32,8 @@ describe("브라우저 하한에 맞는 스캐너를 생성한다", () => {
 
   it("indexSize는 색인 세 갈래 크기의 합이다", () => {
     // "진단·테스트용"이라 선언만 해두고 아무도 읽지 않았다.
-    // globals 14 + statics 2555 + members 201 = 2770(minChrome 80 실측치).
-    expect(scanner.indexSize).toBe(2770);
+    // globals 14 + statics 2611 + members 201 = 2826(minChrome 80 실측치).
+    expect(scanner.indexSize).toBe(2826);
   });
 });
 
