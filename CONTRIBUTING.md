@@ -86,6 +86,35 @@ versions, so the derived minimum does not move. A relative query (`defaults`,
 a gate result under one. Refresh as well when `browserslist` reports that its
 data is outdated.
 
+The runtime API gate resolves each API against `@mdn/browser-compat-data`, a
+second dataset with its own release cadence. Stale data means stale verdicts,
+so refresh it alongside `caniuse-lite`:
+
+```bash
+pnpm --filter @cp949/japanpost-react up @mdn/browser-compat-data
+```
+
+The gate throws when a fixed BCD key it depends on stops resolving, so a
+breaking upgrade fails loudly rather than passing silently. Two keys are fixed:
+`javascript.builtins.Error.Error.options_cause_parameter` and
+`api.EventTarget.addEventListener.options_parameter.options_signal_parameter`.
+
+The gate reports three tiers, and they differ in how much they can prove.
+Tier 1 resolves the receiver through scope analysis, so a report there is a
+real use of the named global. Tier 2 covers members whose receiver type is not
+statically known (`x.at(0)`, `x.with(i, v)`) — a real violation and a
+same-named method on an unrelated object are indistinguishable. Tier 3 matches
+two option subfeatures and they are not equally strict: `new Error(m, { cause })`
+checks that the constructor resolves to a global, while
+`addEventListener(t, f, { signal })` does not check the receiver at all, because
+enumerating every `EventTarget` subclass and bundler alias would under-report
+more than the looser match over-reports.
+
+Record false positives in the `ALLOWED` list of
+`packages/japanpost-react/scripts/compat-scanner.mjs`. Each entry needs `file`,
+`name`, and `reason`; the scanner throws on an entry missing any of them or
+naming an API absent from the index.
+
 ## Scope Notes
 
 - Keep changes small and focused.
