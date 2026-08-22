@@ -17,6 +17,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.9
         version: 2.5.9
+      acorn:
+        specifier: ^8.18.0
+        version: 8.18.0
       turbo:
         specifier: ^2.10.11
         version: 2.10.11
@@ -88,6 +91,9 @@ importers:
 
   packages/japanpost-react:
     devDependencies:
+      '@mdn/browser-compat-data':
+        specifier: ^8.0.12
+        version: 8.0.12
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -106,6 +112,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      acorn:
+        specifier: ^8.18.0
+        version: 8.18.0
       browserslist-to-esbuild:
         specifier: ^2.1.1
         version: 2.1.1(browserslist@4.28.8)
@@ -526,6 +535,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@mdn/browser-compat-data@8.0.12':
+    resolution: {integrity: sha512-OuNNIGofh8ayCuSC8yqUSMUKqWMfo2Qpn5JU2YVGm5gkUXx05p7zOZ1bfcplEuH/q7E+zILfIqoQsFN/yFie0g==}
 
   '@mui/core-downloads-tracker@9.3.1':
     resolution: {integrity: sha512-IAyAFNQbT7hysJ9HXphiOmWJF7G1OglzHanqCgvQgH9LA2ydxtmaTBDbcBqw6euZesyShiwvpvbnYO1GY1AyXQ==}
@@ -2091,6 +2103,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@mdn/browser-compat-data@8.0.12': {}
 
   '@mui/core-downloads-tracker@9.3.1': {}
 
