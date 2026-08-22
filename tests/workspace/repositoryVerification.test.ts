@@ -56,8 +56,22 @@ function readText(filePath: string) {
 /** 기준선을 손으로 적은 리터럴 패턴이다. 예: "es2019", "chrome80" */
 const BASELINE_LITERAL = /["'`](es20\d\d|chrome\d+)["'`]/;
 
-/** 워크스페이스를 훑을 때 건너뛸 디렉터리다. */
-const SKIPPED_DIRS = new Set(["node_modules", "dist", ".git", ".turbo"]);
+/**
+ * 워크스페이스를 훑을 때 건너뛸 디렉터리다.
+ *
+ * .gitignore 대상은 워크스페이스의 일부가 아니므로 전부 뺀다.
+ * .claude/worktrees/와 .worktrees/에는 git worktree가 들어설 수 있고, 그 안에는
+ * 이 저장소의 사본이 통째로 있다. 빼지 않으면 사본의 package.json까지 순회 대상이
+ * 되어 "정본 하나뿐" 같은 불변식이 워크트리를 만든 개발자에게만 실패한다.
+ */
+const SKIPPED_DIRS = new Set([
+  "node_modules",
+  "dist",
+  ".git",
+  ".turbo",
+  ".claude",
+  ".worktrees",
+]);
 
 /** repoRoot 아래의 package.json 경로를 모은다. */
 function collectPackageJsonPaths(dir: string, into: string[] = []): string[] {
