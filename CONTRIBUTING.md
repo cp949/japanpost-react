@@ -153,6 +153,32 @@ a general multi-browser one:
   be an array (`Array.isArray`), so the string form (`"chrome >= 80"`, valid
   npm syntax) throws too.
 
+A runtime API violation report names the source file responsible, not just
+the dist line. The evidence is the sibling source map: for a checked file
+`dist/index.es.js`, the gate reads `dist/index.es.js.map` next to it — it
+does not follow the file's own `//# sourceMappingURL=` comment, because that
+comment can be stripped from a published build and the path it names sits
+outside the trust boundary. `packages/browser-baseline/src/source-origin.mjs`
+resolves a dist line to a `sources` entry from that map, and `formatReport`
+appends it to the violation line, e.g. `← src/react/useJapanPostalCode.ts`.
+
+Packages that do not ship a sourcemap are still checked. Both compatibility
+gates run exactly as before; only the origin file is unavailable. The report
+states the reason once per file group (`원본 매핑 없음 — <reason>`, e.g. the
+sibling `.map` file does not exist) instead of repeating it on every
+violation line, and a line the map does not cover reads `← (매핑 없음)`. A
+missing or unreadable map never fails the file scan — it is a courtesy
+signal, not a contract.
+
+The syntax gate does not get this treatment. `SyntaxFinding.line` is not a
+dist line — `syntax-gate.mjs` re-emits the source through esbuild for its own
+comparison, and `line` is a line number in that re-emission, not in
+`dist/index.es.js` or `dist/client.es.js` (measured offset up to +20 lines
+for `index.es.js`, +12 for `client.es.js`). Feeding it through the dist
+source map would resolve the wrong original line. A syntax finding's file
+label still reads `dist/…`, but its line number is not that file's line
+number, and it carries no `origin`/`originNote` fields.
+
 ## Scope Notes
 
 - Keep changes small and focused.
