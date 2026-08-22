@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/clone.ts", "../src/hasKey.ts"],
+  "sourcesContent": [null, null],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;ACAA;;;;ADAA"
+}

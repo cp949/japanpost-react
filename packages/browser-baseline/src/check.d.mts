@@ -29,6 +29,16 @@ export interface ApiFinding {
   text: string;
   /** 판정 단계다. */
   tier: ViolationTier;
+  /**
+   * 원인 소스 파일의 패키지 기준 상대 경로다. 형제 소스맵(`${file}.map`)을
+   * 읽지 못했거나, 맵은 읽었어도 이 줄이 매핑되지 않았으면 null이다.
+   */
+  origin: string | null;
+  /**
+   * 소스맵 자체를 쓸 수 없는 이유다. 쓸 수 있으면 null이다.
+   * 같은 파일의 모든 ApiFinding이 같은 값을 갖는다.
+   */
+  originNote: string | null;
 }
 
 /** 파일 하나를 검사하지 못했다. 다른 파일 검사는 계속된다. */

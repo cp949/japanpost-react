@@ -203,3 +203,88 @@ describe("empty-exports 픽스처: 검사 대상이 비면 조용히 통과하�
     );
   });
 });
+
+describe("with-sourcemap 픽스처: 형제 .map으로 API 위반에 원인 파일이 붙는다", () => {
+  it("sources[1] 매핑, sources[0] 매핑, 매핑 없음을 각각 다른 origin으로 구분한다", async () => {
+    const packageDir = path.join(fixturesDir, "with-sourcemap");
+
+    const result = await checkPackageBaseline({ packageDir });
+
+    expect(result.ok).toBe(false);
+
+    // Object.hasOwn 위반: 맵의 첫 소스가 아니라 sources[1](src/hasKey.ts)에
+    // 매핑된다. "항상 sources[0]을 돌려주는" 잘못된 구현이면 origin이
+    // src/clone.ts로 잘못 나온다 — 그 오탐을 이 단언이 걸러낸다.
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({
+        kind: "api",
+        name: "Object.hasOwn",
+        origin: "src/hasKey.ts",
+        originNote: null,
+      }),
+    );
+
+    // structuredClone 위반: 맵의 sources[0](src/clone.ts)에 매핑된다.
+    // 앞선 위반과 origin이 실제로 갈린다는 것을 함께 증명한다.
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({
+        kind: "api",
+        name: "structuredClone",
+        origin: "src/clone.ts",
+        originNote: null,
+      }),
+    );
+
+    // .at() 위반: 맵 자체는 읽혔지만(originNote: null) 이 줄에는 세그먼트가
+    // 없어 origin만 null이다. "맵이 아예 없다"(originNote 有)와 구분되는
+    // 경우이며, Task 3의 "← (매핑 없음)" 출력이 검증할 자리다.
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({
+        kind: "api",
+        name: ".at()",
+        origin: null,
+        originNote: null,
+      }),
+    );
+  });
+});
+
+describe("violations 픽스처: 형제 .map이 없으면 origin은 null, originNote에 사유가 남는다", () => {
+  it("originNote가 파일명과 .map이 없다는 사실을 그대로 담는다", async () => {
+    const packageDir = path.join(fixturesDir, "violations");
+
+    const result = await checkPackageBaseline({ packageDir });
+
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({
+        kind: "api",
+        name: ".at()",
+        origin: null,
+        originNote: "bundle/index.mjs.map이 없다.",
+      }),
+    );
+  });
+});
+
+describe("chrome90 픽스처: syntax finding에는 origin·originNote가 붙지 않는다", () => {
+  it("kind:syntax finding은 origin·originNote 필드 자체를 갖지 않는다", async () => {
+    // syntax-gate.mjs의 line은 dist 원본 줄이 아니라 esbuild 재출력본 줄이라
+    // 소스맵을 먹이면 엉뚱한 원본을 가리킨다 — check.mjs가 그래서 syntax
+    // finding에는 origin을 아예 붙이지 않는다. 이 판별은 syntax finding이
+    // 실제로 나오는 픽스처(chrome90)에서만 의미가 있다.
+    const packageDir = path.join(fixturesDir, "chrome90");
+
+    const result = await checkPackageBaseline({ packageDir });
+
+    const syntaxFindings = result.findings.filter(
+      (finding) => finding.kind === "syntax",
+    );
+
+    expect(syntaxFindings.length).toBeGreaterThan(0);
+
+    for (const finding of syntaxFindings) {
+      expect(finding).not.toHaveProperty("origin");
+      expect(finding).not.toHaveProperty("originNote");
+    }
+  });
+});

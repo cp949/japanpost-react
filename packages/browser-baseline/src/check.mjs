@@ -20,6 +20,7 @@ import path from "node:path";
 import { loadBaseline } from "./baseline.mjs";
 import { createScanner } from "./compat-scanner.mjs";
 import { resolveDistEntries } from "./dist-entries.mjs";
+import { createOriginLookup } from "./source-origin.mjs";
 import { findFirstSyntaxDivergence } from "./syntax-gate.mjs";
 
 /**
@@ -59,6 +60,11 @@ export async function checkPackageBaseline({ packageDir, allow = [] }) {
       );
 
       if (divergence !== null) {
+        // SyntaxFinding에는 origin을 붙이지 않는다. divergence.line은 dist
+        // 원본 줄이 아니라 esbuild가 esnext·계약 타깃으로 각각 재출력한
+        // 결과물의 줄이다(실측 오프셋 최대 +20줄/index, +12줄/client).
+        // 소스맵은 원본 dist 산출물의 줄을 기준으로 만들어지므로, 재출력본
+        // 줄을 그대로 먹이면 엉뚱한 원본 파일을 가리키게 된다.
         findings.push({
           kind: "syntax",
           file: fileName,
@@ -66,6 +72,28 @@ export async function checkPackageBaseline({ packageDir, allow = [] }) {
           actual: divergence.actual,
           lowered: divergence.lowered,
         });
+      }
+
+      // 맵은 형제 파일 규약으로 찾는다. `//# sourceMappingURL=` 주석에
+      // 기대지 않는다 — 그 주석은 배포 산출물에서 제거될 수 있고, 주석이
+      // 가리키는 경로는 신뢰 경계 밖이다.
+      let originLookup = null;
+      let originNote = null; // 맵을 쓸 수 없는 이유. null이면 맵을 쓸 수 있다는 뜻이다.
+
+      try {
+        const mapText = await readFile(`${filePath}.map`, "utf8");
+
+        originLookup = createOriginLookup(mapText, {
+          mapDir: path.posix.dirname(fileName),
+        });
+      } catch (error) {
+        // 맵 문제로 파일 검사를 실패시키지 않는다. 맵은 부가 정보이지
+        // 계약이 아니다 — ENOENT든 계약 위반(createOriginLookup이 던진
+        // 것)이든 여기서 흡수하고 사유만 originNote에 남긴다.
+        originNote =
+          error.code === "ENOENT"
+            ? `${fileName}.map이 없다.`
+            : `소스맵을 쓸 수 없다: ${error.message}`;
       }
 
       for (const violation of scanner.scan(source, fileName)) {
@@ -77,6 +105,8 @@ export async function checkPackageBaseline({ packageDir, allow = [] }) {
           chrome: violation.chrome,
           text: violation.text,
           tier: violation.tier,
+          origin: originLookup ? originLookup.originOf(violation.line) : null,
+          originNote,
         });
       }
     } catch (error) {
