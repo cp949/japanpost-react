@@ -91,7 +91,7 @@ second dataset with its own release cadence. Stale data means stale verdicts,
 so refresh it alongside `caniuse-lite`:
 
 ```bash
-pnpm --filter @cp949/japanpost-react up @mdn/browser-compat-data
+pnpm --filter @repo/browser-baseline up @mdn/browser-compat-data
 ```
 
 The gate throws when a fixed BCD key it depends on stops resolving, so a
@@ -110,10 +110,48 @@ checks that the constructor resolves to a global, while
 enumerating every `EventTarget` subclass and bundler alias would under-report
 more than the looser match over-reports.
 
-Record false positives in the `ALLOWED` list of
-`packages/japanpost-react/scripts/compat-scanner.mjs`. Each entry needs `file`,
-`name`, and `reason`; the scanner throws on an entry missing any of them or
-naming an API absent from the index.
+Record false positives in the `browserBaseline.allow` array of
+`packages/japanpost-react/package.json`. Each entry needs `file`, `name`, and
+`reason`; the scanner throws on an entry missing any of them or naming an API
+absent from the index.
+
+## `@repo/browser-baseline` Package
+
+The gate implementation lives in `packages/browser-baseline`, a private
+workspace package (`private: true`, not published to npm). The two
+compatibility gates described above, the `checkPackageBaseline` /
+`formatReport` orchestration, and the CLI all live under its `src/` and
+`bin/`. It takes a `packageDir` argument and does not depend on this
+repository's layout beyond that.
+
+Run it with:
+
+```bash
+pnpm --filter @cp949/japanpost-react compat:check
+```
+
+or, for any package directory, `browser-baseline check --dir <path>` (exit 0
+on a pass, 1 on a violation, 2 on a usage error). `packages/japanpost-react`'s
+`build` script runs the same check after the build.
+
+The package name reads broader than what it actually checks. The contract is
+a Chrome-lower-bound checker driven by an array-form `browserslist` query, not
+a general multi-browser one:
+
+- `packages/browser-baseline/src/baseline.mjs:46-55` derives the Chrome lower
+  bound from the esbuild target and throws when none is found, so a
+  `browserslist` with no Chrome entry (`["firefox >= 100"]`) makes the package
+  unusable — it fails loudly, not silently.
+- A mixed query (`["defaults"]`) still derives a Chrome minimum, but the
+  runtime API gate checks only against that Chrome minimum — it never looks
+  at Safari/Firefox lower bounds, so violations against those browsers pass
+  silently. Under-reporting, not an error.
+- The syntax gate has no such gap: it runs on the full `esbuildTarget` array
+  (every browser the query resolves to), so it stays genuinely multi-browser.
+  The Chrome-only limitation is confined to the runtime API gate.
+- `packages/browser-baseline/src/baseline.mjs:37` requires `browserslist` to
+  be an array (`Array.isArray`), so the string form (`"chrome >= 80"`, valid
+  npm syntax) throws too.
 
 ## Scope Notes
 
