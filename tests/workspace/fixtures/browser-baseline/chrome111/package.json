@@ -1,0 +1,11 @@
+{
+  "name": "fixture-browser-baseline-chrome111",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": ["chrome >= 111"],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "fixture-browser-baseline-chrome90",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": ["chrome >= 90"],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "_comment": "cjs-and-asset 픽스처의 자산 엔트리. JS 확장자가 아니므로 스캔 대상에서 빠져야 한다.",
+  "name": "cjs-and-asset"
+}

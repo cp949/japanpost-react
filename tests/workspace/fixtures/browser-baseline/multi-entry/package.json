@@ -1,0 +1,18 @@
+{
+  "name": "fixture-browser-baseline-multi-entry",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": ["chrome >= 80"],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs"
+    },
+    "./feature-a": {
+      "import": "./bundle/feature-a.mjs"
+    },
+    "./feature-b": {
+      "import": "./bundle/feature-b.mjs",
+      "require": "./bundle/feature-b.cjs"
+    }
+  }
+}

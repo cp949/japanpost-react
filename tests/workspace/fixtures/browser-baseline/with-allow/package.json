@@ -1,0 +1,20 @@
+{
+  "name": "fixture-browser-baseline-with-allow",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": ["chrome >= 80"],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs"
+    }
+  },
+  "browserBaseline": {
+    "allow": [
+      {
+        "file": "bundle/index.mjs",
+        "name": "Object.hasOwn",
+        "reason": "픽스처용 허용 사유: with-allow가 실제로 위반을 지우는지 증명하는 목적으로만 존재한다."
+      }
+    ]
+  }
+}

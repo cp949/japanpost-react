@@ -1,0 +1,10 @@
+{
+  "name": "fixture-browser-baseline-no-browserslist",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "fixture-browser-baseline-cjs-and-asset",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": ["chrome >= 80"],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs",
+      "require": "./bundle/index.cjs"
+    },
+    "./styles.css": "./bundle/styles.css",
+    "./manifest.json": "./bundle/manifest.json"
+  }
+}

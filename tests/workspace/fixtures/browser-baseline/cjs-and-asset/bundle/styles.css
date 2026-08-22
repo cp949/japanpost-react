@@ -1,0 +1,9 @@
+/* cjs-and-asset 픽스처의 자산 엔트리. resolveDistEntries가 JS 확장자만 골라내면
+   이 파일은 애초에 읽히지도 않아야 한다. 만약 잘못 스캔 대상에 들어오면
+   이 내용은 유효한 JS가 아니라 문법 게이트(esbuild)가 먼저 실패한다. 그 실패는
+   밖으로 던져지지 않는다 — check.mjs가 파일 단위로 잡아 kind:"error" finding으로
+   남긴다. 그래서 회귀는 예외가 아니라 findings에 나타나고, 테스트도 그 자리를
+   본다: kind:"error"가 하나도 없다는 단언이 이 파일이 안 읽혔다는 증거다. */
+.button {
+  color: red;
+}
