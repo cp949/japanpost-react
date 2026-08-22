@@ -18,11 +18,26 @@ const syntaxGatePath = path.join(
   repoRoot,
   "packages/browser-baseline/src/syntax-gate.mjs",
 );
-const compatScannerPaths = [
-  "packages/browser-baseline/src/compat-bcd.mjs",
-  "packages/browser-baseline/src/compat-scope.mjs",
-  "packages/browser-baseline/src/compat-scanner.mjs",
-].map((relativePath) => path.join(repoRoot, relativePath));
+/**
+ * 기준선 리터럴 금지를 강제할 파일 목록이다.
+ *
+ * 손으로 적은 목록이면 새로 추가된 파일이 조용히 빠진다 — 실제로 check.mjs·
+ * report.mjs·bin/browser-baseline.mjs가 그렇게 빠져 있었다. 디렉터리를 훑어
+ * 아직 쓰이지 않은 파일까지 자동으로 포함시킨다.
+ *
+ * 타입 선언(.d.mts)은 실행되지 않으므로 대상이 아니다.
+ */
+function collectBrowserBaselinePaths(): string[] {
+  const packageDir = path.join(repoRoot, "packages/browser-baseline");
+
+  return ["src", "bin"].flatMap((subdir) =>
+    fs
+      .readdirSync(path.join(packageDir, subdir))
+      .filter((name) => name.endsWith(".mjs"))
+      .sort()
+      .map((name) => path.join(packageDir, subdir, name)),
+  );
+}
 
 function readPackageJson(packageJsonPath: string): {
   scripts?: Record<string, string>;
@@ -231,10 +246,20 @@ describe("repository verification scripts", () => {
     expect(codeRegionOf(syntaxGate)).not.toMatch(BASELINE_LITERAL);
   });
 
-  it("AST 스캐너 모듈에 기준선 리터럴이 없다", () => {
-    // 계약의 Chrome 하한은 loadBaseline이 파생해 minChrome 인자로 흐른다.
-    // 모듈이 값을 손으로 적으면 정본이 둘이 된다.
-    for (const filePath of compatScannerPaths) {
+  it("browser-baseline 패키지의 module과 CLI 어디에도 기준선 리터럴이 없다", () => {
+    // 계약의 Chrome 하한은 loadBaseline이 파생해 minChrome·esbuildTarget으로
+    // 흐른다. 판정 module이든 표시 module이든 CLI든, 값을 손으로 적는 순간
+    // 정본이 둘이 된다.
+    const filePaths = collectBrowserBaselinePaths();
+
+    // 목록이 비면 이 테스트는 아무것도 강제하지 않고 통과한다.
+    // 두 디렉터리가 실제로 파일을 냈는지부터 확인한다.
+    expect(filePaths.length).toBeGreaterThan(1);
+    expect(filePaths.map((filePath) => path.basename(filePath))).toContain(
+      "browser-baseline.mjs",
+    );
+
+    for (const filePath of filePaths) {
       expect(codeRegionOf(readText(filePath)), filePath).not.toMatch(
         BASELINE_LITERAL,
       );
@@ -245,8 +270,10 @@ describe("repository verification scripts", () => {
     const declaring = collectPackageJsonPaths(repoRoot)
       .filter((filePath) => readPackageJson(filePath).browserslist !== undefined)
       .map((filePath) => path.relative(repoRoot, filePath))
-      // browserBaselineCheck.test.ts의 fixture package.json들은 검사 대상
-      // packageDir을 흉내 내려고 저마다 browserslist를 선언한다. 이 fixture
+      // tests/workspace/fixtures/browser-baseline/의 fixture package.json들은
+      // 검사 대상 packageDir을 흉내 내려고 저마다 browserslist를 선언한다.
+      // browserBaselineCheck·browserBaselineGeneric·browserBaselineCli
+      // 세 테스트가 이 fixture들을 함께 쓴다. 이 fixture
       // 루트는 pnpm-workspace.yaml의 apps/*·packages/* 글롭에 잡히지 않아
       // 워크스페이스 패키지가 아니므로 이 불변식에서 뺀다. 이 경로 접두만
       // 좁게 제외한다 — SKIPPED_DIRS에 "fixtures"를 넣으면 저장소의 다른
