@@ -41,18 +41,18 @@ export const ALLOWED = [];
 const GLOBAL_OBJECTS = new Set(["globalThis", "window", "self"]);
 
 /**
- * cause 옵션을 생성자 두 번째 인자로 받는 Error 계열이다.
+ * cause 옵션을 받는 Error 계열과 옵션 인자 위치다.
  * 전부 같은 버전(Chrome 93)에 옵션을 얻었다.
- * AggregateError는 옵션이 세 번째 인자라 여기 없다 — 전역 식별자로 잡힌다.
  */
-const ERROR_CONSTRUCTORS = new Set([
-  "Error",
-  "EvalError",
-  "RangeError",
-  "ReferenceError",
-  "SyntaxError",
-  "TypeError",
-  "URIError",
+const ERROR_CONSTRUCTORS = new Map([
+  ["Error", 1],
+  ["EvalError", 1],
+  ["RangeError", 1],
+  ["ReferenceError", 1],
+  ["SyntaxError", 1],
+  ["TypeError", 1],
+  ["URIError", 1],
+  ["AggregateError", 2],
 ]);
 
 /** 노드가 지정한 이름의 non-computed 프로퍼티를 가진 객체 리터럴인지 본다. */
@@ -130,7 +130,7 @@ function walk(node, parent, visit) {
 /** Tier 3 판정이 내는 이름이다. 색인 키와 형식이 다르므로 따로 본다. */
 const SPECIAL_NAMES = new Set([
   "addEventListener({ signal })",
-  ...[...ERROR_CONSTRUCTORS].map((name) => `new ${name}({ cause })`),
+  ...[...ERROR_CONSTRUCTORS.keys()].map((name) => `new ${name}({ cause })`),
 ]);
 
 /**
@@ -269,13 +269,9 @@ export function createScanner({ minChrome, allowed = ALLOWED }) {
       /**
        * MemberExpression의 수신자 표현식을 해석한다.
        *
-       * 단순 식별자(`Object.hasOwn`의 `Object`)와, 전역 객체로 한 단계 더
-       * 접두된 식별자(`globalThis.Object.hasOwn`의 `globalThis.Object`)를
-       * 모두 다룬다. 두 단계보다 깊은 접두(`globalThis.globalThis.Object.hasOwn`)는
-       * 다루지 않는다 — 실측 dist에서 관측되지 않았기 때문이다.
-       * 교체 전 정규식은 단어 경계 앵커라 `.` 뒤에서도 매치돼 임의 깊이를 잡았다.
-       * 이 지점만은 옛 게이트보다 좁으므로, 깊이 3 이상이 실제로 나타나면
-       * 이 함수를 반복 벗기기로 일반화해야 한다.
+       * 단순 식별자(`Object.hasOwn`의 `Object`)에서 시작해 전역 객체 접두를
+       * 재귀적으로 벗긴다. `globalThis`, `window`, `self`가 반복돼도 깊이와
+       * 무관하게 실제 수신자 이름과 소스 접두를 함께 보존한다.
        *
        * @returns {{ name: string, reportName: string, claim: object[] } | null}
        *   name: 색인 조회에 쓸 식별자 이름(접두를 벗긴 형태).
@@ -296,22 +292,22 @@ export function createScanner({ minChrome, allowed = ALLOWED }) {
           };
         }
 
-        if (
-          objectExpr.type === "MemberExpression" &&
-          objectExpr.object.type === "Identifier" &&
-          GLOBAL_OBJECTS.has(objectExpr.object.name) &&
-          globalRefs.has(objectExpr.object)
-        ) {
+        if (objectExpr.type === "MemberExpression") {
           const inner = memberName(objectExpr);
+          const outer = describeReceiver(objectExpr.object);
 
-          if (inner === null) {
+          if (
+            inner === null ||
+            outer === null ||
+            !GLOBAL_OBJECTS.has(outer.name)
+          ) {
             return null;
           }
 
           return {
             name: inner,
-            reportName: `${objectExpr.object.name}.${inner}`,
-            claim: [objectExpr, objectExpr.object],
+            reportName: `${outer.reportName}.${inner}`,
+            claim: [objectExpr, ...outer.claim],
           };
         }
 
@@ -334,13 +330,20 @@ export function createScanner({ minChrome, allowed = ALLOWED }) {
           return;
         }
 
-        // Tier 3: new Error(m, { cause })
+        const errorOptionsIndex =
+          node.type === "NewExpression" && node.callee.type === "Identifier"
+            ? ERROR_CONSTRUCTORS.get(node.callee.name)
+            : undefined;
+
+        // Tier 3: new Error(m, { cause })와 new AggregateError([], m, { cause })
         if (
           node.type === "NewExpression" &&
           node.callee.type === "Identifier" &&
-          ERROR_CONSTRUCTORS.has(node.callee.name) &&
+          errorOptionsIndex !== undefined &&
           globalRefs.has(node.callee) &&
-          hasObjectKey(node.arguments[1], "cause")
+          // 생성자 자체가 아직 지원되지 않으면 더 이른 Tier 1 위반을 우선한다.
+          !index.globals.has(node.callee.name) &&
+          hasObjectKey(node.arguments[errorOptionsIndex], "cause")
         ) {
           const entry = index.special.get("Error.cause");
 

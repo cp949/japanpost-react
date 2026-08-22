@@ -90,6 +90,13 @@ describe("전역 식별자를 확정 위반으로 판정한다", () => {
     // 오판된다. Tier 1은 오탐이 없어야 한다(spec §6) — 이 테스트가 그걸 pin한다.
     expect(names("const X = class WeakRef {};")).toEqual([]);
   });
+
+  it("static block의 var와 같은 바깥 전역을 검출한다", () => {
+    const source =
+      "class C { static { var structuredClone = 1; } }\nstructuredClone(v);";
+
+    expect(names(source)).toEqual(["structuredClone"]);
+  });
 });
 
 describe("전역의 static 멤버를 확정 위반으로 판정한다", () => {
@@ -165,6 +172,21 @@ describe("타입이 고정된 전역의 멤버를 확정 위반으로 판정한�
       chrome: 90,
       tier: 1,
     });
+  });
+
+  it("현재 Chrome에서 제거된 document API를 검출한다", () => {
+    const violations = scanner.scan(
+      "document.createTouchList();",
+      "dist/index.es.js",
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        name: "document.createTouchList",
+        chrome: Number.POSITIVE_INFINITY,
+        tier: 1,
+      }),
+    ]);
   });
 
   it("globalThis 접두로 부른 전역도 검출한다", () => {
@@ -297,6 +319,46 @@ describe("전역 객체 접두가 붙은 참조를 확정 위반으로 판정한
       tier: 1,
     });
   });
+
+  it("반복된 전역 객체 접두를 깊이 제한 없이 Tier 1로 검출한다", () => {
+    const cases: Array<[string, string, number]> = [
+      [
+        "globalThis.globalThis.Object.hasOwn(o, k);",
+        "globalThis.globalThis.Object.hasOwn",
+        93,
+      ],
+      [
+        "globalThis.globalThis.structuredClone(v);",
+        "globalThis.globalThis.structuredClone",
+        98,
+      ],
+      [
+        "globalThis.globalThis.window.self.Object.hasOwn(o, k);",
+        "globalThis.globalThis.window.self.Object.hasOwn",
+        93,
+      ],
+      [
+        'self["self"]["self"]["structuredClone"](v);',
+        "self.self.self.structuredClone",
+        98,
+      ],
+    ];
+
+    for (const [source, name, chrome] of cases) {
+      expect(scanner.scan(source, "dist/index.es.js")).toEqual([
+        expect.objectContaining({ name, chrome, tier: 1 }),
+      ]);
+    }
+  });
+
+  it("반복 접두의 동적 computed 키는 판정하지 않는다", () => {
+    const source = [
+      "globalThis[prefix].Object.hasOwn(o, k);",
+      "globalThis.globalThis.Object[method](o, k);",
+    ].join("\n");
+
+    expect(names(source)).toEqual([]);
+  });
 });
 
 describe("수신자 타입을 모르는 멤버를 모호 위반으로 판정한다", () => {
@@ -408,13 +470,43 @@ describe("옵션 서브피처를 특수 위반으로 판정한다", () => {
       "new AggregateError([], m, { cause: e });",
     ].join("\n");
 
-    // AggregateError는 세 번째 인자가 옵션이라 이 매처가 잡지 않는다.
-    // 전역 식별자로는 잡힌다.
+    // Chrome 80에서는 AggregateError 생성자 자체의 Chrome 85 Tier 1 위반을
+    // 먼저 보고하므로 cause 옵션의 Tier 3 위반은 억제된다.
     expect(names(source)).toEqual([
       "AggregateError",
       "new RangeError({ cause })",
       "new TypeError({ cause })",
     ]);
+  });
+
+  it("AggregateError의 cause 옵션은 생성자 지원 뒤부터 별도 위반으로 검출한다", () => {
+    const source = "new AggregateError([], m, { cause: e });";
+
+    expect(
+      createScanner({ minChrome: 80 }).scan(source, "dist/index.es.js"),
+    ).toEqual([
+      expect.objectContaining({
+        name: "AggregateError",
+        chrome: 85,
+        tier: 1,
+      }),
+    ]);
+
+    for (const minChrome of [85, 92]) {
+      expect(
+        createScanner({ minChrome }).scan(source, "dist/index.es.js"),
+      ).toEqual([
+        expect.objectContaining({
+          name: "new AggregateError({ cause })",
+          chrome: 93,
+          tier: 3,
+        }),
+      ]);
+    }
+
+    expect(
+      createScanner({ minChrome: 93 }).scan(source, "dist/index.es.js"),
+    ).toEqual([]);
   });
 
   it("cause 속성 대입은 위반이 아니다", () => {
@@ -670,6 +762,22 @@ describe("근거가 있는 위반 예외만 허용한다", () => {
     expect(
       allowing.scan("globalThis.structuredClone(v);", "dist/index.es.js"),
     ).toEqual([]);
+  });
+
+  it("반복 접두로 보고하는 이름을 같은 ALLOWED 키로 받는다", () => {
+    const source = "globalThis.globalThis.Object.hasOwn(o, k);";
+    const name = "globalThis.globalThis.Object.hasOwn";
+
+    expect(scanner.scan(source, "dist/index.es.js")).toEqual([
+      expect.objectContaining({ name }),
+    ]);
+
+    const allowing = createScanner({
+      minChrome: 80,
+      allowed: [{ file: "*", name, reason: "폴리필이 보장된 경로다" }],
+    });
+
+    expect(allowing.scan(source, "dist/index.es.js")).toEqual([]);
   });
 
   it("고정 전역 이름의 예외를 인터페이스 이름으로 해석한다", () => {
