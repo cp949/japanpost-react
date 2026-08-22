@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { loadBaseline } from "../../packages/japanpost-react/scripts/baseline.mjs";
+import { loadBaseline } from "@repo/browser-baseline";
 
 const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

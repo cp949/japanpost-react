@@ -1,0 +1,17 @@
+{
+  "name": "@repo/browser-baseline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "ISC",
+  "exports": { ".": { "types": "./src/index.d.mts", "import": "./src/index.mjs" } },
+  "bin": { "browser-baseline": "./bin/browser-baseline.mjs" },
+  "engines": { "node": ">=20" },
+  "scripts": { "lint": "biome lint ." },
+  "dependencies": {
+    "@mdn/browser-compat-data": "^8.0.12",
+    "acorn": "^8.18.0",
+    "browserslist-to-esbuild": "^2.1.1",
+    "esbuild": "^0.28.2"
+  }
+}

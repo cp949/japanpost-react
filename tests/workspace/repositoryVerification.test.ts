@@ -16,12 +16,12 @@ const tsupConfigPath = path.join(
 );
 const syntaxGatePath = path.join(
   repoRoot,
-  "packages/japanpost-react/scripts/syntax-gate.mjs",
+  "packages/browser-baseline/src/syntax-gate.mjs",
 );
 const compatScannerPaths = [
-  "packages/japanpost-react/scripts/compat-bcd.mjs",
-  "packages/japanpost-react/scripts/compat-scope.mjs",
-  "packages/japanpost-react/scripts/compat-scanner.mjs",
+  "packages/browser-baseline/src/compat-bcd.mjs",
+  "packages/browser-baseline/src/compat-scope.mjs",
+  "packages/browser-baseline/src/compat-scanner.mjs",
 ].map((relativePath) => path.join(repoRoot, relativePath));
 
 function readPackageJson(packageJsonPath: string): {
@@ -244,7 +244,19 @@ describe("repository verification scripts", () => {
   it("워크스페이스에서 browserslist를 선언하는 package.json은 정본 하나뿐이다", () => {
     const declaring = collectPackageJsonPaths(repoRoot)
       .filter((filePath) => readPackageJson(filePath).browserslist !== undefined)
-      .map((filePath) => path.relative(repoRoot, filePath));
+      .map((filePath) => path.relative(repoRoot, filePath))
+      // browserBaselineCheck.test.ts의 fixture package.json들은 검사 대상
+      // packageDir을 흉내 내려고 저마다 browserslist를 선언한다. 이 fixture
+      // 루트는 pnpm-workspace.yaml의 apps/*·packages/* 글롭에 잡히지 않아
+      // 워크스페이스 패키지가 아니므로 이 불변식에서 뺀다. 이 경로 접두만
+      // 좁게 제외한다 — SKIPPED_DIRS에 "fixtures"를 넣으면 저장소의 다른
+      // fixtures 디렉터리까지 이 불변식에서 통째로 빠진다.
+      .filter(
+        (relativePath) =>
+          !relativePath.startsWith(
+            "tests/workspace/fixtures/browser-baseline/",
+          ),
+      );
 
     // 정본이 둘이면 파생 경로가 잘못된 디렉터리를 잡아도 조용히 다른 기준선으로 빌드된다.
     expect(declaring).toEqual(["packages/japanpost-react/package.json"]);

@@ -3,8 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { loadBaseline } from "../../packages/japanpost-react/scripts/baseline.mjs";
-import { findFirstSyntaxDivergence } from "../../packages/japanpost-react/scripts/syntax-gate.mjs";
+import { findFirstSyntaxDivergence, loadBaseline } from "@repo/browser-baseline";
 
 const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

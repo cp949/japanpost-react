@@ -17,6 +17,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.9
         version: 2.5.9
+      '@repo/browser-baseline':
+        specifier: workspace:*
+        version: link:packages/browser-baseline
       acorn:
         specifier: ^8.18.0
         version: 8.18.0
@@ -89,11 +92,26 @@ importers:
         specifier: 6.0.2
         version: 6.0.2
 
-  packages/japanpost-react:
-    devDependencies:
+  packages/browser-baseline:
+    dependencies:
       '@mdn/browser-compat-data':
         specifier: ^8.0.12
         version: 8.0.12
+      acorn:
+        specifier: ^8.18.0
+        version: 8.18.0
+      browserslist-to-esbuild:
+        specifier: ^2.1.1
+        version: 2.1.1(browserslist@4.28.8)
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+
+  packages/japanpost-react:
+    devDependencies:
+      '@repo/browser-baseline':
+        specifier: workspace:*
+        version: link:../browser-baseline
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -112,12 +130,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
-      acorn:
-        specifier: ^8.18.0
-        version: 8.18.0
-      browserslist-to-esbuild:
-        specifier: ^2.1.1
-        version: 2.1.1(browserslist@4.28.8)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

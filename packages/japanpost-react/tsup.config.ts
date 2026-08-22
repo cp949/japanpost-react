@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig, type Options } from "tsup";
 
-import { loadBaseline } from "./scripts/baseline.mjs";
+import { loadBaseline } from "@repo/browser-baseline";
 
 const external = [
   "react",
@@ -20,8 +20,8 @@ const external = [
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
 
 // 배포 산출물의 문법 하한이다.
-// 정본은 package.json#browserslist이고 scripts/baseline.mjs가 파생한다.
-// scripts/check-browser-compat.mjs가 같은 파생값으로 산출물을 검사한다.
+// 정본은 package.json#browserslist이고 @repo/browser-baseline이 파생한다.
+// browser-baseline CLI가 같은 파생값으로 산출물을 검사한다.
 const target = loadBaseline(packageDir).esbuildTarget as Options["target"];
 
 // node 전역을 차단한 빌드 전용 타입 경계다.

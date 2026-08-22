@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { loadBaseline } from "../packages/japanpost-react/scripts/baseline.mjs";
+import { loadBaseline } from "@repo/browser-baseline";
 import { reflowChangedBlocks } from "./markdown-reflow.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");

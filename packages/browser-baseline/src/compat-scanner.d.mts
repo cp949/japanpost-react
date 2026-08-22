@@ -7,7 +7,7 @@ export interface Violation {
   file: string;
   /** 1부터 세는 줄 번호다. */
   line: number;
-  /** 판정 이름이다. ALLOWED의 매칭 키와 같은 형식이다. */
+  /** 판정 이름이다. allowed 예외의 매칭 키와 같은 형식이다. */
   name: string;
   /** 이 API가 처음 지원된 Chrome 버전이다. */
   chrome: number;
@@ -26,9 +26,6 @@ export interface AllowedEntry {
   /** 왜 안전한지다. 필수다. */
   reason: string;
 }
-
-/** 오탐 예외 목록이다. dist는 생성물이라 인라인 주석을 넣을 수 없다. */
-export const ALLOWED: AllowedEntry[];
 
 /** 계약의 Chrome 하한에 맞춰 만든 스캐너다. */
 export interface Scanner {

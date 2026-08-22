@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildCompatIndex,
-  normalizeChromeSupport,
-} from "../../packages/japanpost-react/scripts/compat-bcd.mjs";
+import { buildCompatIndex, normalizeChromeSupport } from "@repo/browser-baseline";
 
 describe("Chrome 지원 버전을 판정 값으로 정규화한다", () => {
   it("숫자 문자열을 숫자로 바꾼다", () => {

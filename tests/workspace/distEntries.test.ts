@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { resolveDistEntries } from "../../packages/japanpost-react/scripts/dist-entries.mjs";
+import { resolveDistEntries } from "@repo/browser-baseline";
 
 const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

@@ -6,7 +6,7 @@
  * 차이가 남으면 계약 타깃을 초과하는 문법이 있다는 뜻이다.
  *
  * 타깃은 상수가 아니라 인자다. 정본은 package.json#browserslist이며
- * scripts/baseline.mjs가 파생값을 만든다.
+ * @repo/browser-baseline가 파생값을 만든다.
  */
 import { transform } from "esbuild";
 
@@ -31,7 +31,7 @@ export async function findFirstSyntaxDivergence(source, syntaxTarget) {
     (Array.isArray(syntaxTarget) && syntaxTarget.length === 0)
   ) {
     throw new Error(
-      "syntaxTarget이 비었다. scripts/baseline.mjs가 파생한 esbuildTarget을 넘겨야 한다.",
+      "syntaxTarget이 비었다. @repo/browser-baseline가 파생한 esbuildTarget을 넘겨야 한다.",
     );
   }
 

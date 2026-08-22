@@ -12,7 +12,7 @@
  *   Tier 1(확정): 전역 식별자와 전역의 멤버. compat-scope.mjs의 scope 분석이
  *     수신자가 전역임을 증명하므로 오탐이 없다.
  *   Tier 2(모호): 수신자 타입을 정적으로 모르는 프로토타입·인스턴스 멤버.
- *     BCD 파생 색인의 최소 Chrome 버전으로 판정하며 ALLOWED가 유일한 해소 수단이다.
+ *     BCD 파생 색인의 최소 Chrome 버전으로 판정하며 allowed 예외가 유일한 해소 수단이다.
  *   Tier 3(특수): 옵션·파라미터 서브피처. 전용 AST 매처가 고정 BCD 키를 쓴다.
  *
  * 세 부류 모두 빌드를 실패시킨다.
@@ -21,14 +21,6 @@ import { parse } from "acorn";
 
 import { buildCompatIndex } from "./compat-bcd.mjs";
 import { collectGlobalReferences } from "./compat-scope.mjs";
-
-/**
- * 오탐 예외 목록이다.
- * dist는 생성물이라 인라인 주석을 넣을 수 없으므로 여기서 관리한다.
- * file은 검사 대상의 상대 경로다(예: "dist/index.es.js"). "*"는 전체를 뜻한다.
- * reason은 필수다 — 왜 안전한지를 남기지 않은 예외는 시간이 지나면 근거를 잃는다.
- */
-export const ALLOWED = [];
 
 /**
  * 전역 객체 자신을 가리키는 이름이다.
@@ -135,7 +127,7 @@ const SPECIAL_NAMES = new Set([
 
 /**
  * name이 색인 어딘가에 실재하는 판정 대상을 가리키는지 본다.
- * validateAllowed가 개별 ALLOWED 항목을 검증할 때 쓴다.
+ * validateAllowed가 개별 allowed 항목을 검증할 때 쓴다.
  */
 function isKnownName(name, index) {
   if (SPECIAL_NAMES.has(name) || index.globals.has(name)) {
@@ -182,19 +174,19 @@ function validateAllowed(allowed, index) {
   for (const entry of allowed) {
     if (typeof entry.reason !== "string" || entry.reason.trim() === "") {
       throw new Error(
-        `ALLOWED 항목 ${JSON.stringify(entry.name)}에 reason이 없다. 왜 안전한지를 남겨야 한다.`,
+        `allowed 항목 ${JSON.stringify(entry.name)}에 reason이 없다. 왜 안전한지를 남겨야 한다.`,
       );
     }
 
     if (typeof entry.file !== "string" || entry.file.trim() === "") {
       throw new Error(
-        `ALLOWED 항목 ${JSON.stringify(entry.name)}에 file이 없다. 어느 산출물의 예외인지 적어야 한다("*"는 전체).`,
+        `allowed 항목 ${JSON.stringify(entry.name)}에 file이 없다. 어느 산출물의 예외인지 적어야 한다("*"는 전체).`,
       );
     }
 
     if (!isKnownName(entry.name, index)) {
       throw new Error(
-        `ALLOWED 항목 ${JSON.stringify(entry.name)}이 색인에 없다. 낡은 예외이거나 오타다.`,
+        `allowed 항목 ${JSON.stringify(entry.name)}이 색인에 없다. 낡은 예외이거나 오타다.`,
       );
     }
   }
@@ -205,7 +197,7 @@ function validateAllowed(allowed, index) {
  *
  * @param {{ minChrome: number, allowed?: Array<{ file: string, name: string, reason: string }> }} options
  */
-export function createScanner({ minChrome, allowed = ALLOWED }) {
+export function createScanner({ minChrome, allowed = [] }) {
   if (!Number.isInteger(minChrome)) {
     throw new Error(
       `minChrome은 정수여야 한다. 받은 값: ${JSON.stringify(minChrome)}`,

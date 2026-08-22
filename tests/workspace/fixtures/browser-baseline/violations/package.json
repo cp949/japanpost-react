@@ -1,0 +1,11 @@
+{
+  "name": "fixture-browser-baseline-violations",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": ["chrome >= 80"],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs"
+    }
+  }
+}

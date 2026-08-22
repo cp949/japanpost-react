@@ -3,7 +3,7 @@
  *
  * 게이트 2의 검사 대상은 손으로 고른 목록이 아니라 이 module이 만드는 색인이다.
  * 계약의 Chrome 하한은 인자로 받는다 — 정본은 package.json#browserslist이며
- * scripts/baseline.mjs가 파생값을 만든다.
+ * @repo/browser-baseline가 파생값을 만든다.
  */
 import { createRequire } from "node:module";
 

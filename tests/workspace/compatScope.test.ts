@@ -1,11 +1,11 @@
-// 이 import는 루트 workspace의 acorn을 해석한다(packages/japanpost-react가
+// 이 import는 루트 workspace의 acorn을 해석한다(packages/browser-baseline이
 // 아니라 저장소 루트 package.json의 devDependency다). compat-scope.mjs가
 // import하는 acorn과 버전이 어긋나면 이 테스트 파일이 통과해도 실제 스캐너가
 // 다르게 동작할 수 있다 — 파서 두 벌을 쓰는 구성 자체가 drift 위험이다.
 import { parse } from "acorn";
 import { describe, expect, it } from "vitest";
 
-import { collectGlobalReferences } from "../../packages/japanpost-react/scripts/compat-scope.mjs";
+import { collectGlobalReferences } from "@repo/browser-baseline";
 
 /** 소스에서 전역으로 해석된 식별자 이름을 정렬해 돌려준다. */
 function globalNames(source: string): string[] {

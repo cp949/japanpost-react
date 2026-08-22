@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { createScanner } from "../../packages/japanpost-react/scripts/compat-scanner.mjs";
+import { createScanner } from "@repo/browser-baseline";
 
 /** 계약의 현재 하한이다. 정본에서 파생되는지는 browserBaseline.test.ts가 검증한다. */
 const scanner = createScanner({ minChrome: 80 });
