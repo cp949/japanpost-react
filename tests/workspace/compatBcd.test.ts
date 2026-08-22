@@ -5,7 +5,7 @@ import {
   normalizeChromeSupport,
 } from "../../packages/japanpost-react/scripts/compat-bcd.mjs";
 
-describe("normalizeChromeSupport", () => {
+describe("Chrome 지원 버전을 판정 값으로 정규화한다", () => {
   it("숫자 문자열을 숫자로 바꾼다", () => {
     expect(normalizeChromeSupport({ version_added: "93" })).toBe(93);
   });
@@ -178,7 +178,7 @@ describe("normalizeChromeSupport", () => {
 /** 계약의 현재 하한이다. 정본에서 파생되는지는 browserBaseline.test.ts가 검증한다. */
 const index = buildCompatIndex({ minChrome: 80 });
 
-describe("buildCompatIndex", () => {
+describe("브라우저 하한에 맞는 호환성 색인을 생성한다", () => {
   it("minChrome이 정수가 아니면 던진다", () => {
     // @ts-expect-error minChrome은 number다. 런타임 가드를 검증하려고 일부러 위반한다.
     expect(() => buildCompatIndex({ minChrome: "80" })).toThrow(
@@ -195,7 +195,7 @@ describe("buildCompatIndex", () => {
   });
 });
 
-describe("buildCompatIndex — globals", () => {
+describe("전역 API 색인을 BCD에서 파생한다", () => {
   it("api/_globals에서 전역 함수를 파생한다", () => {
     // 전역 함수는 javascript.builtins가 아니라 api.*에 있다.
     expect(index.globals.get("structuredClone")).toMatchObject({
@@ -223,7 +223,7 @@ describe("buildCompatIndex — globals", () => {
   });
 });
 
-describe("buildCompatIndex — statics", () => {
+describe("static 멤버 색인을 BCD에서 파생한다", () => {
   it("javascript.builtins의 static 멤버를 넣는다", () => {
     expect(index.statics.get("Object.hasOwn")).toMatchObject({
       chrome: 93,
@@ -268,7 +268,7 @@ describe("buildCompatIndex — statics", () => {
   });
 });
 
-describe("buildCompatIndex — members", () => {
+describe("인스턴스 멤버 색인을 제한된 소유 타입에서 파생한다", () => {
   it("수신자 미상 프로토타입 메서드를 넣는다", () => {
     expect(index.members.get("at")).toMatchObject({ chrome: 92 });
     expect(index.members.get("replaceAll")).toMatchObject({ chrome: 85 });
@@ -311,7 +311,7 @@ describe("buildCompatIndex — members", () => {
   });
 });
 
-describe("buildCompatIndex — special", () => {
+describe("옵션 서브피처 색인을 고정 경로에서 파생한다", () => {
   it("옵션 서브피처 두 개를 고정 키로 넣는다", () => {
     expect(index.special.get("Error.cause")).toMatchObject({
       chrome: 93,
@@ -332,7 +332,7 @@ describe("buildCompatIndex — special", () => {
   });
 });
 
-describe("buildCompatIndex — knownGlobalTypes", () => {
+describe("타입이 고정된 전역을 인터페이스에 연결한다", () => {
   it("타입이 고정된 전역을 인터페이스로 잇는다", () => {
     expect(index.knownGlobalTypes.get("crypto")).toBe("Crypto");
     expect(index.knownGlobalTypes.get("navigator")).toBe("Navigator");
@@ -351,7 +351,7 @@ describe("buildCompatIndex — knownGlobalTypes", () => {
   });
 });
 
-describe("buildCompatIndex — 하한 상향", () => {
+describe("브라우저 하한 상향에 맞춰 호환성 색인을 줄인다", () => {
   it("하한을 올리면 색인이 줄어든다", () => {
     const raised = buildCompatIndex({ minChrome: 120 });
 

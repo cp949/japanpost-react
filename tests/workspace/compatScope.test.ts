@@ -15,7 +15,7 @@ function globalNames(source: string): string[] {
   return [...refs].map((node) => (node as { name: string }).name).sort();
 }
 
-describe("collectGlobalReferences", () => {
+describe("식별자 바인딩을 따라 전역 참조만 수집한다", () => {
   it("선언되지 않은 식별자를 전역으로 본다", () => {
     // 호출 대상과 인자 둘 다 미선언이므로 둘 다 전역 참조다.
     expect(globalNames("structuredClone(value);")).toEqual([

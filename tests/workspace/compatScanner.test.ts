@@ -17,7 +17,7 @@ function names(source: string, fileName = "dist/index.es.js"): string[] {
     .sort();
 }
 
-describe("createScanner", () => {
+describe("브라우저 하한에 맞는 스캐너를 생성한다", () => {
   it("minChrome이 정수가 아니면 던진다", () => {
     // @ts-expect-error minChrome은 number다. 런타임 가드를 검증하려고 일부러 위반한다.
     expect(() => createScanner({ minChrome: "80" })).toThrow(/정수여야 한다/);
@@ -37,7 +37,7 @@ describe("createScanner", () => {
   });
 });
 
-describe("Tier 1 — 전역 식별자", () => {
+describe("전역 식별자를 확정 위반으로 판정한다", () => {
   it("전역 함수 호출을 검출한다", () => {
     const violations = scanner.scan(
       "const c = structuredClone(v);\n",
@@ -92,7 +92,7 @@ describe("Tier 1 — 전역 식별자", () => {
   });
 });
 
-describe("Tier 1 — 전역의 static 멤버", () => {
+describe("전역의 static 멤버를 확정 위반으로 판정한다", () => {
   it("javascript.builtins의 static을 검출한다", () => {
     expect(
       names(
@@ -140,7 +140,7 @@ describe("Tier 1 — 전역의 static 멤버", () => {
   });
 });
 
-describe("Tier 1 — 타입이 고정된 전역", () => {
+describe("타입이 고정된 전역의 멤버를 확정 위반으로 판정한다", () => {
   it("crypto.randomUUID를 검출한다", () => {
     const violations = scanner.scan(
       "const id = crypto.randomUUID();",
@@ -231,7 +231,7 @@ describe("Tier 1 — 타입이 고정된 전역", () => {
   });
 });
 
-describe("Tier 1 — 두 단계 전역 접두 (회귀)", () => {
+describe("전역 객체 접두가 붙은 참조를 확정 위반으로 판정한다", () => {
   it("globalThis 두 단계 접두로 부른 static 12개를 전부 검출한다", () => {
     // C1: node.object가 Identifier가 아니라 MemberExpression인 두 단계
     // 접두(globalThis.Object.hasOwn 등)는 한 단계 접두 판정만으로는 잡히지
@@ -299,7 +299,7 @@ describe("Tier 1 — 두 단계 전역 접두 (회귀)", () => {
   });
 });
 
-describe("Tier 2 — 수신자 미상 멤버", () => {
+describe("수신자 타입을 모르는 멤버를 모호 위반으로 판정한다", () => {
   it("프로토타입 메서드 호출을 검출한다", () => {
     const violations = scanner.scan(
       "const last = items.at(-1);",
@@ -386,7 +386,7 @@ describe("Tier 2 — 수신자 미상 멤버", () => {
   });
 });
 
-describe("Tier 3 — 옵션 서브피처", () => {
+describe("옵션 서브피처를 특수 위반으로 판정한다", () => {
   it("new Error의 cause 옵션을 검출한다", () => {
     const violations = scanner.scan(
       "throw new Error(msg, { cause: err });",
@@ -474,7 +474,7 @@ describe("Tier 3 — 옵션 서브피처", () => {
   });
 });
 
-describe("실측 미탐 6건", () => {
+describe("기존 게이트의 미탐 사례를 검출한다", () => {
   it("6건을 전부 검출한다", () => {
     const cases: Array<[string, string, number]> = [
       ["new Error(msg, { cause: err });", "new Error({ cause })", 93],
@@ -502,7 +502,7 @@ describe("실측 미탐 6건", () => {
   });
 });
 
-describe("데니리스트 31개의 tier 판정", () => {
+describe("기존 데니리스트의 판정 수준을 보존한다", () => {
   it("18/12/1로 갈린다", () => {
     // spec §8: 교체 전 regex 데니리스트 31개 전부가 여전히 잡혀야 하고,
     // 이 표가 그 31개 각각의 tier까지 고정한다. 개별 판정은 위 describe들에
@@ -559,7 +559,7 @@ describe("데니리스트 31개의 tier 판정", () => {
   });
 });
 
-describe("Chrome 80이 지원하는 API", () => {
+describe("Chrome 80 지원 API를 허용한다", () => {
   it("위반으로 보고하지 않는다", () => {
     const source = [
       "const value = globalThis.fetch;",
@@ -577,7 +577,7 @@ describe("Chrome 80이 지원하는 API", () => {
   });
 });
 
-describe("정렬", () => {
+describe("위반 결과를 결정적인 순서로 정렬한다", () => {
   it("줄 번호 오름차순으로 돌려준다", () => {
     const source = [
       "const a = 1;",
@@ -614,7 +614,7 @@ describe("정렬", () => {
   });
 });
 
-describe("ALLOWED 예외", () => {
+describe("근거가 있는 위반 예외만 허용한다", () => {
   it("지정한 파일에서만 건너뛴다", () => {
     const allowing = createScanner({
       minChrome: 80,
@@ -716,7 +716,7 @@ describe("ALLOWED 예외", () => {
   });
 });
 
-describe("실제 dist 산출물", () => {
+describe("실제 빌드 산출물이 브라우저 계약을 지킨다", () => {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const packageDir = path.resolve(currentDir, "../../packages/japanpost-react");
 
