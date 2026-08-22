@@ -49,6 +49,89 @@ describe("식별자 바인딩을 따라 전역 참조만 수집한다", () => {
     expect(globalNames("class WeakRef {}\nnew WeakRef();")).toEqual([]);
   });
 
+  it("module 직속 let·const·class는 선언 전 TDZ 참조도 가린다", () => {
+    const source = [
+      "structuredClone(v);",
+      "reportError(e);",
+      "new WeakRef(x);",
+      "let structuredClone = f;",
+      "const reportError = g;",
+      "class WeakRef {}",
+    ].join("\n");
+
+    expect(globalNames(source)).toEqual(["e", "f", "g", "v", "x"]);
+  });
+
+  it("함수 body 직속 let·const·class는 선언 전 TDZ 참조도 가린다", () => {
+    const source = [
+      "function outer() {",
+      "  structuredClone(v);",
+      "  reportError(e);",
+      "  new WeakRef(x);",
+      "  let structuredClone = f;",
+      "  const reportError = g;",
+      "  class WeakRef {}",
+      "}",
+    ].join("\n");
+
+    expect(globalNames(source)).toEqual(["e", "f", "g", "v", "x"]);
+  });
+
+  it("블록 직속 let·const·class는 선언 전 TDZ 참조도 가린다", () => {
+    const source = [
+      "{",
+      "  structuredClone(v);",
+      "  reportError(e);",
+      "  new WeakRef(x);",
+      "  let structuredClone = f;",
+      "  const reportError = g;",
+      "  class WeakRef {}",
+      "}",
+    ].join("\n");
+
+    expect(globalNames(source)).toEqual(["e", "f", "g", "v", "x"]);
+  });
+
+  it("named export의 let·const·class는 선언 전 TDZ 참조도 가린다", () => {
+    const source = [
+      "structuredClone(v);",
+      "reportError(e);",
+      "new WeakRef(x);",
+      "export let structuredClone = f;",
+      "export const reportError = g;",
+      "export class WeakRef {}",
+    ].join("\n");
+
+    expect(globalNames(source)).toEqual(["e", "f", "g", "v", "x"]);
+  });
+
+  it("named default export class는 선언 전 TDZ 참조도 가린다", () => {
+    const source = "new WeakRef(v);\nexport default class WeakRef {}";
+
+    expect(globalNames(source)).toEqual(["v"]);
+  });
+
+  it("static block의 var는 선언 전 참조를 가린다", () => {
+    const source =
+      "class C { static { structuredClone(v); var structuredClone = f; } }";
+
+    expect(globalNames(source)).toEqual(["f", "v"]);
+  });
+
+  it("static block 안의 중첩 block var는 static block 전체에 호이스팅된다", () => {
+    const source =
+      "class C { static { structuredClone(v); { var structuredClone = f; } } }";
+
+    expect(globalNames(source)).toEqual(["f", "v"]);
+  });
+
+  it("static block의 var는 바깥 참조를 가리지 않는다", () => {
+    const source =
+      "class C { static { var structuredClone = 1; } }\nstructuredClone(v);";
+
+    expect(globalNames(source)).toEqual(["structuredClone", "v"]);
+  });
+
   it("import 바인딩이 전역을 가린다", () => {
     const source = [
       'import { forwardRef } from "react";',
@@ -67,6 +150,15 @@ describe("식별자 바인딩을 따라 전역 참조만 수집한다", () => {
     ].join("\n");
 
     expect(globalNames(source)).toEqual([]);
+  });
+
+  it("module import 바인딩은 선언보다 앞선 참조도 가린다", () => {
+    const source = [
+      "structuredClone(v);",
+      'import structuredClone from "polyfill";',
+    ].join("\n");
+
+    expect(globalNames(source)).toEqual(["v"]);
   });
 
   it("매개변수가 전역을 가린다", () => {
@@ -99,6 +191,18 @@ describe("식별자 바인딩을 따라 전역 참조만 수집한다", () => {
     expect(globalNames(source)).toEqual(["structuredClone", "v"]);
   });
 
+  it("strict module의 블록 함수 선언은 블록 밖을 가리지 않는다", () => {
+    const source = "{ function structuredClone() {} }\nstructuredClone(v);";
+
+    expect(globalNames(source)).toEqual(["structuredClone", "v"]);
+  });
+
+  it("블록 함수 선언은 같은 블록의 선언 전 참조를 가린다", () => {
+    const source = "{ structuredClone(v); function structuredClone() {} }";
+
+    expect(globalNames(source)).toEqual(["v"]);
+  });
+
   it("var는 함수 스코프이므로 블록 밖에서도 가린다", () => {
     const source =
       "function f() { { var structuredClone = 1; } structuredClone(); }";
@@ -110,6 +214,25 @@ describe("식별자 바인딩을 따라 전역 참조만 수집한다", () => {
     const source = "reportError();\nfunction reportError() {}";
 
     expect(globalNames(source)).toEqual([]);
+  });
+
+  it("named export 함수 선언은 wrapper 밖 module에서 호이스팅된다", () => {
+    const source = "reportError();\nexport function reportError() {}";
+
+    expect(globalNames(source)).toEqual([]);
+  });
+
+  it("named default export 함수 선언은 module에서 호이스팅된다", () => {
+    const source = "reportError();\nexport default function reportError() {}";
+
+    expect(globalNames(source)).toEqual([]);
+  });
+
+  it("함수 body 직속 함수 선언은 선언 앞에서도 가린다", () => {
+    const source =
+      "function outer() { structuredClone(v); function structuredClone() {} }";
+
+    expect(globalNames(source)).toEqual(["v"]);
   });
 
   it("멤버 표현식의 프로퍼티 이름은 전역 참조가 아니다", () => {

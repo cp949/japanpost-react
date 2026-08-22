@@ -27,9 +27,9 @@ const BLOCK_TYPES = new Set([
   "ClassBody",
 ]);
 
-/** 스코프 하나다. var는 함수 스코프, let/const/class는 블록 스코프에 담긴다. */
-function createScope(parent, isFunctionScope) {
-  return { parent, isFunctionScope, names: new Set() };
+/** 스코프 하나다. isVarScope는 var hoisting이 멈추는 경계다. */
+function createScope(parent, isVarScope) {
+  return { parent, isVarScope, names: new Set() };
 }
 
 /** 이름을 스코프에 선언한다. var는 가장 가까운 함수 스코프까지 올라간다. */
@@ -37,7 +37,7 @@ function declare(scope, name, hoistToFunction) {
   let target = scope;
 
   if (hoistToFunction) {
-    while (!target.isFunctionScope && target.parent !== null) {
+    while (!target.isVarScope && target.parent !== null) {
       target = target.parent;
     }
   }
@@ -131,13 +131,66 @@ function collectPatternNames(pattern, into) {
   }
 }
 
+/** 직속 export wrapper가 감싼 선언을 돌려준다. */
+function unwrapExportDeclaration(node) {
+  if (
+    (node.type === "ExportNamedDeclaration" ||
+      node.type === "ExportDefaultDeclaration") &&
+    node.declaration !== null
+  ) {
+    return node.declaration;
+  }
+
+  return node;
+}
+
 /**
- * 스코프가 열릴 때 그 안에서 호이스팅되는 선언을 미리 등록한다.
+ * 스코프가 열릴 때 그 안의 바인딩을 미리 등록한다.
  *
- * 함수 선언과 var는 참조보다 뒤에 나와도 이미 바인딩돼 있다.
+ * 함수 선언·var·import는 참조보다 뒤에 나와도 이미 바인딩돼 있다.
+ * let·const·class도 초기화 전에는 TDZ지만 지역 바인딩 자체는 존재한다.
  * 미리 등록하지 않으면 선언 앞의 참조를 전역으로 잘못 판정한다.
  */
 function hoistDeclarations(body, scope) {
+  // 직속 선언은 현재 body의 scope에만 선등록한다. 중첩 블록 선언은
+  // 그 블록을 방문할 때 별도 scope에 등록한다.
+  for (const node of body) {
+    const declaration = unwrapExportDeclaration(node);
+
+    if (declaration.type === "FunctionDeclaration" && declaration.id !== null) {
+      declare(scope, declaration.id.name, false);
+      continue;
+    }
+
+    if (
+      declaration.type === "VariableDeclaration" &&
+      declaration.kind !== "var"
+    ) {
+      for (const declarator of declaration.declarations) {
+        const names = [];
+
+        collectPatternNames(declarator.id, names);
+
+        for (const name of names) {
+          declare(scope, name, false);
+        }
+      }
+
+      continue;
+    }
+
+    if (declaration.type === "ClassDeclaration" && declaration.id !== null) {
+      declare(scope, declaration.id.name, false);
+      continue;
+    }
+
+    if (node.type === "ImportDeclaration") {
+      for (const specifier of node.specifiers) {
+        declare(scope, specifier.local.name, false);
+      }
+    }
+  }
+
   const pending = [...body];
 
   while (pending.length > 0) {
@@ -151,11 +204,9 @@ function hoistDeclarations(body, scope) {
       continue;
     }
 
-    // 중첩 함수 안의 var는 그 함수 스코프 소속이다. 여기서 훑지 않는다.
-    if (FUNCTION_TYPES.has(node.type)) {
-      if (node.type === "FunctionDeclaration" && node.id !== null) {
-        declare(scope, node.id.name, true);
-      }
+    // 중첩 함수와 static block 안의 var는 각각 독립된 hoisting 경계 소속이다.
+    // 바깥 scope의 prepass에서 안쪽 선언을 끌어올리지 않는다.
+    if (FUNCTION_TYPES.has(node.type) || node.type === "StaticBlock") {
       continue;
     }
 
@@ -388,7 +439,17 @@ export function collectGlobalReferences(ast) {
     }
 
     if (BLOCK_TYPES.has(node.type)) {
-      const blockScope = createScope(scope, false);
+      // static block의 var는 바깥 함수가 아니라 static block 자체에 hoist된다.
+      const blockScope = createScope(scope, node.type === "StaticBlock");
+
+      if (node.type === "BlockStatement" || node.type === "StaticBlock") {
+        hoistDeclarations(node.body, blockScope);
+      } else if (node.type === "SwitchStatement") {
+        hoistDeclarations(
+          node.cases.flatMap((switchCase) => switchCase.consequent),
+          blockScope,
+        );
+      }
 
       for (const child of childNodes(node)) {
         visit(child, node, blockScope);
