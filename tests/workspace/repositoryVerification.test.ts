@@ -18,6 +18,11 @@ const syntaxGatePath = path.join(
   repoRoot,
   "packages/japanpost-react/scripts/syntax-gate.mjs",
 );
+const compatScannerPaths = [
+  "packages/japanpost-react/scripts/compat-bcd.mjs",
+  "packages/japanpost-react/scripts/compat-scope.mjs",
+  "packages/japanpost-react/scripts/compat-scanner.mjs",
+].map((relativePath) => path.join(repoRoot, relativePath));
 
 function readPackageJson(packageJsonPath: string): {
   scripts?: Record<string, string>;
@@ -224,6 +229,16 @@ describe("repository verification scripts", () => {
     expect(codeRegionOf(tsupConfig)).not.toMatch(/target\s*=\s*["'`](es|chrome)/);
     expect(codeRegionOf(syntaxGate)).not.toContain("SYNTAX_TARGET");
     expect(codeRegionOf(syntaxGate)).not.toMatch(BASELINE_LITERAL);
+  });
+
+  it("AST 스캐너 모듈에 기준선 리터럴이 없다", () => {
+    // 계약의 Chrome 하한은 loadBaseline이 파생해 minChrome 인자로 흐른다.
+    // 모듈이 값을 손으로 적으면 정본이 둘이 된다.
+    for (const filePath of compatScannerPaths) {
+      expect(codeRegionOf(readText(filePath)), filePath).not.toMatch(
+        BASELINE_LITERAL,
+      );
+    }
   });
 
   it("워크스페이스에서 browserslist를 선언하는 package.json은 정본 하나뿐이다", () => {

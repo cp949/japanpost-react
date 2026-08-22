@@ -7,13 +7,14 @@
  *
  * 게이트 1(문법): syntax-gate.mjs가 같은 소스를 esnext와 계약 타깃으로 각각
  *   재출력해 비교한다. 차이가 남으면 계약 타깃을 초과하는 문법이 있다는 뜻이다.
- * 게이트 2(런타임 API): esbuild가 다운레벨할 수 없는 API를 데니리스트로 스캔한다.
+ * 게이트 2(런타임 API): esbuild가 다운레벨할 수 없는 API를 acorn AST로 판정한다.
+ *   검사 대상은 @mdn/browser-compat-data에서 파생한다 — 손으로 고른 목록이 아니다.
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { loadBaseline } from "./baseline.mjs";
-import { createScanner } from "./browser-compat-rules.mjs";
+import { createScanner } from "./compat-scanner.mjs";
 import { resolveDistEntries } from "./dist-entries.mjs";
 import { findFirstSyntaxDivergence } from "./syntax-gate.mjs";
 
@@ -70,10 +71,24 @@ for (const fileName of distFileNames) {
       );
 
       for (const violation of apiViolations) {
+        // Infinity는 Chrome이 아직 이 API를 출시하지 않았다는 뜻이다.
+        // "Chrome Infinity+"로 찍으면 오타처럼 보이므로 별도로 표기한다.
+        const chromeLabel = Number.isFinite(violation.chrome)
+          ? `Chrome ${violation.chrome}+`
+          : "Chrome 미지원";
+
         console.error(
-          `  line ${violation.line}: ${violation.name} (Chrome ${violation.chrome}+)`,
+          `  line ${violation.line}: ${violation.name} (${chromeLabel}, tier ${violation.tier})`,
         );
         console.error(`    ${violation.text}`);
+      }
+
+      // tier 2는 수신자 타입을 정적으로 모르는 판정이라 오탐일 수 있다.
+      // 해소 경로를 함께 안내한다.
+      if (apiViolations.some((violation) => violation.tier === 2)) {
+        console.error(
+          "  tier 2는 수신자 타입을 모르는 판정이다. 오탐이면 scripts/compat-scanner.mjs의 ALLOWED에 file·name·reason을 추가한다.",
+        );
       }
     }
   } catch (error) {
