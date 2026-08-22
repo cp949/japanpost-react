@@ -26,5 +26,7 @@ export { createScanner } from "./compat-scanner.mjs";
 export { collectGlobalReferences } from "./compat-scope.mjs";
 export { resolveDistEntries } from "./dist-entries.mjs";
 export { formatReport } from "./report.mjs";
+export type { OriginLookup } from "./source-origin.mjs";
+export { createOriginLookup } from "./source-origin.mjs";
 export type { SyntaxDivergence } from "./syntax-gate.mjs";
 export { findFirstSyntaxDivergence } from "./syntax-gate.mjs";
