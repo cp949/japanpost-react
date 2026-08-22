@@ -56,6 +56,16 @@ function formatApi(file, apiFindings, runtimeBaseline, lines) {
     `[api] ${file}: ${runtimeBaseline} 미지원 API ${apiFindings.length}건`,
   );
 
+  // originNote는 소스맵 자체를 못 쓴다는 뜻이고, 같은 파일의 모든 finding이
+  // 같은 값을 갖는다(check.mjs가 파일당 한 번만 판정한다). 그룹 머리 바로
+  // 아래 한 줄로 사유를 내고, 개별 위반 줄의 ← 표기는 생략한다 — 이미 한 번
+  // 말한 사유를 줄마다 반복하면 잡음이다.
+  const originNote = apiFindings[0].originNote;
+
+  if (originNote !== null) {
+    lines.push(`  원본 매핑 없음 — ${originNote}`);
+  }
+
   for (const finding of apiFindings) {
     // Infinity는 Chrome이 아직 이 API를 출시하지 않았다는 뜻이다.
     // "Chrome Infinity+"로 찍으면 오타처럼 보이므로 별도로 표기한다.
@@ -63,8 +73,18 @@ function formatApi(file, apiFindings, runtimeBaseline, lines) {
       ? `Chrome ${finding.chrome}+`
       : "Chrome 미지원";
 
+    // 맵을 쓸 수 있을 때만 줄 단위 원인을 붙인다. origin이 null이면 그 줄만
+    // 매핑이 없다는 뜻이므로 "(매핑 없음)"으로 명시한다 — 조용히 생략하면
+    // 다른 위반과 구분되지 않는다.
+    const originSuffix =
+      originNote === null
+        ? finding.origin !== null
+          ? `  ← ${finding.origin}`
+          : "  ← (매핑 없음)"
+        : "";
+
     lines.push(
-      `  line ${finding.line}: ${finding.name} (${chromeLabel}, tier ${finding.tier})`,
+      `  line ${finding.line}: ${finding.name} (${chromeLabel}, tier ${finding.tier})${originSuffix}`,
     );
     lines.push(`    ${finding.text}`);
   }
