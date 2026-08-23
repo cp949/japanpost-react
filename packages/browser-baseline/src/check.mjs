@@ -1,15 +1,18 @@
 /**
  * 패키지 하나의 dist 산출물이 브라우저 지원 계약을 지키는지 검사한다.
  *
- * 계약의 정본은 그 패키지의 package.json#browserslist 하나다.
+ * 문법·런타임 API 기준의 정본은 package.json#browserslist다.
  * baseline.mjs가 거기서 esbuild 타깃과 Chrome 하한을 파생하고 두 게이트가
- * 같은 값을 쓴다. 이 module은 기준을 인자로 받지 않는다 —
- * 질의를 덮어쓸 수 있으면 계약의 정본이 둘이 된다.
+ * 같은 값을 쓴다. dependency closure의 정본은 별도로 package.json의 name과
+ * dependency 필드다. 이 module은 어느 기준도 인자로 덮어쓰지 않는다.
  *
  * 게이트 1(문법): syntax-gate.mjs가 같은 소스를 esnext와 계약 타깃으로 각각
  *   재출력해 비교한다. 차이가 남으면 계약 타깃을 초과하는 문법이 있다는 뜻이다.
  * 게이트 2(런타임 API): esbuild가 다운레벨할 수 없는 API를 acorn AST로 판정한다.
  *   검사 대상은 @mdn/browser-compat-data에서 파생한다 — 손으로 고른 목록이 아니다.
+ * 게이트 3(dependency closure): peer와 패키지 자신 외의 runtime import가
+ *   dist 밖에 남아 앞의 두 게이트를 우회하지 못하게 한다. 판정은 manifest의
+ *   name·peerDependencies·dependencies·optionalDependencies를 쓴다.
  *
  * 결과는 문자열이 아니라 findings 배열이다. 표시는 report.mjs가 맡는다.
  * 판정과 표시를 갈라 둬야 검사 결과를 테스트에서 그대로 들여다볼 수 있다.
@@ -19,6 +22,7 @@ import path from "node:path";
 
 import { loadBaseline } from "./baseline.mjs";
 import { createScanner } from "./compat-scanner.mjs";
+import { createDependencyClosureScanner } from "./dependency-closure.mjs";
 import { resolveDistEntries } from "./dist-entries.mjs";
 import { createOriginLookup } from "./source-origin.mjs";
 import { findFirstSyntaxDivergence } from "./syntax-gate.mjs";
@@ -41,6 +45,7 @@ export async function checkPackageBaseline({ packageDir, allow = [] }) {
     minChrome: baseline.minChrome,
     allowed: allow,
   });
+  const dependencyScanner = createDependencyClosureScanner(packageDir);
 
   // 검사 대상은 package.json#exports에서 파생한다.
   // 엔트리를 추가하면 게이트가 자동으로 따라온다.
@@ -53,6 +58,10 @@ export async function checkPackageBaseline({ packageDir, allow = [] }) {
 
     try {
       const source = await readFile(filePath, "utf8");
+
+      // 먼저 같은 AST 기반 closure를 판정한다. 여기서 파싱이 실패하면 아래
+      // API scanner가 같은 파일을 다시 파싱하지 않고 catch가 error 한 건만 남긴다.
+      findings.push(...dependencyScanner.scan(source, fileName));
 
       const divergence = await findFirstSyntaxDivergence(
         source,

@@ -41,6 +41,31 @@ export interface ApiFinding {
   originNote: string | null;
 }
 
+/** dependency closure 게이트의 위반 원인이다. */
+export type DependencyIssue =
+  | "dependency-leak"
+  | "optional-dependency-leak"
+  | "undeclared-runtime"
+  | "node-builtin"
+  | "computed-specifier";
+
+/** 최종 dist 밖에 남아 문법·API 검사를 우회하는 runtime 참조 하나다. */
+export interface DependencyFinding {
+  kind: "dependency";
+  /** 검사 대상의 패키지 기준 상대 경로다. */
+  file: string;
+  /** 1부터 세는 줄 번호다. */
+  line: number;
+  /** 정적 module specifier다. 계산형이면 null이다. */
+  specifier: string | null;
+  /** 정규화한 package root다. 계산형·잘못된 scoped 이름이면 null이다. */
+  packageRoot: string | null;
+  /** dependency closure를 위반한 원인이다. */
+  issue: DependencyIssue;
+  /** 위반이 있는 줄의 원문이다. 앞뒤 공백은 없다. */
+  text: string;
+}
+
 /** 파일 하나를 검사하지 못했다. 다른 파일 검사는 계속된다. */
 export interface ErrorFinding {
   kind: "error";
@@ -51,13 +76,14 @@ export interface ErrorFinding {
 }
 
 /** 게이트가 남긴 판정 하나다. kind로 갈라 읽는다. */
-export type Finding = SyntaxFinding | ApiFinding | ErrorFinding;
+export type Finding =
+  SyntaxFinding | ApiFinding | DependencyFinding | ErrorFinding;
 
 /** 패키지 하나에 대한 검사 결과다. */
 export interface BaselineCheckResult {
   /** findings가 비었는지다. 표시 계층이 판정을 다시 계산하지 않게 한다. */
   ok: boolean;
-  /** 검사에 쓴 계약 파생값이다. 진단 문구가 기준을 그대로 인용한다. */
+  /** 문법·런타임 API 검사에 쓴 browserslist 파생값이다. */
   baseline: BrowserBaseline;
   /** package.json#exports에서 파생한 검사 대상 목록이다. */
   files: string[];
@@ -66,10 +92,11 @@ export interface BaselineCheckResult {
 }
 
 /**
- * packageDir의 dist 산출물을 문법·런타임 API 두 게이트로 검사한다.
+ * packageDir의 dist 산출물을 문법·런타임 API·dependency closure로 검사한다.
  *
- * 기준은 packageDir의 package.json#browserslist에서 파생한다.
- * 질의를 덮어쓰는 인자는 없다 — 계약의 정본은 하나여야 한다.
+ * 문법·런타임 API 기준은 package.json#browserslist에서 파생한다.
+ * dependency closure 기준은 같은 manifest의 name과 dependency 필드다.
+ * 어느 기준도 덮어쓰는 인자는 없다.
  *
  * 계약을 읽지 못하거나 검사 대상이 비면 던진다.
  * 파일 단위 실패는 던지지 않고 ErrorFinding으로 기록한다.

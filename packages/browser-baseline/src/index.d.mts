@@ -9,6 +9,8 @@ export { loadBaseline } from "./baseline.mjs";
 export type {
   ApiFinding,
   BaselineCheckResult,
+  DependencyFinding,
+  DependencyIssue,
   ErrorFinding,
   Finding,
   SyntaxFinding,

@@ -1,0 +1,23 @@
+import selfValue from "@fixture/dependency-closure-clean";
+import selfFeature from "@fixture/dependency-closure-clean/feature";
+import peerValue from "peer-dep/subpath";
+import scopedPeerValue from "@scope/peer-dep/subpath";
+import npmTestValue from "test/subpath";
+import peerConfig from "peer-dep/config" with { type: "json" };
+export { namedValue } from "peer-dep/named";
+export * from "@scope/peer-dep/all";
+import("peer-dep/dynamic");
+import(`@scope/peer-dep/template`);
+import("peer-dep/options", { with: { type: "json" } });
+import "./local.mjs";
+import "../shared.mjs";
+import "/absolute.mjs";
+import "#internal";
+import "https://example.test/runtime.mjs";
+
+void selfValue;
+void selfFeature;
+void peerValue;
+void scopedPeerValue;
+void npmTestValue;
+void peerConfig;

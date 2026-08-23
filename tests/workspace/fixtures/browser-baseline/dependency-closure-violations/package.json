@@ -1,0 +1,34 @@
+{
+  "name": "@fixture/dependency-closure-violations",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": [
+    "chrome >= 80"
+  ],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs",
+      "require": "./bundle/index.cjs"
+    }
+  },
+  "dependencies": {
+    "@scope/runtime-dep": "*",
+    "\uE000": "*",
+    "\uD800\uDC00": "*",
+    "a-sort-dep": "*",
+    "optional-dep": "*",
+    "z-sort-dep": "*",
+    "runtime-dep": "*"
+  },
+  "optionalDependencies": {
+    "optional-dep": "*"
+  },
+  "peerDependencies": {
+    "fs": "*",
+    "peer-dep": "*"
+  },
+  "devDependencies": {
+    "@scope/dev-only": "*",
+    "dev-only": "*"
+  }
+}

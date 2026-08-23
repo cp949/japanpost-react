@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,8 +17,8 @@ import { checkPackageBaseline } from "@repo/browser-baseline";
  * 진입점도 이 CLI다. 그래서 여기서는 프로세스를 실제로 띄워
  * exit code·stdout·stderr를 그대로 본다.
  *
- * 픽스처는 browserBaselineCheck/Generic 테스트와 같은 것을 쓴다.
- * Chrome 버전 숫자는 이 파일에 리터럴로 등장하지 않는다.
+ * API와 dependency closure 사례는 각 check 테스트와 같은 픽스처를 쓴다.
+ * 잘못된 manifest 사례만 이 파일에서 임시 패키지를 만들어 CLI 경계를 확인한다.
  */
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "../..");
@@ -59,7 +61,7 @@ function runCli(args: string[]): Promise<CliRun> {
 }
 
 describe("browser-baseline CLI: 종료 코드와 스트림이 계약대로 갈린다", () => {
-  it("위반이 없으면 exit 0으로 끝나고 통과 문구는 stdout에만 나온다", async () => {
+  it("기존 API 위반이 없으면 exit 0과 stdout 통과 문구만 남긴다", async () => {
     const run = await runCli([
       "check",
       "--dir",
@@ -72,7 +74,7 @@ describe("browser-baseline CLI: 종료 코드와 스트림이 계약대로 갈�
     expect(run.stderr).toBe("");
   });
 
-  it("위반이 있으면 exit 1로 끝나고 진단은 stderr에만 나온다", async () => {
+  it("기존 API 위반은 exit 1과 stderr 진단만 남긴다", async () => {
     const run = await runCli([
       "check",
       "--dir",
@@ -103,6 +105,33 @@ describe("browser-baseline CLI: 종료 코드와 스트림이 계약대로 갈�
   });
 });
 
+describe("browser-baseline CLI: dependency closure 결과도 같은 종료 계약을 쓴다", () => {
+  it("closure 위반이 없으면 exit 0과 stdout 통과 문구만 남긴다", async () => {
+    const run = await runCli([
+      "check",
+      "--dir",
+      path.join(fixturesDir, "dependency-closure-clean"),
+    ]);
+
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("통과");
+    expect(run.stderr).toBe("");
+  });
+
+  it("closure 위반은 exit 1과 stderr dependency 진단만 남긴다", async () => {
+    const run = await runCli([
+      "check",
+      "--dir",
+      path.join(fixturesDir, "dependency-closure-violations"),
+    ]);
+
+    expect(run.code).toBe(1);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toContain("[dependency]");
+    expect(run.stderr).toContain("실패");
+  });
+});
+
 describe("browser-baseline CLI: 검사를 시작하지 못한 오류는 위반과 다른 코드다", () => {
   it("읽을 수 없는 --dir은 exit 2로 끝나고 스택 없이 한 줄만 낸다", async () => {
     const run = await runCli([
@@ -130,6 +159,39 @@ describe("browser-baseline CLI: 검사를 시작하지 못한 오류는 위반�
     expect(run.code).toBe(2);
     expect(run.stderr).toContain("browserslist");
     expect(run.stderr).not.toContain("    at ");
+  });
+
+  it("유효하지 않은 dependency 매니페스트는 exit 2와 스택 없는 한 줄로 끝난다", async () => {
+    const packageDir = await mkdtemp(
+      path.join(tmpdir(), "browser-baseline-cli-manifest-"),
+    );
+
+    try {
+      await mkdir(path.join(packageDir, "bundle"));
+      await writeFile(
+        path.join(packageDir, "package.json"),
+        `${JSON.stringify({
+          name: "",
+          browserslist: ["chrome >= 80"],
+          exports: { ".": { import: "./bundle/index.mjs" } },
+        })}\n`,
+      );
+      await writeFile(
+        path.join(packageDir, "bundle/index.mjs"),
+        "export const value = 1;\n",
+      );
+
+      const run = await runCli(["check", "--dir", packageDir]);
+
+      expect(run.code).toBe(2);
+      expect(run.stdout).toBe("");
+      expect(run.stderr).toContain("package.json");
+      expect(run.stderr).toContain("name");
+      expect(run.stderr).not.toContain("    at ");
+      expect(run.stderr.trimEnd().split("\n")).toHaveLength(1);
+    } finally {
+      await rm(packageDir, { recursive: true, force: true });
+    }
   });
 });
 

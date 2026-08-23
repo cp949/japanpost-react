@@ -1,0 +1,19 @@
+{
+  "name": "@fixture/dependency-closure-clean",
+  "version": "0.0.0",
+  "private": true,
+  "browserslist": [
+    "chrome >= 123"
+  ],
+  "exports": {
+    ".": {
+      "import": "./bundle/index.mjs",
+      "require": "./bundle/index.cjs"
+    }
+  },
+  "peerDependencies": {
+    "@scope/peer-dep": "*",
+    "peer-dep": "*",
+    "test": "*"
+  }
+}

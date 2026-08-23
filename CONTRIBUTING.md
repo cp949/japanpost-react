@@ -61,9 +61,11 @@ pnpm --filter demo check-types
 ## Browser Support Baseline
 
 The browser support contract has one source: the `browserslist` field of
-`packages/japanpost-react/package.json`. The esbuild build target, both
-compatibility gates, and the README "Browser Support" section are derived from
-it, so editing that field is the only way to change the contract.
+`packages/japanpost-react/package.json`. The syntax target, runtime API
+baseline, and README "Browser Support" section are derived from it, so editing
+that field is the only way to change browser compatibility. The dependency
+closure gate has a separate manifest contract: `name`, `peerDependencies`,
+`dependencies`, and `optionalDependencies`.
 
 `eslint-plugin-compat` reports compatibility issues while editing or running
 lint, but its `compat/compat` rule is deliberately a warning. The build gate is
@@ -128,8 +130,8 @@ absent from the index.
 ## `@repo/browser-baseline` Package
 
 The gate implementation lives in `packages/browser-baseline`, a private
-workspace package (`private: true`, not published to npm). The two
-compatibility gates described above, the `checkPackageBaseline` /
+workspace package (`private: true`, not published to npm). The syntax, runtime
+API, and dependency closure gates described above, the `checkPackageBaseline` /
 `formatReport` orchestration, and the CLI all live under its `src/` and
 `bin/`. It takes a `packageDir` argument and does not depend on this
 repository's layout beyond that.
@@ -143,6 +145,14 @@ pnpm --filter @cp949/japanpost-react compat:check
 or, for any package directory, `browser-baseline check --dir <path>` (exit 0
 on a pass, 1 on a violation, 2 on a usage error). `packages/japanpost-react`'s
 `build` script runs the same check after the build.
+
+The third gate checks dependency closure at the final dist boundary. A bare
+runtime import may remain only when its package root is the package itself or
+is listed in `peerDependencies`. Imports from `dependencies` or
+`optionalDependencies` must be bundled so their bytes pass the syntax and
+runtime API gates. Undeclared packages, Node built-ins, and computed
+`import()`/global `require()` specifiers fail the check; `devDependencies` is
+not an allow list.
 
 The package name reads broader than what it actually checks. The contract is
 a Chrome-lower-bound checker driven by an array-form `browserslist` query, not

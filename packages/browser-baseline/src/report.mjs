@@ -98,6 +98,34 @@ function formatApi(file, apiFindings, runtimeBaseline, lines) {
   }
 }
 
+const DEPENDENCY_REASONS = {
+  "dependency-leak": "번들되어야 할 dependency가 외부 import로 남았다.",
+  "optional-dependency-leak": "optionalDependency가 외부 import로 남았다.",
+  "undeclared-runtime": "package.json에 선언되지 않은 runtime dependency다.",
+  "node-builtin": "브라우저 dist가 Node 내장 모듈을 참조한다.",
+  "computed-specifier":
+    "계산형 specifier는 dependency closure를 판정할 수 없다.",
+};
+
+/** 한 파일의 dependency closure 위반을 한 묶음으로 편다. */
+function formatDependency(file, dependencyFindings, lines) {
+  lines.push(
+    `[dependency] ${file}: dependency closure 위반 ${dependencyFindings.length}건`,
+  );
+
+  for (const finding of dependencyFindings) {
+    const target =
+      finding.specifier === null
+        ? "계산형 specifier"
+        : `${finding.specifier} -> ${finding.packageRoot ?? "package root 판정 불가"}`;
+
+    lines.push(
+      `  line ${finding.line}: ${target} (${DEPENDENCY_REASONS[finding.issue]})`,
+    );
+    lines.push(`    ${finding.text}`);
+  }
+}
+
 /**
  * 검사 결과를 줄 목록으로 만든다. 빈 문자열은 빈 줄이다.
  *
@@ -128,6 +156,14 @@ export function formatReport({ baseline, findings, ok }) {
       formatApi(file, apiFindings, runtimeBaseline, lines);
     }
 
+    const dependencyFindings = group.filter(
+      (finding) => finding.kind === "dependency",
+    );
+
+    if (dependencyFindings.length > 0) {
+      formatDependency(file, dependencyFindings, lines);
+    }
+
     for (const finding of group) {
       if (finding.kind === "error") {
         lines.push(`[error] ${file}: ${finding.message}`);
@@ -137,7 +173,7 @@ export function formatReport({ baseline, findings, ok }) {
 
   if (ok) {
     lines.push(
-      `browser compat check 통과: 문법 ${syntaxTargetLabel}, 런타임 API ${runtimeBaseline} (browserslist ${JSON.stringify(baseline.query)}).`,
+      `browser compat check 통과: 문법 ${syntaxTargetLabel}, 런타임 API ${runtimeBaseline}, dependency closure (browserslist ${JSON.stringify(baseline.query)}).`,
     );
 
     return lines;
@@ -145,7 +181,7 @@ export function formatReport({ baseline, findings, ok }) {
 
   lines.push("");
   lines.push(
-    `browser compat check 실패: 계약은 ${JSON.stringify(baseline.query)}, 문법은 ${syntaxTargetLabel}, 런타임 API는 ${runtimeBaseline} 기준이다.`,
+    `browser compat check 실패: 계약은 ${JSON.stringify(baseline.query)}, 문법은 ${syntaxTargetLabel}, 런타임 API는 ${runtimeBaseline}, dependency closure는 peer/self-only 기준이다.`,
   );
 
   return lines;

@@ -9,5 +9,8 @@
     ".": {
       "import": "./bundle/index.mjs"
     }
+  },
+  "dependencies": {
+    "bundled-runtime-dep": "*"
   }
 }
