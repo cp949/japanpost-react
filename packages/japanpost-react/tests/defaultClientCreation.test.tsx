@@ -22,9 +22,8 @@ function createPage() {
 
 describe("data-source hook usage", () => {
   it("uses the provided data source directly for postal-code lookups", async () => {
-    const { useJapanPostalCode } = await import(
-      "../src/react/useJapanPostalCode"
-    );
+    const { useJapanPostalCode } =
+      await import("../src/react/useJapanPostalCode");
     const page = createPage();
     const dataSource = {
       lookupPostalCode: vi.fn().mockResolvedValue(page),
@@ -52,18 +51,15 @@ describe("data-source hook usage", () => {
   });
 
   it("uses the provided data source directly for keyword searches", async () => {
-    const { useJapanAddressSearch } = await import(
-      "../src/react/useJapanAddressSearch"
-    );
+    const { useJapanAddressSearch } =
+      await import("../src/react/useJapanAddressSearch");
     const page = createPage();
     const dataSource = {
       lookupPostalCode: vi.fn(),
       searchAddress: vi.fn().mockResolvedValue(page),
     };
 
-    const { result } = renderHook(() =>
-      useJapanAddressSearch({ dataSource }),
-    );
+    const { result } = renderHook(() => useJapanAddressSearch({ dataSource }));
 
     await act(async () => {
       await result.current.search(" Tokyo ");
@@ -84,9 +80,8 @@ describe("data-source hook usage", () => {
   });
 
   it("passes an AbortSignal option to postal-code lookups", async () => {
-    const { useJapanPostalCode } = await import(
-      "../src/react/useJapanPostalCode"
-    );
+    const { useJapanPostalCode } =
+      await import("../src/react/useJapanPostalCode");
     const page = createPage();
     const dataSource = {
       lookupPostalCode: vi.fn().mockResolvedValue(page),
@@ -112,18 +107,15 @@ describe("data-source hook usage", () => {
   });
 
   it("passes an AbortSignal option to keyword searches", async () => {
-    const { useJapanAddressSearch } = await import(
-      "../src/react/useJapanAddressSearch"
-    );
+    const { useJapanAddressSearch } =
+      await import("../src/react/useJapanAddressSearch");
     const page = createPage();
     const dataSource = {
       lookupPostalCode: vi.fn(),
       searchAddress: vi.fn().mockResolvedValue(page),
     };
 
-    const { result } = renderHook(() =>
-      useJapanAddressSearch({ dataSource }),
-    );
+    const { result } = renderHook(() => useJapanAddressSearch({ dataSource }));
 
     await act(async () => {
       await result.current.search("Tokyo");

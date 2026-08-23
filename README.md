@@ -65,7 +65,7 @@ other values from the client entry.
 
 ## Recommended Environment
 
-- Node.js 20+
+- Node.js 22+
 - pnpm 10+
 
 The published library's browser baseline is declared once, in the

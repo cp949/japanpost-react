@@ -49,7 +49,10 @@ async function main() {
       forwardedArgs,
     ),
   );
-  await runCommand("pnpm", withForwardedArgs(["test:workspace"], forwardedArgs));
+  await runCommand(
+    "pnpm",
+    withForwardedArgs(["test:workspace"], forwardedArgs),
+  );
 }
 
 main().catch((error) => {

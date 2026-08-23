@@ -27,11 +27,7 @@ const DEFAULT_SELECTED_ADDRESS: JapanAddress = {
 };
 
 type DemoTab =
-  | "dialog"
-  | "embedded"
-  | "address-search"
-  | "postal-code"
-  | "address";
+  "dialog" | "embedded" | "address-search" | "postal-code" | "address";
 
 export default function App() {
   // 다이얼로그 예제와 일부 패널이 같은 주소를 공유하도록

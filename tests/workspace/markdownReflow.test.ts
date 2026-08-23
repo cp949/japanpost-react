@@ -125,7 +125,8 @@ describe("reflowChangedBlocks", () => {
   it("한글은 표시 폭으로 계산해 한계를 넘기지 않는다", () => {
     const original =
       "- 검증 대상은 Chrome {{MIN_CHROME}}뿐입니다. 나머지는 범위 밖입니다.";
-    const rewritten = "- 검증 대상은 Chrome 80뿐입니다. 나머지는 범위 밖입니다.";
+    const rewritten =
+      "- 검증 대상은 Chrome 80뿐입니다. 나머지는 범위 밖입니다.";
 
     const result = reflowChangedBlocks(original, rewritten, 30);
 

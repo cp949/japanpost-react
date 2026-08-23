@@ -60,9 +60,7 @@ function isJapanAddressErrorCode(
   );
 }
 
-function isBadResponseCause(
-  cause: unknown,
-): cause is
+function isBadResponseCause(cause: unknown): cause is
   | {
       kind: "invalid_json_response";
       cause: unknown;
@@ -79,7 +77,9 @@ function isBadResponseCause(
   return kind === "invalid_json_response" || kind === "invalid_page_payload";
 }
 
-function normalizeRequestHeaders(headers: HeadersInit | undefined): HeadersInit | undefined {
+function normalizeRequestHeaders(
+  headers: HeadersInit | undefined,
+): HeadersInit | undefined {
   if (headers === undefined) {
     return undefined;
   }

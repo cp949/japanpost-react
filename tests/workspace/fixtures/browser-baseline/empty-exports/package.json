@@ -2,7 +2,9 @@
   "name": "fixture-browser-baseline-empty-exports",
   "version": "0.0.0",
   "private": true,
-  "browserslist": ["chrome >= 80"],
+  "browserslist": [
+    "chrome >= 80"
+  ],
   "exports": {
     "./readme": "./bundle/README.md"
   }

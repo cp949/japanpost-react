@@ -32,7 +32,9 @@ describe("demo workspace app", () => {
   it("keeps demo tsconfig paths aligned with the recommended package subpaths", () => {
     expect(fs.existsSync(demoTsconfigPath)).toBe(true);
 
-    const demoTsconfig = JSON.parse(fs.readFileSync(demoTsconfigPath, "utf8")) as {
+    const demoTsconfig = JSON.parse(
+      fs.readFileSync(demoTsconfigPath, "utf8"),
+    ) as {
       compilerOptions?: {
         paths?: Record<string, string[]>;
       };
@@ -45,9 +47,7 @@ describe("demo workspace app", () => {
     );
 
     expect(packagePaths).toEqual({
-      "@cp949/japanpost-react": [
-        "../../packages/japanpost-react/src/index.ts",
-      ],
+      "@cp949/japanpost-react": ["../../packages/japanpost-react/src/index.ts"],
       "@cp949/japanpost-react/client": [
         "../../packages/japanpost-react/src/client.ts",
       ],

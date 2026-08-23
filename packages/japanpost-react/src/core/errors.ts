@@ -13,8 +13,8 @@ export function createJapanAddressError(
   // 일반 Error를 생성한 뒤 라이브러리 전용 필드를 추가한다
   const error = new Error(message) as JapanAddressError;
   error.name = "JapanAddressError"; // instanceof 대신 name으로 식별
-  error.code = code;                // 세분화된 오류 코드
-  error.cause = options?.cause;     // 원인이 된 원본 에러 (있는 경우)
-  error.status = options?.status;   // HTTP 상태 코드 (있는 경우)
+  error.code = code; // 세분화된 오류 코드
+  error.cause = options?.cause; // 원인이 된 원본 에러 (있는 경우)
+  error.status = options?.status; // HTTP 상태 코드 (있는 경우)
   return error;
 }

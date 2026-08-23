@@ -28,21 +28,31 @@
     "test": "node ./scripts/test.mjs",
     "test:package": "pnpm --filter @cp949/japanpost-react test",
     "test:package:unit": "pnpm --filter @cp949/japanpost-react test:unit",
-    "lint": "turbo run lint && biome lint tests",
-    "lint:fix": "turbo run lint -- --write --unsafe",
-    "format": "biome format --write .",
+    "lint": "turbo run lint && eslint tests",
+    "lint:fix": "turbo run lint -- --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "check-types": "turbo run check-types && tsc --noEmit -p tests/tsconfig.json"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.9",
+    "@eslint/js": "^9.39.5",
     "@repo/browser-baseline": "workspace:*",
     "acorn": "^8.18.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-compat": "7.0.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6",
     "turbo": "^2.10.11",
     "typescript": "6.0.2",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@10.32.1",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

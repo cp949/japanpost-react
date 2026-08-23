@@ -36,24 +36,22 @@ describe("demo vite workspace aliases", () => {
     );
 
     expect(packageAliases).toHaveLength(2);
-    expect(packageAliases).toEqual(
-      [
-        {
-          find: "@cp949/japanpost-react/client",
-          replacement: path.resolve(
-            import.meta.dirname,
-            "../../packages/japanpost-react/src/client.ts",
-          ),
-        },
-        {
-          find: "@cp949/japanpost-react",
-          replacement: path.resolve(
-            import.meta.dirname,
-            "../../packages/japanpost-react/src/index.ts",
-          ),
-        },
-      ],
-    );
+    expect(packageAliases).toEqual([
+      {
+        find: "@cp949/japanpost-react/client",
+        replacement: path.resolve(
+          import.meta.dirname,
+          "../../packages/japanpost-react/src/client.ts",
+        ),
+      },
+      {
+        find: "@cp949/japanpost-react",
+        replacement: path.resolve(
+          import.meta.dirname,
+          "../../packages/japanpost-react/src/index.ts",
+        ),
+      },
+    ]);
     expect(packageAliases).not.toContainEqual(
       expect.objectContaining({
         find: "@cp949/japanpost-react/contracts",

@@ -120,9 +120,7 @@ export function createJapanPostTokenClient({
             method: "POST",
             headers: {
               "content-type": "application/json",
-              ...(forwardedFor
-                ? { "x-forwarded-for": forwardedFor }
-                : {}),
+              ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
             },
             body: JSON.stringify({
               grant_type: "client_credentials",
@@ -140,9 +138,8 @@ export function createJapanPostTokenClient({
             throw createHttpError(502, message);
           }
 
-          const payload = await parseJsonResponse<JapanPostTokenResponse>(
-            response,
-          );
+          const payload =
+            await parseJsonResponse<JapanPostTokenResponse>(response);
 
           if (!payload.token) {
             throw createHttpError(

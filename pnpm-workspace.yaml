@@ -13,8 +13,7 @@ overrides:
   "@microsoft/api-extractor": "^7.59.0"
   # vite와 tsup이 끌어오는 esbuild 0.27.x의 dev server 임의 파일 읽기(GHSA-g7r4-m6w7-qqqr) 패치 버전.
   esbuild: "^0.28.2"
-  # jsdom 30은 undici 8을 요구하는데 undici 8이 Node 20에서 동작하지 않는다.
-  # 이 저장소는 engines가 node>=20이고 CI도 Node 20이므로 jsdom은 29 계열로 고정한다.
+  # jsdom 30 전환은 undici 8 동반 검증이 필요하므로 현재 검증된 jsdom 29 계열을 유지한다.
   jsdom: "^29.1.1"
   # jsdom이 의존하는 undici 7.x를 취약점이 모두 패치된 7.29.0 이상으로 올린다.
   undici: "^7.29.0"

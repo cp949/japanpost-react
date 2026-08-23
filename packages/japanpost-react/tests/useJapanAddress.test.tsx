@@ -198,7 +198,9 @@ describe("useJapanAddress", () => {
     });
 
     expect(result.current.searchByPostalCode).toBe(initialSearchByPostalCode);
-    expect(result.current.searchByAddressQuery).toBe(initialSearchByAddressQuery);
+    expect(result.current.searchByAddressQuery).toBe(
+      initialSearchByAddressQuery,
+    );
     expect(result.current.reset).toBe(initialReset);
   });
 });

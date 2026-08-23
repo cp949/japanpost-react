@@ -4,10 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { JapanAddressSearchInput } from "../src";
 import { useJapanAddressSearch } from "../src/react/useJapanAddressSearch";
-import type {
-  JapanAddress,
-  Page,
-} from "../src/core/types";
+import type { JapanAddress, Page } from "../src/core/types";
 
 describe("useJapanAddressSearch", () => {
   afterEach(() => {
@@ -69,12 +66,10 @@ describe("useJapanAddressSearch", () => {
     };
     const dataSource = {
       lookupPostalCode: vi.fn(),
-      searchAddress: vi.fn(
-        (_request, options?: { signal?: AbortSignal }) => {
-          expect(options?.signal).toBeInstanceOf(AbortSignal);
-          return Promise.resolve(page);
-        },
-      ),
+      searchAddress: vi.fn((_request, options?: { signal?: AbortSignal }) => {
+        expect(options?.signal).toBeInstanceOf(AbortSignal);
+        return Promise.resolve(page);
+      }),
     };
 
     const { result } = renderHook(() =>
@@ -119,7 +114,9 @@ describe("useJapanAddressSearch", () => {
         signal: expect.any(AbortSignal),
       }),
     );
-    expect(dataSource.searchAddress.mock.calls[0]?.[0]).not.toHaveProperty("addressQuery");
+    expect(dataSource.searchAddress.mock.calls[0]?.[0]).not.toHaveProperty(
+      "addressQuery",
+    );
     expect(result.current.error).toBeNull();
   });
 
@@ -236,9 +233,7 @@ describe("useJapanAddressSearch", () => {
       await secondPromise;
     });
 
-    await expect(
-      firstSettledPromise,
-    ).resolves.toBeNull();
+    await expect(firstSettledPromise).resolves.toBeNull();
     await expect(secondPromise).resolves.toEqual(page);
   });
 
@@ -274,12 +269,10 @@ describe("useJapanAddressSearch", () => {
     let capturedSignal: AbortSignal | undefined;
     const dataSource = {
       lookupPostalCode: vi.fn(),
-      searchAddress: vi.fn(
-        (_request, options?: { signal?: AbortSignal }) => {
-          capturedSignal = options?.signal;
-          return new Promise<Page<JapanAddress>>(() => {});
-        },
-      ),
+      searchAddress: vi.fn((_request, options?: { signal?: AbortSignal }) => {
+        capturedSignal = options?.signal;
+        return new Promise<Page<JapanAddress>>(() => {});
+      }),
     };
 
     const { result } = renderHook(() => useJapanAddressSearch({ dataSource }));
@@ -309,10 +302,7 @@ describe("useJapanAddressSearch", () => {
       throw new Error("Expected search promise to be created");
     }
 
-    const racePromise = Promise.race([
-      searchPromise,
-      timeoutPromise,
-    ]);
+    const racePromise = Promise.race([searchPromise, timeoutPromise]);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20);

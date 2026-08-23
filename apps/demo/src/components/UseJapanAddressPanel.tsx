@@ -92,10 +92,9 @@ function parseNonNegativeInteger(value: string, fallback: number) {
   return parsed;
 }
 
-function buildPostalCodeRequest(form: PostalCodeFormState): Exclude<
-  JapanPostalCodeSearchInput,
-  string
-> {
+function buildPostalCodeRequest(
+  form: PostalCodeFormState,
+): Exclude<JapanPostalCodeSearchInput, string> {
   // 우편번호 모드 폼을 `searchByPostalCode()` 가 받는 요청 구조로 변환한다.
   return {
     postalCode: normalizeJapanPostalCode(form.postalCode),
@@ -105,10 +104,9 @@ function buildPostalCodeRequest(form: PostalCodeFormState): Exclude<
   };
 }
 
-function buildAddressQueryRequest(form: AddressQueryFormState): Exclude<
-  JapanAddressSearchInput,
-  string
-> {
+function buildAddressQueryRequest(
+  form: AddressQueryFormState,
+): Exclude<JapanAddressSearchInput, string> {
   // 주소 모드에서는 비어 있는 필드를 생략해 더 의미 있는 요청만 서버로 보낸다.
   return {
     ...(normalizeText(form.addressQuery) === undefined
@@ -153,7 +151,9 @@ export function UseJapanAddressPanel({
     [demoApiBaseUrl],
   );
   const [mode, setMode] = useState<SearchMode>(DEFAULT_MODE);
-  const [postalCodeForm, setPostalCodeForm] = useState(DEFAULT_POSTAL_CODE_FORM);
+  const [postalCodeForm, setPostalCodeForm] = useState(
+    DEFAULT_POSTAL_CODE_FORM,
+  );
   const [addressQueryForm, setAddressQueryForm] = useState(
     DEFAULT_ADDRESS_QUERY_FORM,
   );
@@ -165,10 +165,9 @@ export function UseJapanAddressPanel({
     null,
   );
   const [lastSubmittedRequest, setLastSubmittedRequest] = useState<
-    Exclude<JapanPostalCodeSearchInput, string> | Exclude<
-      JapanAddressSearchInput,
-      string
-    > | null
+    | Exclude<JapanPostalCodeSearchInput, string>
+    | Exclude<JapanAddressSearchInput, string>
+    | null
   >(null);
 
   // 주소 검색 훅의 debounce 설정은 주소 모드 폼 입력에서만 가져오되,

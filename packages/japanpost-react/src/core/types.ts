@@ -110,8 +110,7 @@ export type JapanPostAddressZipResponse = {
 
 // 두 응답 타입을 하나로 묶은 유니온 타입
 export type JapanPostApiResponse =
-  | JapanPostSearchCodeResponse
-  | JapanPostAddressZipResponse;
+  JapanPostSearchCodeResponse | JapanPostAddressZipResponse;
 
 /**
  * minimal-api가 그대로 받는 공개 searchcode 요청 타입이다.

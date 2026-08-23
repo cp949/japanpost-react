@@ -55,10 +55,9 @@ function parseNonNegativeInteger(value: string, fallback: number) {
   return parsed;
 }
 
-function buildSearchRequest(form: SearchFormState): Exclude<
-  JapanPostalCodeSearchInput,
-  string
-> {
+function buildSearchRequest(
+  form: SearchFormState,
+): Exclude<JapanPostalCodeSearchInput, string> {
   // 화면 입력 상태를 훅이 기대하는 검색 요청 객체 형태로 변환한다.
   return {
     postalCode: normalizeJapanPostalCode(form.postalCode),
@@ -83,9 +82,10 @@ export function UseJapanPostalCodePanel({
   const [selectedAddress, setSelectedAddress] = useState<JapanAddress | null>(
     null,
   );
-  const [lastSubmittedRequest, setLastSubmittedRequest] = useState<
-    Exclude<JapanPostalCodeSearchInput, string> | null
-  >(null);
+  const [lastSubmittedRequest, setLastSubmittedRequest] = useState<Exclude<
+    JapanPostalCodeSearchInput,
+    string
+  > | null>(null);
   // 제출 전에도 어떤 요청이 나갈지 볼 수 있도록 현재 입력값 기반의 draft 요청을 계산한다.
   const normalizedDraftRequest = buildSearchRequest(form);
   const results = postalCodeState.data?.elements ?? [];
@@ -139,7 +139,9 @@ export function UseJapanPostalCodePanel({
               label="Postal code"
               value={form.postalCode}
               helperText="Use 3-7 digits. Hyphen is optional."
-              onChange={(event) => updateField("postalCode", event.target.value)}
+              onChange={(event) =>
+                updateField("postalCode", event.target.value)
+              }
               slotProps={{
                 htmlInput: {
                   inputMode: "numeric",
@@ -230,7 +232,11 @@ export function UseJapanPostalCodePanel({
             wordBreak: "break-word",
           }}
         >
-          {JSON.stringify(lastSubmittedRequest ?? normalizedDraftRequest, null, 2)}
+          {JSON.stringify(
+            lastSubmittedRequest ?? normalizedDraftRequest,
+            null,
+            2,
+          )}
         </Box>
       </Stack>
 

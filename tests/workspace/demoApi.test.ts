@@ -161,7 +161,9 @@ describe("demo API integration helpers", () => {
       ok: true,
       status: 200,
       json: async () => ({
-        elements: [{ postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" }],
+        elements: [
+          { postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" },
+        ],
         totalElements: 1,
         pageNumber: 0,
         rowsPerPage: 20,
@@ -258,7 +260,9 @@ describe("demo API integration helpers", () => {
       ok: true,
       status: 200,
       json: async () => ({
-        elements: [{ postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" }],
+        elements: [
+          { postalCode: "1000004", address: "Tokyo Chiyoda Otemachi" },
+        ],
         totalElements: 1,
         pageNumber: 0,
         rowsPerPage: 20,
@@ -532,7 +536,9 @@ describe("demo API integration helpers", () => {
   it("maps aborted requests into structured timeout errors", async () => {
     const fetchMock = vi
       .fn()
-      .mockRejectedValue(new DOMException("The operation was aborted.", "AbortError"));
+      .mockRejectedValue(
+        new DOMException("The operation was aborted.", "AbortError"),
+      );
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -615,12 +621,10 @@ describe("demo API integration helpers", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(readDemoApiHealth("http://localhost:8787")).resolves.toEqual(
-      {
-        ok: false,
-        error: "JAPANPOST_SECRET_KEY is required",
-      },
-    );
+    await expect(readDemoApiHealth("http://localhost:8787")).resolves.toEqual({
+      ok: false,
+      error: "JAPANPOST_SECRET_KEY is required",
+    });
   });
 
   it("maps unreachable health requests into a stable message", async () => {

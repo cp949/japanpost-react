@@ -4,7 +4,7 @@ This repository uses a `pnpm workspace + turbo` layout.
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - pnpm 10+
 - `.secrets/env` for `pnpm demo:full` and `pnpm api:check`
 
@@ -64,6 +64,16 @@ The browser support contract has one source: the `browserslist` field of
 `packages/japanpost-react/package.json`. The esbuild build target, both
 compatibility gates, and the README "Browser Support" section are derived from
 it, so editing that field is the only way to change the contract.
+
+`eslint-plugin-compat` reports compatibility issues while editing or running
+lint, but its `compat/compat` rule is deliberately a warning. The build gate is
+the only enforcing check. The plugin carries `@mdn/browser-compat-data@^6.1.1`,
+while the build gate uses `^8.0.12`; they are intentionally not synchronized
+with a pnpm override because the old Chrome 80 lower bound limits the practical
+drift and the build gate remains the final verdict. Build-time
+`browserBaseline.allow` entries do not suppress lint findings; use an ESLint
+disable comment or the plugin's `polyfills` setting for lint-only false
+positives.
 
 After editing it, regenerate the package README and run the verification path:
 

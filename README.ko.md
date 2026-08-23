@@ -12,7 +12,7 @@ React + TypeScript 기반의 일본 우편번호/주소 검색 워크스페이�
 
 ## 권장 환경
 
-- Node.js 20 이상
+- Node.js 22 이상
 - pnpm 10 이상
 - 로컬 demo 전체 스택 확인 시 `.secrets/env` 파일
 
@@ -140,8 +140,8 @@ sample server와 같은 pager-aware 계약과 정렬되어 있습니다.
   위한 기본 엔트리
 - `@cp949/japanpost-react/client`: Next.js App Router client component용
   엔트리
-루트 엔트리에서 요청/응답/페이지 타입도 함께 `import type`으로 가져오세요.
-JavaScript 소비자는 runtime helpers를 root나 client 엔트리에서만 사용하면 됩니다.
+  루트 엔트리에서 요청/응답/페이지 타입도 함께 `import type`으로 가져오세요.
+  JavaScript 소비자는 runtime helpers를 root나 client 엔트리에서만 사용하면 됩니다.
 
 ```ts
 const addresses = data?.elements ?? [];

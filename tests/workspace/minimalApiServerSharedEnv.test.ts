@@ -17,9 +17,8 @@ describe("minimal api startup env loading", () => {
       loadExportEnvFile,
     }));
 
-    const { loadMinimalApiEnvForStartup } = await import(
-      "../../apps/minimal-api/src/server"
-    );
+    const { loadMinimalApiEnvForStartup } =
+      await import("../../apps/minimal-api/src/server");
 
     const env = {
       EXISTING_VALUE: "kept",

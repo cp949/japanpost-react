@@ -20,7 +20,9 @@ function createPackageDirWith(browserslist: unknown): string {
   tempDirs.push(dir);
 
   const manifest =
-    browserslist === undefined ? { name: "probe" } : { name: "probe", browserslist };
+    browserslist === undefined
+      ? { name: "probe" }
+      : { name: "probe", browserslist };
 
   writeFileSync(
     path.join(dir, "package.json"),
@@ -79,8 +81,8 @@ describe("loadBaseline", () => {
   });
 
   it("Chrome을 포함하지 않는 질의는 폴백 없이 던진다", () => {
-    expect(() => loadBaseline(createPackageDirWith(["firefox >= 100"]))).toThrow(
-      /Chrome 하한을 구할 수 없다/,
-    );
+    expect(() =>
+      loadBaseline(createPackageDirWith(["firefox >= 100"])),
+    ).toThrow(/Chrome 하한을 구할 수 없다/);
   });
 });

@@ -70,10 +70,9 @@ function parseNonNegativeInteger(value: string, fallback: number) {
   return parsed;
 }
 
-function buildSearchRequest(form: SearchFormState): Exclude<
-  JapanAddressSearchInput,
-  string
-> {
+function buildSearchRequest(
+  form: SearchFormState,
+): Exclude<JapanAddressSearchInput, string> {
   // 사용자가 입력하지 않은 조건은 요청 객체에서 제거해
   // 서버가 의미 없는 빈 문자열 필드를 받지 않게 한다.
   return {
@@ -110,9 +109,10 @@ export function UseJapanAddressSearchPanel({
   const [selectedAddress, setSelectedAddress] = useState<JapanAddress | null>(
     null,
   );
-  const [lastSubmittedRequest, setLastSubmittedRequest] = useState<
-    Exclude<JapanAddressSearchInput, string> | null
-  >(null);
+  const [lastSubmittedRequest, setLastSubmittedRequest] = useState<Exclude<
+    JapanAddressSearchInput,
+    string
+  > | null>(null);
   // 디바운스 값도 문자열 입력이므로 실제 훅에 넣기 전 숫자로 정규화한다.
   const debounceMs = parseNonNegativeInteger(form.debounceMs, 0);
   const searchState = useJapanAddressSearch({
@@ -278,7 +278,11 @@ export function UseJapanAddressSearchPanel({
         </Grid>
 
         <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
-          <Button loading={searchState.loading} type="submit" variant="contained">
+          <Button
+            loading={searchState.loading}
+            type="submit"
+            variant="contained"
+          >
             Search
           </Button>
           <Button type="button" variant="outlined" onClick={handleReset}>
@@ -336,8 +340,8 @@ export function UseJapanAddressSearchPanel({
       {!searchState.loading && !searchState.error && results.length > 0 ? (
         <Stack spacing={1.5}>
           <Typography color="text.secondary" variant="body2">
-            {searchState.data?.totalElements ?? results.length} result(s) on page{" "}
-            {(searchState.data?.pageNumber ?? 0) + 1}
+            {searchState.data?.totalElements ?? results.length} result(s) on
+            page {(searchState.data?.pageNumber ?? 0) + 1}
           </Typography>
           <List disablePadding>
             {results.map((result) => (

@@ -63,7 +63,8 @@ async function main() {
   const runtimeEnv = {
     ...loadedEnv,
     MINIMAL_API_INSTANCE_ID:
-      loadedEnv.MINIMAL_API_INSTANCE_ID?.trim() || createInstanceId("check-api"),
+      loadedEnv.MINIMAL_API_INSTANCE_ID?.trim() ||
+      createInstanceId("check-api"),
     PORT: loadedEnv.PORT?.trim() || "8788",
   };
 
@@ -72,15 +73,11 @@ async function main() {
 
   console.log("Starting apps/minimal-api check server...");
 
-  const serverProcess = spawnCommand(
-    "pnpm",
-    ["exec", "tsx", "src/server.ts"],
-    {
-      cwd: API_DIR,
-      env: runtimeEnv,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
+  const serverProcess = spawnCommand("pnpm", ["exec", "tsx", "src/server.ts"], {
+    cwd: API_DIR,
+    env: runtimeEnv,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   const readLogs = captureProcessOutput(serverProcess);
 
   try {

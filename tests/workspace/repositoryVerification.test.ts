@@ -97,8 +97,26 @@ function collectPackageJsonPaths(dir: string, into: string[] = []): string[] {
  * 이 위치가 아니면 "/"는 나눗셈 연산자로 본다.
  */
 const REGEX_ALLOWED_BEFORE = new Set([
-  "(", ",", "=", ":", "[", "!", "&", "|", "?", "{", "}", ";",
-  "+", "-", "*", "%", "~", "^", "<", ">",
+  "(",
+  ",",
+  "=",
+  ":",
+  "[",
+  "!",
+  "&",
+  "|",
+  "?",
+  "{",
+  "}",
+  ";",
+  "+",
+  "-",
+  "*",
+  "%",
+  "~",
+  "^",
+  "<",
+  ">",
 ]);
 
 /** 문자열 리터럴 하나의 길이를 잰다. 이스케이프를 건너뛴다. */
@@ -255,7 +273,9 @@ describe("repository verification scripts", () => {
     // 소비자는 파생만 한다. 리터럴이 다시 들어오면 정본이 둘이 된다.
     // 설명용 주석까지 잡지 않도록 코드 영역만 본다.
     expect(codeRegionOf(tsupConfig)).toContain("loadBaseline(");
-    expect(codeRegionOf(tsupConfig)).not.toMatch(/target\s*=\s*["'`](es|chrome)/);
+    expect(codeRegionOf(tsupConfig)).not.toMatch(
+      /target\s*=\s*["'`](es|chrome)/,
+    );
     expect(codeRegionOf(syntaxGate)).not.toContain("SYNTAX_TARGET");
     expect(codeRegionOf(syntaxGate)).not.toMatch(BASELINE_LITERAL);
   });
@@ -282,7 +302,9 @@ describe("repository verification scripts", () => {
 
   it("워크스페이스에서 browserslist를 선언하는 package.json은 정본 하나뿐이다", () => {
     const declaring = collectPackageJsonPaths(repoRoot)
-      .filter((filePath) => readPackageJson(filePath).browserslist !== undefined)
+      .filter(
+        (filePath) => readPackageJson(filePath).browserslist !== undefined,
+      )
       .map((filePath) => path.relative(repoRoot, filePath))
       // tests/workspace/fixtures/browser-baseline/의 fixture package.json들은
       // 검사 대상 packageDir을 흉내 내려고 저마다 browserslist를 선언한다.
@@ -342,7 +364,7 @@ describe("codeRegionOf", () => {
   it("주석 안의 기준선 리터럴은 코드 영역에 남기지 않는다", () => {
     const source = [
       '// 예: "chrome80" -> 80',
-      "/* 이전 구현은 \"es2019\"를 상수로 썼다 */",
+      '/* 이전 구현은 "es2019"를 상수로 썼다 */',
       "const target = readTarget();",
     ].join("\n");
 
@@ -356,7 +378,8 @@ describe("codeRegionOf", () => {
   });
 
   it("문자열 안의 슬래시 두 개를 주석으로 보지 않는다", () => {
-    const source = 'const url = "https://example.com"; const target = "chrome80";';
+    const source =
+      'const url = "https://example.com"; const target = "chrome80";';
 
     expect(codeRegionOf(source)).toMatch(BASELINE_LITERAL);
   });
@@ -366,7 +389,7 @@ describe("codeRegionOf", () => {
 
     expect(codeRegionOf(source)).toMatch(BASELINE_LITERAL);
   });
-it("실제 게이트 파일에서 코드는 남기고 주석만 지운다", () => {
+  it("실제 게이트 파일에서 코드는 남기고 주석만 지운다", () => {
     const code = codeRegionOf(readText(syntaxGatePath));
 
     expect(code).toContain("export async function findFirstSyntaxDivergence");

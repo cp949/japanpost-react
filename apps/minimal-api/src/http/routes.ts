@@ -80,11 +80,7 @@ export async function handleMinimalApiRequest(
   try {
     if (request.method === "GET" && url.pathname === "/health") {
       const health = await adapter.getHealth();
-      writeJson(
-        response,
-        health.ok ? 200 : 503,
-        withInstanceId(env, health),
-      );
+      writeJson(response, health.ok ? 200 : 503, withInstanceId(env, health));
       return;
     }
 
@@ -92,9 +88,8 @@ export async function handleMinimalApiRequest(
       request.method === "POST" &&
       url.pathname === "/q/japanpost/searchcode"
     ) {
-      const requestBody = await readJsonBody<JapanPostSearchcodeRequest>(
-        request,
-      );
+      const requestBody =
+        await readJsonBody<JapanPostSearchcodeRequest>(request);
       const result = await adapter.searchcode(requestBody);
       writeJson(response, 200, result);
       return;
@@ -104,9 +99,8 @@ export async function handleMinimalApiRequest(
       request.method === "POST" &&
       url.pathname === "/q/japanpost/addresszip"
     ) {
-      const requestBody = await readJsonBody<JapanPostAddresszipRequest>(
-        request,
-      );
+      const requestBody =
+        await readJsonBody<JapanPostAddresszipRequest>(request);
       const result = await adapter.addresszip(requestBody);
       writeJson(response, 200, result);
       return;

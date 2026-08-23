@@ -3,7 +3,10 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { findFirstSyntaxDivergence, loadBaseline } from "@repo/browser-baseline";
+import {
+  findFirstSyntaxDivergence,
+  loadBaseline,
+} from "@repo/browser-baseline";
 
 const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -15,9 +18,9 @@ const syntaxTarget = loadBaseline(packageDir).esbuildTarget;
 
 describe("findFirstSyntaxDivergence", () => {
   it("타깃이 비면 던진다", async () => {
-    await expect(findFirstSyntaxDivergence("const a = 1;\n", [])).rejects.toThrow(
-      /syntaxTarget이 비었다/,
-    );
+    await expect(
+      findFirstSyntaxDivergence("const a = 1;\n", []),
+    ).rejects.toThrow(/syntaxTarget이 비었다/);
   });
 
   it("계약 타깃에서도 동일하게 출력되는 소스는 null을 돌려준다", async () => {

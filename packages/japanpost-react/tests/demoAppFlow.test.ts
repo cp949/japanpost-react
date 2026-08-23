@@ -315,9 +315,7 @@ describe("demo app flow", () => {
       screen.getByRole("tab", { name: "useJapanAddress()" }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
-    expect(screen.getByRole("tabpanel")).toHaveTextContent(
-      /dialog/i,
-    );
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(/dialog/i);
 
     fireEvent.click(screen.getByRole("tab", { name: "Embedded" }));
 
@@ -389,9 +387,9 @@ describe("demo app flow", () => {
     fireEvent.click(resultButton);
 
     await waitFor(() => {
-      expect(
-        within(panel).getByLabelText("Selected postal code"),
-      ).toHaveValue("100-0001");
+      expect(within(panel).getByLabelText("Selected postal code")).toHaveValue(
+        "100-0001",
+      );
       expect(within(panel).getByLabelText("Selected address")).toHaveValue(
         "Tokyo Chiyoda-ku Chiyoda",
       );
@@ -458,7 +456,9 @@ describe("demo app flow", () => {
     });
 
     expect(searchButton).toBeEnabled();
-    expect(within(panel).getByText("Use 3-7 digits. Hyphen is optional.")).toBeInTheDocument();
+    expect(
+      within(panel).getByText("Use 3-7 digits. Hyphen is optional."),
+    ).toBeInTheDocument();
 
     fireEvent.click(searchButton);
 
@@ -577,7 +577,9 @@ describe("demo app flow", () => {
     fireEvent.click(resultButton);
 
     expect(within(panel).getByText(/normalized request/i)).toBeInTheDocument();
-    expect(within(panel).getByText(/"addressQuery": "Tokyo Station"/)).toBeInTheDocument();
+    expect(
+      within(panel).getByText(/"addressQuery": "Tokyo Station"/),
+    ).toBeInTheDocument();
     expect(within(panel).getByText(/"rowsPerPage": 25/)).toBeInTheDocument();
     expect(within(panel).getByLabelText("Selected postal code")).toHaveValue(
       "100-0001",
@@ -590,7 +592,8 @@ describe("demo app flow", () => {
   });
 
   it("renders a useJapanPostalCode() playground that submits structured input inline", async () => {
-    let resolvePostalCodeSearch: ((value: MockJsonResponse) => void) | undefined;
+    let resolvePostalCodeSearch:
+      ((value: MockJsonResponse) => void) | undefined;
     const pendingPostalCodeSearchResponse = new Promise<MockJsonResponse>(
       (resolve) => {
         resolvePostalCodeSearch = resolve;
@@ -628,9 +631,7 @@ describe("demo app flow", () => {
       expect(fetchMock).toHaveBeenCalledWith("/minimal-api/health");
     });
 
-    fireEvent.click(
-      screen.getByRole("tab", { name: "useJapanPostalCode()" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "useJapanPostalCode()" }));
 
     const panel = screen.getByRole("tabpanel");
 
@@ -692,7 +693,8 @@ describe("demo app flow", () => {
   });
 
   it("renders a useJapanAddress() playground that switches between postal-code and address-query modes", async () => {
-    let resolvePostalCodeSearch: ((value: MockJsonResponse) => void) | undefined;
+    let resolvePostalCodeSearch:
+      ((value: MockJsonResponse) => void) | undefined;
     const pendingPostalCodeSearchResponse = new Promise<MockJsonResponse>(
       (resolve) => {
         resolvePostalCodeSearch = resolve;
@@ -1049,7 +1051,9 @@ describe("demo app flow", () => {
       );
     });
 
-    expect(formatJapanAddressDisplay).toHaveBeenCalledWith(TEST_SELECTED_ADDRESS);
+    expect(formatJapanAddressDisplay).toHaveBeenCalledWith(
+      TEST_SELECTED_ADDRESS,
+    );
   });
 
   it("closes the dialog with an explicit close button", async () => {

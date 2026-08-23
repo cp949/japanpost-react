@@ -62,7 +62,9 @@ describe("checkPackageBaseline", () => {
 
     const result = await checkPackageBaseline({
       packageDir,
-      allow: [{ file: "bundle/index.mjs", name: ".at()", reason: "테스트용 예외" }],
+      allow: [
+        { file: "bundle/index.mjs", name: ".at()", reason: "테스트용 예외" },
+      ],
     });
 
     expect(result.ok).toBe(true);
@@ -107,8 +109,7 @@ describe("formatReport", () => {
     expect(
       lines.some(
         (line) =>
-          line.includes("Object.hasOwn") &&
-          line.endsWith("← src/hasKey.ts"),
+          line.includes("Object.hasOwn") && line.endsWith("← src/hasKey.ts"),
       ),
     ).toBe(true);
     expect(
@@ -141,9 +142,7 @@ describe("formatReport", () => {
     // 맵을 아예 못 쓰는 경우(원본 매핑 없음 줄)와 혼동해서도 안 된다 —
     // 이 픽스처는 맵 자체는 읽히므로 그룹 머리에 "원본 매핑 없음" 줄이
     // 없어야 한다.
-    expect(lines.some((line) => line.includes("원본 매핑 없음"))).toBe(
-      false,
-    );
+    expect(lines.some((line) => line.includes("원본 매핑 없음"))).toBe(false);
   });
 
   it("맵 자체를 못 쓰면 원본 매핑 없음 사유를 위반 건수와 무관하게 파일당 한 번만 낸다", async () => {
@@ -155,9 +154,7 @@ describe("formatReport", () => {
     // 이 픽스처는 위반이 2건이다. 위반마다 사유를 반복 출력하는 잘못된
     // 구현이면 이 줄이 두 번 나와 길이가 2가 된다 — 위반 1건짜리
     // 픽스처로는 이 실수를 잡지 못한다.
-    const noteLines = lines.filter((line) =>
-      line.includes("원본 매핑 없음"),
-    );
+    const noteLines = lines.filter((line) => line.includes("원본 매핑 없음"));
 
     expect(noteLines).toEqual([
       "  원본 매핑 없음 — bundle/index.mjs.map이 없다.",

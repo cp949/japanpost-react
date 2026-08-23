@@ -24,7 +24,11 @@ function createPackageDirWith(exportsField: unknown): string {
       ? { name: "probe" }
       : { name: "probe", exports: exportsField };
 
-  writeFileSync(path.join(dir, "package.json"), JSON.stringify(manifest), "utf8");
+  writeFileSync(
+    path.join(dir, "package.json"),
+    JSON.stringify(manifest),
+    "utf8",
+  );
 
   return dir;
 }
@@ -46,8 +50,14 @@ describe("resolveDistEntries", () => {
   it("엔트리를 추가하면 검사 대상이 따라온다", () => {
     const dir = createPackageDirWith({
       ".": { types: "./dist/index.d.ts", import: "./dist/index.es.js" },
-      "./client": { types: "./dist/client.d.ts", import: "./dist/client.es.js" },
-      "./server": { types: "./dist/server.d.ts", import: "./dist/server.es.js" },
+      "./client": {
+        types: "./dist/client.d.ts",
+        import: "./dist/client.es.js",
+      },
+      "./server": {
+        types: "./dist/server.d.ts",
+        import: "./dist/server.es.js",
+      },
     });
 
     expect(resolveDistEntries(dir)).toEqual([
@@ -66,9 +76,9 @@ describe("resolveDistEntries", () => {
   });
 
   it("문자열 단축 표기도 검사 대상으로 받는다", () => {
-    expect(resolveDistEntries(createPackageDirWith({ ".": "./dist/index.es.js" }))).toEqual(
-      ["dist/index.es.js"],
-    );
+    expect(
+      resolveDistEntries(createPackageDirWith({ ".": "./dist/index.es.js" })),
+    ).toEqual(["dist/index.es.js"]);
   });
 
   it("중첩된 조건부 exports도 따라 내려간다", () => {

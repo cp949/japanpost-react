@@ -3,17 +3,11 @@ import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useJapanPostalCode } from "../src/react/useJapanPostalCode";
-import type {
-  JapanAddress,
-  JapanPostalCodeSearchInput,
-  Page,
-} from "../src";
+import type { JapanAddress, JapanPostalCodeSearchInput, Page } from "../src";
 
 describe("useJapanPostalCode", () => {
   it("loads postal-code results and exposes loading state", async () => {
-    let resolveLookup:
-      | ((value: Page<JapanAddress>) => void)
-      | null = null;
+    let resolveLookup: ((value: Page<JapanAddress>) => void) | null = null;
     const dataSource = {
       lookupPostalCode: vi.fn().mockImplementation(
         () =>
@@ -119,9 +113,7 @@ describe("useJapanPostalCode", () => {
   });
 
   it("cancels the in-flight lookup without clearing settled data", async () => {
-    let resolveLookup:
-      | ((value: Page<JapanAddress>) => void)
-      | null = null;
+    let resolveLookup: ((value: Page<JapanAddress>) => void) | null = null;
     let capturedSignal: AbortSignal | undefined;
     const dataSource = {
       lookupPostalCode: vi
@@ -141,12 +133,14 @@ describe("useJapanPostalCode", () => {
           pageNumber: 0,
           rowsPerPage: 20,
         })
-        .mockImplementationOnce((_request, options?: { signal?: AbortSignal }) => {
-          capturedSignal = options?.signal;
-          return new Promise<Page<JapanAddress>>((resolve) => {
-            resolveLookup = resolve;
-          });
-        }),
+        .mockImplementationOnce(
+          (_request, options?: { signal?: AbortSignal }) => {
+            capturedSignal = options?.signal;
+            return new Promise<Page<JapanAddress>>((resolve) => {
+              resolveLookup = resolve;
+            });
+          },
+        ),
       searchAddress: vi.fn(),
     };
 
@@ -188,12 +182,8 @@ describe("useJapanPostalCode", () => {
   });
 
   it("keeps only the latest postal-code result when requests resolve out of order", async () => {
-    let resolveFirst:
-      | ((value: Page<JapanAddress>) => void)
-      | null = null;
-    let resolveSecond:
-      | ((value: Page<JapanAddress>) => void)
-      | null = null;
+    let resolveFirst: ((value: Page<JapanAddress>) => void) | null = null;
+    let resolveSecond: ((value: Page<JapanAddress>) => void) | null = null;
     const dataSource = {
       lookupPostalCode: vi
         .fn()
@@ -263,12 +253,8 @@ describe("useJapanPostalCode", () => {
   });
 
   it("resolves superseded postal-code searches with null", async () => {
-    let resolveFirst:
-      | ((value: Page<JapanAddress>) => void)
-      | null = null;
-    let resolveSecond:
-      | ((value: Page<JapanAddress>) => void)
-      | null = null;
+    let resolveFirst: ((value: Page<JapanAddress>) => void) | null = null;
+    let resolveSecond: ((value: Page<JapanAddress>) => void) | null = null;
     const dataSource = {
       lookupPostalCode: vi
         .fn()

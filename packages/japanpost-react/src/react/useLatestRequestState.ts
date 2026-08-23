@@ -64,11 +64,14 @@ export function useLatestRequestState<TResult>() {
     };
   }, []);
 
-  const setSuccess = useCallback((requestId: number, result: TResult) => {
-    if (isCurrentRequest(requestId)) {
-      setData(result);
-    }
-  }, [isCurrentRequest]);
+  const setSuccess = useCallback(
+    (requestId: number, result: TResult) => {
+      if (isCurrentRequest(requestId)) {
+        setData(result);
+      }
+    },
+    [isCurrentRequest],
+  );
 
   const setFailure = useCallback(
     (requestId: number, nextError: JapanAddressError) => {
@@ -90,13 +93,16 @@ export function useLatestRequestState<TResult>() {
     setLoading(false);
   }, [invalidateCurrentRequest]);
 
-  const finishRequest = useCallback((requestId: number) => {
-    if (isCurrentRequest(requestId)) {
-      // 최신 요청만 loading을 해제해야 오래된 요청의 finally가 현재 로딩을 끄지 않는다.
-      setLoading(false);
-      abortControllerRef.current = null;
-    }
-  }, [isCurrentRequest]);
+  const finishRequest = useCallback(
+    (requestId: number) => {
+      if (isCurrentRequest(requestId)) {
+        // 최신 요청만 loading을 해제해야 오래된 요청의 finally가 현재 로딩을 끄지 않는다.
+        setLoading(false);
+        abortControllerRef.current = null;
+      }
+    },
+    [isCurrentRequest],
+  );
 
   const reset = useCallback(() => {
     // reset은 cancel과 달리 데이터와 에러까지 비워 완전 초기 상태로 되돌린다.

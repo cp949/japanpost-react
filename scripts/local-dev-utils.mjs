@@ -25,10 +25,7 @@ function parseExportLine(line) {
   return [key, value];
 }
 
-export function loadExportEnvFile({
-  env = process.env,
-  envFilePath,
-} = {}) {
+export function loadExportEnvFile({ env = process.env, envFilePath } = {}) {
   const loadedEnv = {
     ...env,
   };

@@ -15,9 +15,7 @@ const address = {
 
 describe("address display helpers", () => {
   it("collapses whitespace in display text", () => {
-    expect(formatJapanAddressDisplay(address)).toBe(
-      "Tokyo Chiyoda-ku Chiyoda",
-    );
+    expect(formatJapanAddressDisplay(address)).toBe("Tokyo Chiyoda-ku Chiyoda");
   });
 
   it("builds a postal-code-prefixed result label", () => {

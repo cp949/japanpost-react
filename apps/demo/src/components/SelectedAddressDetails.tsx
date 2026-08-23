@@ -21,9 +21,7 @@ function formatSelectedAddressFieldValue(value: unknown): string {
 
 // 사용자가 결과 목록에서 고른 주소를
 // 사람이 읽기 쉬운 형태와 원시 필드 목록 두 방식으로 함께 보여준다.
-export function SelectedAddressDetails({
-  value,
-}: SelectedAddressDetailsProps) {
+export function SelectedAddressDetails({ value }: SelectedAddressDetailsProps) {
   // 디버깅이나 예제 확인이 쉽도록 객체의 각 필드를 `key=value` 형식으로 직렬화한다.
   const selectedAddressDetails = Object.entries(value)
     .map(

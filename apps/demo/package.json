@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "check-types": "tsc --noEmit",
-    "lint": "biome lint ."
+    "lint": "eslint ."
   },
   "dependencies": {
     "@cp949/japanpost-react": "workspace:*",

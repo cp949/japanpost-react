@@ -1,0 +1,11 @@
+# pnpm이 자체 포맷으로 관리하는 lockfile. 재포맷하면 diff 노이즈와 무결성 문제가 생긴다.
+pnpm-lock.yaml
+
+# scripts/generate-package-readme.mjs의 생성물과 그 소스.
+# 커스텀 markdown-reflow가 줄바꿈 폭을 관리하고, readme:package:check가
+# 소스로부터 재생성한 결과를 생성물과 바이트 단위로 diff한다.
+# 프리티어가 소스의 코드 블록/줄바꿈을 건드리면 그 대응이 깨진다.
+packages/japanpost-react/README.md
+packages/japanpost-react/README.ko.md
+packages/japanpost-react/docs/README.en.md
+packages/japanpost-react/docs/README.ko.md

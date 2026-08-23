@@ -30,8 +30,8 @@ function createClientOptions(
 
 describe("createJapanPostClient low-level provider behavior", () => {
   it("shares one token request across concurrent searchcode lookups", async () => {
-    let tokenResolve: ((value: Response | PromiseLike<Response>) => void) | null =
-      null;
+    let tokenResolve:
+      ((value: Response | PromiseLike<Response>) => void) | null = null;
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockImplementationOnce(

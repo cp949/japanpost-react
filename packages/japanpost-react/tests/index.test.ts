@@ -126,7 +126,9 @@ describe("public exports", () => {
       includeParenthesesTown?: boolean | null;
     }>();
 
-    expectTypeOf<import("@cp949/japanpost-react").JapanPostAddresszipRequest>().toEqualTypeOf<{
+    expectTypeOf<
+      import("@cp949/japanpost-react").JapanPostAddresszipRequest
+    >().toEqualTypeOf<{
       addressQuery?: string | null;
       prefCode?: string | null;
       prefName?: string | null;
@@ -184,10 +186,10 @@ describe("public exports", () => {
         path: string,
       ) => JapanAddressErrorCode;
     }>();
-    expectTypeOf<JapanPostApiDataSourceOptions<unknown, Page<JapanAddress>>>().toEqualTypeOf<{
-      createContext?: (
-        options?: JapanAddressRequestOptions,
-      ) => unknown;
+    expectTypeOf<
+      JapanPostApiDataSourceOptions<unknown, Page<JapanAddress>>
+    >().toEqualTypeOf<{
+      createContext?: (options?: JapanAddressRequestOptions) => unknown;
       mapPage?: (page: Page<JapanAddress>) => Page<JapanAddress>;
     }>();
 

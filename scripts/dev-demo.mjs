@@ -69,15 +69,11 @@ async function main() {
     }
   });
 
-  apiProcess = spawnCommand(
-    "pnpm",
-    ["--filter", "minimal-api", "dev"],
-    {
-      cwd: ROOT_DIR,
-      env: runtimeEnv,
-      stdio: "inherit",
-    },
-  );
+  apiProcess = spawnCommand("pnpm", ["--filter", "minimal-api", "dev"], {
+    cwd: ROOT_DIR,
+    env: runtimeEnv,
+    stdio: "inherit",
+  });
 
   const apiReady = await waitForReadyHealth({
     baseUrl,

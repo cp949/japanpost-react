@@ -27,7 +27,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "browserslist": [
     "chrome >= 80"
@@ -48,7 +48,7 @@
     "compat:check": "browser-baseline check",
     "release": "pnpm --dir ../.. readme:package && pnpm lint && pnpm check-types && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
     "prepublishOnly": "pnpm build",
-    "lint": "biome lint .",
+    "lint": "eslint .",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.src.json",
     "test": "pnpm test:unit",
     "test:unit": "vitest run",
