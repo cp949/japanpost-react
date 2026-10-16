@@ -145,7 +145,7 @@ export function normalizeChromeSupport(support) {
  * BCD를 CommonJS require로 읽는다.
  *
  * import attributes(`with { type: "json" }`)는 Node 20.10+에서만 동작한다.
- * engines.node가 ">=20"이므로 전 구간에서 동작하는 경로를 쓴다.
+ * engines.node가 ">=24.18"이라 지금은 쓸 수 있지만, 기존 require 경로를 유지한다.
  * 20MB JSON이라 프로세스당 한 번만 읽는다.
  */
 const require = createRequire(import.meta.url);

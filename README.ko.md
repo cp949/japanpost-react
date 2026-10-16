@@ -12,7 +12,7 @@ React + TypeScript 기반의 일본 우편번호/주소 검색 워크스페이�
 
 ## 권장 환경
 
-- Node.js 20 이상
+- Node.js 24.18 이상
 - pnpm 10 이상
 - 로컬 demo 전체 스택 확인 시 `.secrets/env` 파일
 

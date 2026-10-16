@@ -4,7 +4,7 @@ This repository uses a `pnpm workspace + turbo` layout.
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24.18+
 - pnpm 10+
 - `.secrets/env` for `pnpm demo:full` and `pnpm api:check`
 
