@@ -2,6 +2,9 @@
 
 This repository uses a `pnpm workspace + turbo` layout.
 
+Maintainers publish `@cp949/japanpost-react` with `release-it`.
+See [RELEASING.md](RELEASING.md).
+
 ## Prerequisites
 
 - Node.js 24.18+

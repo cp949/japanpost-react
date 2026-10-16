@@ -9,6 +9,10 @@ const packagePackageJsonPath = path.join(
   repoRoot,
   "packages/japanpost-react/package.json",
 );
+const releaseItConfigPath = path.join(
+  repoRoot,
+  "packages/japanpost-react/.release-it.json",
+);
 const contributingPath = path.join(repoRoot, "CONTRIBUTING.md");
 const tsupConfigPath = path.join(
   repoRoot,
@@ -232,15 +236,19 @@ describe("repository verification scripts", () => {
     expect(rootPackageJson.scripts).not.toHaveProperty("verify:release");
   });
 
-  it("makes the package release script reuse the root repository verification path", () => {
-    const packagePackageJson = readPackageJson(packagePackageJsonPath);
+  it("runs the root repository verification path before release-it publishes", () => {
+    const rootPackageJson = readPackageJson(rootPackageJsonPath);
+    const releaseItConfig = JSON.parse(readText(releaseItConfigPath)) as {
+      hooks?: Record<string, string>;
+    };
 
-    expect(packagePackageJson.scripts).toEqual(
+    expect(rootPackageJson.scripts).toEqual(
       expect.objectContaining({
-        release: expect.stringContaining(
-          "pnpm lint && pnpm check-types && pnpm --dir ../.. test && pnpm build && pnpm publish --access public",
-        ),
+        "release-it": "cd packages/japanpost-react && release-it",
       }),
+    );
+    expect(releaseItConfig.hooks?.["before:init"]).toContain(
+      "pnpm lint && pnpm check-types && pnpm test && pnpm build --force",
     );
   });
 

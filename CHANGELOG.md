@@ -7,6 +7,13 @@ Versioning for published package releases where applicable.
 
 ## [Unreleased]
 
+- Breaking change: raised the minimum supported Node.js version to 24.18
+  (`engines.node` is now `>=24.18`). Runtime code and peer dependencies are
+  unchanged.
+- Updated development dependencies within their current major versions.
+  Raised `jsdom` to 30 and aligned `@types/node` with Node 24.
+- Adopted `release-it` for publishing. See `RELEASING.md`.
+
 ## [1.0.6] - 2026-03-26
 
 - Breaking change: clarified the public entrypoint policy for
